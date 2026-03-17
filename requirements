@@ -1,10 +1,9 @@
 streamlit
+plotly
+pvlib
 pandas
 numpy
-pvlib
-plotly
 requests
-pytz
-gdown
 xgboost
 joblib
+gdown
