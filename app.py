@@ -60,7 +60,7 @@ site = Location(LAT, LON, tz=TZ)
 def load_xgb_model():
     if not _XGB_AVAILABLE:
         return None
-    FILE_ID = "15FjuoXHiGtFHr3P2Eqvvn2KIu4rtwzS"
+    FILE_ID = "1OYqV6IH6NLSr4IJljw501qTRoRD4Pzam"
     if not os.path.exists(XGB_MODEL_FILENAME) and _GDOWN_AVAILABLE:
         try:
             gdown.download(f"https://drive.google.com/uc?id={FILE_ID}", XGB_MODEL_FILENAME, quiet=False)
