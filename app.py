@@ -1,8 +1,18 @@
 # ==============================================================================
-# BIPV 통합 관제 시스템 v6.0 — 탭 구조 확장판
+# BIPV 통합 관제 시스템 v7.0 — V13 물리모델 마이그레이션
 # 탭: 메인 | 데이터셋 | 피처중요도 | 음영원리 | 음영시각화 | 발전량비교 | 월별각도 | 내일스케줄 | 건강진단 | 파라미터튜닝
 # ==============================================================================
-__version__ = "6.0"
+# V13 마이그레이션 변경사항:
+#   1. DEFAULT_HEIGHT_MM = 160 → 114 (BLADE_DEPTH)
+#   2. calc_shading_fraction 전면 교체 (중심축 회전, protrusion 기반)
+#   3. sky_view_factor 함수 추가
+#   4. tilt = 90 - angles 변환 제거 (tilt = pvlib surface_tilt 동일)
+#   5. calc_effective_poa 로직 도입 (직달 × (1-SF*0.7) + 확산 × SVF)
+#   6. DQN → PPO 텍스트 변경
+#   7. 음영 원리 탭 시각화 → 중심축 회전 구조
+#   8. 피처 중요도 V13 수치 업데이트
+# ==============================================================================
+__version__ = "7.0"
 
 import os
 import numpy as np
@@ -31,7 +41,7 @@ except ImportError:
     _GDOWN_AVAILABLE = False
 
 # ==============================================================================
-# 상수
+# 상수 — V13 블레이드 스펙
 # ==============================================================================
 KMA_SERVICE_KEY = "c6ffb5b520437f3e6983a55234e73701fce509cbb3153c9473ebbe5756a1da00"
 LAT, LON, TZ = 37.5665, 126.9780, "Asia/Seoul"
@@ -41,10 +51,11 @@ DEFAULT_EFFICIENCY = 18.7
 DEFAULT_LOSS       = 0.85
 DEFAULT_KEPCO      = 210
 DEFAULT_UNIT_COUNT = 1
-DEFAULT_LOUVER_COUNT = 10
-DEFAULT_WIDTH_MM   = 900.0    # 블레이드 폭 (mm) — 실제 하드웨어 기준
-DEFAULT_HEIGHT_MM  = 160.0
-DEFAULT_PITCH_MM   = 114.0   # 블레이드 피치 (mm)
+DEFAULT_LOUVER_COUNT = 20           # V13: 블레이드 20개
+DEFAULT_WIDTH_MM   = 900.0          # 블레이드 가로 폭 (mm) — 발전면적용, 음영 무관
+DEFAULT_HEIGHT_MM  = 114.0          # ★ 수정1: 블레이드 세로 = BLADE_DEPTH (160→114)
+DEFAULT_PITCH_MM   = 114.0          # 블레이드 피치 (mm) = BLADE_DEPTH
+HALF_DEPTH_MM      = 57.0           # V13: 중심축에서 끝까지 (BLADE_DEPTH / 2)
 ANGLE_MIN          = 15
 ANGLE_MAX          = 90
 ANGLE_NIGHT        = 90
@@ -76,9 +87,50 @@ def load_xgb_model():
     return None
 
 # ==============================================================================
-# 물리 계산 함수
+# ★ V13 물리 계산 함수 — 수정2,3,5: 중심축 회전 기하학
 # ==============================================================================
-def poa_with_iam(surface_tilt, surface_azimuth, solar_zenith, solar_azimuth, dni, ghi, dhi, a_r=0.16):
+def blade_geometry(tilt_deg, half_depth=HALF_DEPTH_MM, blade_depth=DEFAULT_HEIGHT_MM, pitch=DEFAULT_PITCH_MM):
+    """V13 블레이드 기하학: 중심축 회전 기반"""
+    tilt_rad = np.radians(np.asarray(tilt_deg, dtype=float))
+    protrusion = half_depth * np.cos(tilt_rad)              # 돌출 깊이 (mm)
+    vertical_occupy = blade_depth * np.sin(tilt_rad)        # 수직 점유 (mm)
+    gap = np.maximum(pitch - vertical_occupy, 0.0)          # 블레이드 간 틈 (mm)
+    return protrusion, vertical_occupy, gap
+
+
+def sky_view_factor(tilt_deg, half_depth=HALF_DEPTH_MM, blade_depth=DEFAULT_HEIGHT_MM, pitch=DEFAULT_PITCH_MM):
+    """★ 수정3: Sky View Factor — 확산광 차폐율"""
+    protrusion, _, gap = blade_geometry(tilt_deg, half_depth, blade_depth, pitch)
+    denom = gap + protrusion
+    svf = np.where(denom > 0, gap / denom, 0.0)
+    return np.clip(svf, 0.05, 1.0)
+
+
+def calc_shadow_on_next_blade(tilt_deg, elev_deg, azimuth_diff_deg=0.0,
+                               half_depth=HALF_DEPTH_MM, blade_depth=DEFAULT_HEIGHT_MM, pitch=DEFAULT_PITCH_MM):
+    """V13 음영 계산: 중심축 회전 → protrusion 기반 그림자"""
+    protrusion, _, gap = blade_geometry(tilt_deg, half_depth, blade_depth, pitch)
+    elev_rad = np.radians(np.clip(np.asarray(elev_deg, dtype=float), 0.1, 89.9))
+    az_diff_rad = np.radians(np.asarray(azimuth_diff_deg, dtype=float))
+
+    shadow_vertical = protrusion * np.cos(az_diff_rad) / np.tan(elev_rad)
+    shadow_on_blade = np.maximum(shadow_vertical - gap, 0.0)
+    return shadow_on_blade
+
+
+def calc_shading_fraction(tilt_deg, elev_deg, half_depth=HALF_DEPTH_MM,
+                           blade_depth=DEFAULT_HEIGHT_MM, pitch=DEFAULT_PITCH_MM,
+                           azimuth_diff_deg=0.0):
+    """★ 수정2: V13 음영률 — protrusion 기반 (수평투영 → 중심축 회전)"""
+    shadow = calc_shadow_on_next_blade(tilt_deg, elev_deg, azimuth_diff_deg,
+                                        half_depth, blade_depth, pitch)
+    sf = np.clip(shadow / pitch, 0, 1)
+    sf = np.where(np.asarray(elev_deg) <= 0, 1.0, sf)
+    return sf
+
+
+def poa_components(surface_tilt, surface_azimuth, solar_zenith, solar_azimuth, dni, ghi, dhi, a_r=0.16):
+    """POA 성분 분리 반환 (직달, 확산, 하늘확산)"""
     irrad = pvlib.irradiance.get_total_irradiance(
         surface_tilt=surface_tilt, surface_azimuth=surface_azimuth,
         dni=dni, ghi=ghi, dhi=dhi,
@@ -86,23 +138,25 @@ def poa_with_iam(surface_tilt, surface_azimuth, solar_zenith, solar_azimuth, dni
     )
     poa_direct  = np.nan_to_num(irrad["poa_direct"],  nan=0.0)
     poa_diffuse = np.nan_to_num(irrad["poa_diffuse"], nan=0.0)
+    poa_sky_diffuse = np.nan_to_num(irrad.get("poa_sky_diffuse", irrad["poa_diffuse"]), nan=0.0)
+
     aoi = pvlib.irradiance.aoi(surface_tilt, surface_azimuth, solar_zenith, solar_azimuth)
     aoi = np.clip(np.asarray(aoi, dtype=float), 0, 90)
     try:
         iam = pvlib.iam.martin_ruiz(aoi, a_r=a_r)
     except AttributeError:
         iam = pvlib.irradiance.iam.martin_ruiz(aoi, a_r=a_r)
-    return poa_direct * iam + poa_diffuse
+
+    return poa_direct * iam, poa_diffuse, poa_sky_diffuse
 
 
-def calc_shading_fraction(tilt_deg, elev_deg, width_mm, pitch_mm):
-    """루버 음영률 계산 — 수평 투영 공식"""
-    tilt_rad = np.radians(np.asarray(tilt_deg, dtype=float))
-    elev_rad = np.radians(np.clip(np.asarray(elev_deg, dtype=float), 0.1, 89))
-    shadow_len = width_mm * np.abs(np.sin(tilt_rad)) / np.tan(elev_rad)
-    shading = np.clip(shadow_len / pitch_mm, 0, 1)
-    shading = np.where(np.asarray(elev_deg) <= 0, 1.0, shading)
-    return shading
+def calc_effective_poa(poa_direct, poa_diffuse, poa_sky_diffuse, tilt_deg, elev_deg,
+                        half_depth=HALF_DEPTH_MM, blade_depth=DEFAULT_HEIGHT_MM, pitch=DEFAULT_PITCH_MM):
+    """★ 수정5: V13 유효 POA — 직달×(1-SF*0.7) + 확산×SVF"""
+    sf  = calc_shading_fraction(tilt_deg, elev_deg, half_depth, blade_depth, pitch)
+    svf = sky_view_factor(tilt_deg, half_depth, blade_depth, pitch)
+    effective = poa_direct * (1 - sf * 0.7) + poa_diffuse * svf + poa_sky_diffuse * svf
+    return np.maximum(effective, 0.0)
 
 
 def predict_angles_xgb(model, times, zenith_arr, azimuth_arr, ghi_real, dni_arr, dhi_arr, cloud_series, angle_cap_deg):
@@ -149,38 +203,37 @@ def get_kma_forecast():
         tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y%m%d")
         df_tom = df[df["fcstDate"] == tomorrow].drop_duplicates(subset=["fcstDate","fcstTime","category"])
         return df_tom.pivot(index="fcstTime", columns="category", values="fcstValue"), tomorrow
-    except Exception as e:
+    except Exception:
         return None, None
 
 
 # ==============================================================================
-# 연간 데이터 (캐시)
+# ★ 연간 데이터 (V13: tilt 변환 제거, effective_poa 적용)
 # ==============================================================================
 @st.cache_data(ttl=86400)
-def get_annual_data(year, width_mm, pitch_mm, capacity_w, unit_count, eff_factor, default_loss):
+def get_annual_data(year, half_depth, blade_depth, pitch_mm, capacity_w, unit_count, eff_factor, default_loss):
     times_y  = pd.date_range(start=f"{year}-01-01", end=f"{year}-12-31 23:00", freq="h", tz=TZ)
     solpos_y = site.get_solarposition(times_y)
     cs_y     = site.get_clearsky(times_y)
     ghi_y    = np.asarray(cs_y["ghi"].values, dtype=float)
     zen_y    = solpos_y["apparent_zenith"].values
     az_y     = solpos_y["azimuth"].values
+    elev_y   = 90.0 - zen_y
     dni_y    = pvlib.irradiance.dirint(ghi_y, zen_y, times_y).fillna(0).values
     dhi_y    = (ghi_y - dni_y * np.cos(np.radians(zen_y))).clip(0)
 
-    # AI 각도 (V12 스타일: pvlib 기반 최적각)
+    # ★ 수정4: tilt = angles (변환 없음, pvlib surface_tilt과 동일)
     angles_ai  = np.where(ghi_y < 10, float(ANGLE_NIGHT),
-                   np.clip(90 - zen_y, ANGLE_MIN, ANGLE_MAX).astype(float))
+                   np.clip(elev_y, ANGLE_MIN, ANGLE_MAX).astype(float))
     angles_60  = np.full_like(ghi_y, 60.0)
     angles_90  = np.full_like(ghi_y, 90.0)
 
     def energy(angles):
-        tilt = 90 - np.asarray(angles, dtype=float)
-        sf   = calc_shading_fraction(np.asarray(angles, dtype=float),
-                                     90 - zen_y, width_mm, pitch_mm)
-        poa  = poa_with_iam(tilt, np.full_like(tilt, 180), zen_y, az_y, dni_y, ghi_y, dhi_y)
-        poa  = poa * (1 - sf)
+        tilt = np.asarray(angles, dtype=float)  # ★ 수정4: 변환 없음
+        poa_dir, poa_diff, poa_sky = poa_components(tilt, np.full_like(tilt, 180), zen_y, az_y, dni_y, ghi_y, dhi_y)
+        eff_poa = calc_effective_poa(poa_dir, poa_diff, poa_sky, tilt, elev_y, half_depth, blade_depth, pitch_mm)
         mask = ghi_y >= 10
-        return (poa[mask] / 1000 * capacity_w * unit_count * eff_factor * default_loss).sum()
+        return (eff_poa[mask] / 1000 * capacity_w * unit_count * eff_factor * default_loss).sum()
 
     wh_ai = energy(angles_ai)
     wh_60 = energy(angles_60)
@@ -192,6 +245,7 @@ def get_annual_data(year, width_mm, pitch_mm, capacity_w, unit_count, eff_factor
         "ghi": ghi_y,
         "zenith": zen_y,
         "azimuth": az_y,
+        "elevation": elev_y,
         "angle_ai": angles_ai,
         "angle_60": angles_60,
         "angle_90": angles_90,
@@ -201,26 +255,24 @@ def get_annual_data(year, width_mm, pitch_mm, capacity_w, unit_count, eff_factor
     monthly = []
     for m in range(1, 13):
         mask_m = (df_annual["month"] == m) & (ghi_y >= 10)
-        tilt_ai = 90 - df_annual.loc[mask_m, "angle_ai"].values
-        tilt_60 = 90 - df_annual.loc[mask_m, "angle_60"].values
-        tilt_90 = 90 - df_annual.loc[mask_m, "angle_90"].values
         zen_m   = zen_y[mask_m]
         az_m    = az_y[mask_m]
+        elev_m  = elev_y[mask_m]
         dni_m   = dni_y[mask_m]
         ghi_m   = ghi_y[mask_m]
         dhi_m   = dhi_y[mask_m]
-        ang_m   = df_annual.loc[mask_m, "angle_ai"].values
 
-        def e_m(tilt, ang):
-            sf  = calc_shading_fraction(ang, 90 - zen_m, width_mm, pitch_mm)
-            poa = poa_with_iam(tilt, np.full_like(tilt, 180), zen_m, az_m, dni_m, ghi_m, dhi_m)
-            return (poa * (1 - sf) / 1000 * capacity_w * unit_count * eff_factor * default_loss).sum()
+        def e_m(ang):
+            tilt = np.asarray(ang, dtype=float)  # ★ 수정4: 변환 없음
+            poa_dir, poa_diff, poa_sky = poa_components(tilt, np.full_like(tilt, 180), zen_m, az_m, dni_m, ghi_m, dhi_m)
+            eff_poa = calc_effective_poa(poa_dir, poa_diff, poa_sky, tilt, elev_m, half_depth, blade_depth, pitch_mm)
+            return (eff_poa / 1000 * capacity_w * unit_count * eff_factor * default_loss).sum()
 
         monthly.append({
             "month": m,
-            "AI": e_m(tilt_ai, ang_m),
-            "고정60°": e_m(tilt_60, df_annual.loc[mask_m, "angle_60"].values),
-            "수직90°": e_m(tilt_90, df_annual.loc[mask_m, "angle_90"].values),
+            "AI": e_m(df_annual.loc[mask_m, "angle_ai"].values),
+            "고정60°": e_m(df_annual.loc[mask_m, "angle_60"].values),
+            "수직90°": e_m(df_annual.loc[mask_m, "angle_90"].values),
             "avg_angle": float(df_annual.loc[mask_m, "angle_ai"].mean()),
         })
     df_monthly = pd.DataFrame(monthly)
@@ -231,7 +283,7 @@ def get_annual_data(year, width_mm, pitch_mm, capacity_w, unit_count, eff_factor
 # 메인 앱
 # ==============================================================================
 def run_app():
-    st.set_page_config(page_title="BIPV AI 관제", layout="wide", page_icon="☀️")
+    st.set_page_config(page_title="BIPV AI 관제 V13", layout="wide", page_icon="☀️")
 
     st.markdown("""
     <style>
@@ -255,12 +307,14 @@ def run_app():
     tomorrow_dt = datetime.strptime(tomorrow, "%Y%m%d") if tomorrow else datetime.now() + timedelta(days=1)
     sim_date = st.sidebar.date_input("시뮬레이션 날짜", tomorrow_dt)
 
-    st.sidebar.subheader("2. 블레이드 스펙")
-    st.sidebar.caption("루버 1개 가로×세로, 피치(블레이드 간격), 개수")
-    width_mm  = st.sidebar.number_input("루버 1개 가로 (mm)", min_value=100.0, value=DEFAULT_WIDTH_MM, step=100.0)
-    height_mm = st.sidebar.number_input("루버 1개 세로 (mm)", min_value=10.0,  value=DEFAULT_HEIGHT_MM, step=10.0)
-    pitch_mm  = st.sidebar.number_input("블레이드 피치 (mm)", min_value=10.0,  value=DEFAULT_PITCH_MM, step=1.0)
-    louver_count = st.sidebar.number_input("루버 개수 (개)", min_value=1, value=DEFAULT_LOUVER_COUNT, step=1)
+    st.sidebar.subheader("2. 블레이드 스펙 (V13)")
+    st.sidebar.caption("중심축 회전 | 가로(발전면적) × 세로(음영계산) | 피치 | 개수")
+    width_mm  = st.sidebar.number_input("블레이드 가로 (mm)", min_value=100.0, value=DEFAULT_WIDTH_MM, step=100.0)
+    blade_depth_mm = st.sidebar.number_input("블레이드 세로/DEPTH (mm)", min_value=10.0, value=DEFAULT_HEIGHT_MM, step=1.0)
+    pitch_mm  = st.sidebar.number_input("블레이드 피치 (mm)", min_value=10.0, value=DEFAULT_PITCH_MM, step=1.0)
+    half_depth_mm = blade_depth_mm / 2.0
+    st.sidebar.caption(f"HALF_DEPTH = {half_depth_mm:.1f} mm (중심축→끝)")
+    louver_count = st.sidebar.number_input("블레이드 개수 (개)", min_value=1, value=DEFAULT_LOUVER_COUNT, step=1)
 
     st.sidebar.subheader("3. 패널 스펙")
     unit_count  = st.sidebar.number_input("설치 유닛 수 (개)", min_value=1, value=DEFAULT_UNIT_COUNT)
@@ -269,7 +323,7 @@ def run_app():
     kepco_rate  = st.sidebar.number_input("전기 요금 (원/kWh)", value=DEFAULT_KEPCO)
 
     eff_factor   = float(target_eff) / DEFAULT_EFFICIENCY
-    area_scale   = (width_mm * height_mm * louver_count) / (DEFAULT_WIDTH_MM * DEFAULT_HEIGHT_MM * DEFAULT_LOUVER_COUNT)
+    area_scale   = (width_mm * blade_depth_mm * louver_count) / (DEFAULT_WIDTH_MM * DEFAULT_HEIGHT_MM * DEFAULT_LOUVER_COUNT)
 
     # ── 날짜별 데이터 ─────────────────────────────────────────────────────────
     _sim_d = sim_date.strftime("%Y-%m-%d")
@@ -297,16 +351,17 @@ def run_app():
     if xgb_model:
         xgb_angles = predict_angles_xgb(xgb_model, times, zen, az, ghi_real, dni_arr, dhi_arr, cloud_series, ANGLE_MAX)
     ai_angles = xgb_angles if xgb_angles is not None else np.where(
-        ghi_real < 10, float(ANGLE_NIGHT), np.clip(90 - zen, ANGLE_MIN, ANGLE_MAX).astype(float)
+        ghi_real < 10, float(ANGLE_NIGHT), np.clip(elev, ANGLE_MIN, ANGLE_MAX).astype(float)
     )
     angle_mode = "XGBoost" if xgb_angles is not None else "규칙 기반"
 
+    # ★ 수정4,5: V13 발전량 계산 — tilt 변환 없음, effective_poa 적용
     def calc_power_day(angles):
-        tilt = 90 - np.asarray(angles, dtype=float)
-        sf   = calc_shading_fraction(np.asarray(angles, dtype=float), elev, width_mm, pitch_mm)
-        poa  = poa_with_iam(tilt, np.full_like(tilt, 180), zen, az, dni_arr, ghi_real, dhi_arr)
+        tilt = np.asarray(angles, dtype=float)  # ★ 수정4: 변환 없음
+        poa_dir, poa_diff, poa_sky = poa_components(tilt, np.full_like(tilt, 180.0), zen, az, dni_arr, ghi_real, dhi_arr)
+        eff_poa = calc_effective_poa(poa_dir, poa_diff, poa_sky, tilt, elev, half_depth_mm, blade_depth_mm, pitch_mm)
         mask = ghi_real >= 10
-        return (poa[mask] * (1 - sf[mask]) / 1000 * capacity_w * unit_count * eff_factor * DEFAULT_LOSS * area_scale).sum()
+        return (eff_poa[mask] / 1000 * capacity_w * unit_count * eff_factor * DEFAULT_LOSS * area_scale).sum()
 
     pow_ai  = calc_power_day(ai_angles)
     pow_60  = calc_power_day(np.full(24, 60.0))
@@ -315,7 +370,7 @@ def run_app():
     # 연간 데이터
     last_year = sim_date.year - 1
     wh_ai_y, wh_60_y, wh_90_y, df_monthly, df_annual = get_annual_data(
-        last_year, width_mm, pitch_mm, capacity_w, unit_count, eff_factor, DEFAULT_LOSS
+        last_year, half_depth_mm, blade_depth_mm, pitch_mm, capacity_w, unit_count, eff_factor, DEFAULT_LOSS
     )
     ann_kwh_ai = wh_ai_y / 1000 * area_scale
     ann_kwh_60 = wh_60_y / 1000 * area_scale
@@ -326,7 +381,7 @@ def run_app():
 
     # ── 탭 ────────────────────────────────────────────────────────────────────
     st.title("☀️ BIPV AI 통합 관제 대시보드")
-    st.caption(f"v{__version__} | {_sim_d} | {weather_status} | {angle_mode} 모드")
+    st.caption(f"v{__version__} (V13 물리모델) | {_sim_d} | {weather_status} | {angle_mode} 모드")
 
     tabs = st.tabs([
         "🏠 메인", "📊 데이터셋", "🎯 피처 중요도",
@@ -375,8 +430,10 @@ def run_app():
             "시간":       times[mask_day].strftime("%H:%M").tolist(),
             "AI 각도(°)": ai_angles[mask_day].astype(int).tolist(),
             "GHI (W/m²)": np.round(ghi_real[mask_day], 1).tolist(),
-            "음영률":     [f"{calc_shading_fraction(a, e, width_mm, pitch_mm):.2f}"
+            "음영률":     [f"{calc_shading_fraction(a, e, half_depth_mm, blade_depth_mm, pitch_mm):.2f}"
                            for a, e in zip(ai_angles[mask_day], elev[mask_day])],
+            "SVF":        [f"{sky_view_factor(a, half_depth_mm, blade_depth_mm, pitch_mm):.2f}"
+                           for a in ai_angles[mask_day]],
         })
         st.dataframe(df_sch, use_container_width=True, hide_index=True)
 
@@ -418,15 +475,14 @@ def run_app():
         st.plotly_chart(fig3, use_container_width=True)
 
     # ══════════════════════════════════════════════════════════════════════════
-    # TAB 2: 피처 중요도
+    # TAB 2: 피처 중요도 — ★ 수정8: V13 수치
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[2]:
-        st.subheader("피처 중요도 (Feature Importance)")
+        st.subheader("피처 중요도 (Feature Importance) — V13")
 
-        # V12 실측 중요도
         importance_data = {
             "피처":  ["ghi_real", "doy_cos", "hour_sin", "cloud_cover", "doy_sin", "hour_cos", "temp_actual"],
-            "Gain":  [0.705,       0.099,      0.061,       0.049,         0.033,     0.030,      0.023],
+            "Gain":  [0.408,       0.149,      0.126,       0.125,         0.072,     0.068,      0.052],
             "설명":  ["수평면 일사량 — 발전량의 주 에너지 입력",
                       "연중 날짜 코사인 — 계절 패턴",
                       "하루 중 시각 사인 — 오전/오후 패턴",
@@ -439,68 +495,101 @@ def run_app():
 
         fig = go.Figure(go.Bar(
             x=df_imp["Gain"], y=df_imp["피처"], orientation="h",
-            marker_color=["#4fc3f7" if g > 0.1 else "#90caf9" if g > 0.05 else "#b0bec5" for g in df_imp["Gain"]],
+            marker_color=["#4fc3f7" if g > 0.12 else "#90caf9" if g > 0.06 else "#b0bec5" for g in df_imp["Gain"]],
             text=[f"{g:.3f}" for g in df_imp["Gain"]], textposition="outside"
         ))
         fig.update_layout(height=380, xaxis_title="Gain (분기점 오차 감소 기여도)",
-                          xaxis_range=[0, 0.80])
+                          xaxis_range=[0, 0.50])
         st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("""
-        **해석 가이드**
-        - **ghi_real (0.705)**: GHI가 분기점을 만들 때 오차 감소량이 나머지 6개 합보다 큼. 
-          물리적으로 당연 — 일사량이 각도 결정의 주신호.
-        - **나머지 피처들**: GHI가 비슷한 상황에서 계절·시간·운량이 각도를 미세 조정. 
-          예) GHI=500W/m²이어도 여름 정오 vs 겨울 오후면 최적각이 다름.
-        - **특허 관점**: "GHI를 주신호, 계절·시간·온도를 보조변수로 통합하여 단일변수 대비 정확도 향상"으로 서술.
+        **V13 해석 가이드**
+        - **ghi_real (0.408)**: 여전히 최상위이지만, V12(0.705)보다 낮아짐 → 나머지 피처들의 기여도가 더 균등해짐.
+        - **doy_cos (0.149) / hour_sin (0.126) / cloud (0.125)**: 세 피처가 비슷한 수준 → 
+          계절·시각·기상이 각도 결정에 균형 있게 기여.
+        - **특허 관점**: "V13에서 피처 기여도가 보다 균등하게 분포 — 단일 변수 의존도 감소, 
+          다변수 통합 제어의 강건성을 입증"으로 서술.
         """)
 
-        st.info(f"V12 모델 성능: MAE = 0.92° | R² = 0.9786")
+        st.info("V13 모델 성능: MAE = 1.56° | R² = 0.9564")
 
     # ══════════════════════════════════════════════════════════════════════════
-    # TAB 3: 음영 원리 설명
+    # TAB 3: 음영 원리 설명 — ★ 수정7: 중심축 회전 시각화
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[3]:
-        st.subheader("💡 태양고도에 따라 음영이 달라지는 이유")
+        st.subheader("💡 V13 중심축 회전 루버의 음영 원리")
 
         st.markdown("""
-        루버 블레이드는 상하로 배열되어 있어서, **위쪽 블레이드가 아래쪽 블레이드에 그림자를 드리웁니다.**
-        태양고도(태양이 하늘에 얼마나 높이 있는지)에 따라 이 그림자 길이가 달라집니다.
+        V13 모델에서 블레이드는 **세로 방향 중심부에 회전축**이 있습니다.
+        기울어지면 위쪽 반은 벽면 쪽(안쪽)으로, 아래쪽 반은 바깥으로 돌출됩니다.
+        이 **돌출부(protrusion)**가 아래 블레이드에 그림자를 드리웁니다.
         """)
 
-        # 도식화: 태양고도별 음영 SVG 시뮬레이션
         elev_example = st.slider("태양 고도각 (°)", min_value=5, max_value=80, value=30, step=5)
         tilt_example  = st.slider("루버 각도 (°)",   min_value=15, max_value=90, value=45, step=5)
 
-        sf = calc_shading_fraction(tilt_example, elev_example, DEFAULT_WIDTH_MM, DEFAULT_PITCH_MM)
+        sf_ex  = calc_shading_fraction(tilt_example, elev_example, half_depth_mm, blade_depth_mm, pitch_mm)
+        svf_ex = sky_view_factor(tilt_example, half_depth_mm, blade_depth_mm, pitch_mm)
+        prot_ex, vocc_ex, gap_ex = blade_geometry(tilt_example, half_depth_mm, blade_depth_mm, pitch_mm)
 
         col1, col2 = st.columns([2, 1])
         with col1:
-            # 루버 단면도 시각화
+            # ★ 수정7: 중심축 회전 블레이드 단면도
             fig = go.Figure()
             n_louvers = 4
             pitch_px = 80
-            width_px  = DEFAULT_WIDTH_MM / DEFAULT_PITCH_MM * pitch_px
+            wall_x = -10   # 벽면 위치
 
             for i in range(n_louvers):
-                y_center = i * pitch_px
-                dx = width_px * np.cos(np.radians(tilt_example))
-                dy = width_px * np.sin(np.radians(tilt_example))
+                y_center = i * pitch_px   # 회전축 Y 위치
+                # 중심축 기준 양방향 계산
+                half_len_px = (blade_depth_mm / 2) / pitch_mm * pitch_px
+                dx = half_len_px * np.cos(np.radians(tilt_example))
+                dy = half_len_px * np.sin(np.radians(tilt_example))
 
-                # 블레이드
+                pivot_x = 40  # 회전축 X (벽면에서의 수평 거리)
+
+                # 블레이드: 위쪽 반(벽면쪽) + 아래쪽 반(돌출쪽)
+                # 위쪽 끝 (벽면 쪽, 안쪽)
+                top_x = pivot_x - dx
+                top_y = y_center + dy
+                # 아래쪽 끝 (바깥 돌출)
+                bot_x = pivot_x + dx
+                bot_y = y_center - dy
+
+                # 블레이드 본체
                 fig.add_shape(type="line",
-                    x0=0, y0=y_center, x1=dx, y1=y_center+dy,
+                    x0=top_x, y0=top_y, x1=bot_x, y1=bot_y,
                     line=dict(color="#4fc3f7", width=6))
 
-                # 음영 영역
-                shadow_len_px = width_px * np.sin(np.radians(tilt_example)) / np.tan(np.radians(max(elev_example, 1)))
+                # 회전축 표시 (빨간 점)
+                fig.add_trace(go.Scatter(x=[pivot_x], y=[y_center], mode="markers",
+                    marker=dict(size=8, color="red", symbol="x"),
+                    showlegend=False, hoverinfo="skip"))
+
+                # 돌출부 강조 (바깥쪽 반)
+                fig.add_shape(type="line",
+                    x0=pivot_x, y0=y_center, x1=bot_x, y1=bot_y,
+                    line=dict(color="#ff8a65", width=3, dash="dot"))
+
+                # 음영 영역 (protrusion이 아래 블레이드에 드리우는 그림자)
                 if i > 0:
-                    shade_top    = y_center
-                    shade_bottom = max(y_center - shadow_len_px, (i-1)*pitch_px)
-                    if shade_bottom < shade_top:
+                    protrusion_px = prot_ex / pitch_mm * pitch_px
+                    gap_px = gap_ex / pitch_mm * pitch_px
+                    shadow_vert_px = protrusion_px / np.tan(np.radians(max(elev_example, 1)))
+                    shadow_on_px = max(shadow_vert_px - gap_px, 0)
+                    if shadow_on_px > 0:
+                        shade_top = y_center
+                        shade_bottom = max(y_center - shadow_on_px, (i-1)*pitch_px)
                         fig.add_shape(type="rect",
-                            x0=dx*0.1, y0=shade_bottom, x1=dx*0.9, y1=shade_top,
-                            fillcolor="rgba(100,100,100,0.35)", line_width=0)
+                            x0=bot_x*0.3, y0=shade_bottom, x1=bot_x*1.2, y1=shade_top,
+                            fillcolor="rgba(255,100,100,0.25)", line_width=0)
+
+            # 벽면
+            fig.add_shape(type="line", x0=wall_x, y0=-20, x1=wall_x, y1=n_louvers*pitch_px+40,
+                           line=dict(color="gray", width=3))
+            fig.add_annotation(x=wall_x, y=n_louvers*pitch_px+50, text="벽면",
+                                showarrow=False, font=dict(color="gray", size=11))
 
             # 태양 방향 화살표
             sun_x = 200
@@ -517,54 +606,71 @@ def run_app():
                 text=["☀️"], textposition="top center", showlegend=False))
 
             fig.update_layout(
-                height=380,
-                xaxis=dict(range=[-20, 250], showgrid=False, zeroline=False, showticklabels=False),
-                yaxis=dict(range=[-20, n_louvers*pitch_px+80], showgrid=False, zeroline=False,
+                height=400,
+                xaxis=dict(range=[-30, 260], showgrid=False, zeroline=False, showticklabels=False),
+                yaxis=dict(range=[-30, n_louvers*pitch_px+80], showgrid=False, zeroline=False,
                            showticklabels=False, scaleanchor="x"),
                 plot_bgcolor="rgba(20,25,40,1)",
                 paper_bgcolor="rgba(0,0,0,0)",
-                title=f"루버 단면도 — 태양고도 {elev_example}° | 루버각 {tilt_example}°"
+                title=f"V13 중심축 회전 단면도 — 태양고도 {elev_example}° | 루버각 {tilt_example}°"
             )
+            # 범례: 색상 설명
+            fig.add_trace(go.Scatter(x=[None], y=[None], mode="lines", name="블레이드",
+                line=dict(color="#4fc3f7", width=4)))
+            fig.add_trace(go.Scatter(x=[None], y=[None], mode="lines", name="돌출부 (protrusion)",
+                line=dict(color="#ff8a65", width=3, dash="dot")))
+            fig.update_layout(legend=dict(orientation="h", y=-0.05))
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            st.metric("음영률", f"{sf*100:.1f}%",
-                       delta="낮음 ✅" if sf < 0.3 else ("중간 ⚠️" if sf < 0.6 else "높음 🔴"),
+            st.metric("음영률", f"{sf_ex*100:.1f}%",
+                       delta="낮음 ✅" if sf_ex < 0.3 else ("중간 ⚠️" if sf_ex < 0.6 else "높음 🔴"),
+                       delta_color="off")
+            st.metric("SVF", f"{svf_ex:.2f}",
+                       delta="높음 ✅" if svf_ex > 0.5 else ("중간 ⚠️" if svf_ex > 0.2 else "낮음 🔴"),
                        delta_color="off")
             st.markdown(f"""
-            **계산 공식**
+            **V13 기하학 공식**
             ```
-            그림자 길이 = 폭 × |sin(루버각)| / tan(태양고도)
-            음영률 = 그림자 길이 / 피치
+            돌출(protrusion) = HALF_DEPTH × cos(tilt)
+            수직점유 = BLADE_DEPTH × sin(tilt)
+            틈(gap) = PITCH - 수직점유
+            SVF = gap / (gap + protrusion)
+            그림자 = protrusion / tan(태양고도) - gap
+            음영률 = 그림자 / PITCH
             ```
             **현재 값**
-            - 폭: {DEFAULT_WIDTH_MM:.0f} mm
-            - 피치: {DEFAULT_PITCH_MM:.0f} mm  
-            - 그림자 길이: {DEFAULT_WIDTH_MM * abs(np.sin(np.radians(tilt_example))) / np.tan(np.radians(max(elev_example,1))):.1f} mm
-            
+            - BLADE_DEPTH: {blade_depth_mm:.0f} mm
+            - HALF_DEPTH: {half_depth_mm:.0f} mm
+            - PITCH: {pitch_mm:.0f} mm
+            - 돌출: {prot_ex:.1f} mm
+            - 수직점유: {vocc_ex:.1f} mm
+            - 틈: {gap_ex:.1f} mm
+
             **핵심 원리**
-            - 태양고도 ↑ → 그림자 짧아짐 → 음영률 ↓
-            - 태양고도 ↓ → 그림자 길어짐 → 음영률 ↑
-            - AI는 음영률이 높아지는 구간을 자동 회피
+            - 중심축 회전 → 돌출 = HALF_DEPTH × cos(tilt)
+            - tilt↑ → 돌출↓ → 음영↓ 이지만 POA도 변화
+            - AI는 음영 + POA + SVF를 종합하여 최적각 결정
             """)
 
     # ══════════════════════════════════════════════════════════════════════════
     # TAB 4: 음영 시각화 (히트맵)
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[4]:
-        st.subheader("🔥 Tilt vs 태양고도별 음영률 히트맵")
+        st.subheader("🔥 Tilt vs 태양고도별 음영률 히트맵 (V13)")
 
         c1, c2 = st.columns(2)
         with c1:
-            w_hm = st.number_input("블레이드 폭 (mm)", value=float(width_mm), step=50.0, key="hm_w")
+            bd_hm = st.number_input("블레이드 DEPTH (mm)", value=float(blade_depth_mm), step=1.0, key="hm_bd")
         with c2:
             p_hm = st.number_input("피치 (mm)", value=float(pitch_mm), step=1.0, key="hm_p")
+        hd_hm = bd_hm / 2.0
 
         tilt_range = np.arange(15, 91, 2)
         elev_range = np.arange(5,  81, 2)
         Z = np.zeros((len(elev_range), len(tilt_range)))
         for i, e in enumerate(elev_range):
-            Z[i, :] = calc_shading_fraction(tilt_range, e, w_hm, p_hm)
+            Z[i, :] = calc_shading_fraction(tilt_range, e, hd_hm, bd_hm, p_hm)
 
         fig = go.Figure(go.Heatmap(
             x=tilt_range, y=elev_range, z=Z,
@@ -575,8 +681,7 @@ def run_app():
         ))
 
         # AI 운전 궤적 오버레이
-        zen_day  = zen[mask_day]
-        elev_day = 90 - zen_day
+        elev_day = elev[mask_day]
         ang_day  = ai_angles[mask_day]
         fig.add_trace(go.Scatter(
             x=ang_day, y=elev_day,
@@ -585,7 +690,6 @@ def run_app():
             marker=dict(size=8, color="white", symbol="circle"),
             line=dict(color="white", width=2, dash="dot")
         ))
-        # 고정 60° 라인
         fig.add_shape(type="line", x0=60, x1=60, y0=5, y1=80,
                        line=dict(color="cyan", width=2, dash="dash"))
         fig.add_annotation(x=60, y=78, text="고정60°", showarrow=False,
@@ -595,7 +699,7 @@ def run_app():
             height=480,
             xaxis_title="루버 각도 (°)",
             yaxis_title="태양 고도각 (°)",
-            title="음영률 히트맵 — 빨간색=음영 심함, 초록색=음영 없음",
+            title="V13 음영률 히트맵 (중심축 회전 모델)",
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -604,8 +708,8 @@ def run_app():
         - 🟢 초록: 음영 없음 → 발전 최대 구간
         - 🟡 노랑: 부분 음영 → 발전 손실 시작
         - 🔴 빨강: 음영 심함 → 발전량 크게 감소
-        - **흰 점선**: AI가 오늘 실제로 선택한 각도 궤적 → 초록 구간을 따라감
-        - **파란 점선**: 고정 60° → 겨울 저태양고도 구간에서 노란~빨간 영역에 갇힘
+        - **흰 점선**: AI가 오늘 선택한 각도 궤적 → 초록 구간을 따라감
+        - **V13 특징**: 중심축 회전이므로 V12 대비 저각도에서 음영 패턴이 다름
         """)
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -664,10 +768,16 @@ def run_app():
         st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("월별 평균 각도 & 발전량")
+        # V13 참조 월별 평균각
+        v13_ref_angles = {
+            1: 43.6, 2: 27.5, 3: 25.0, 4: 19.4, 5: 15.8, 6: 15.5,
+            7: 16.3, 8: 18.8, 9: 18.0, 10: 28.4, 11: 31.9, 12: 38.9
+        }
         df_summary = df_monthly.copy()
         df_summary["month_s"] = [month_names[i] for i in range(12)]
-        df_summary = df_summary.rename(columns={"avg_angle":"평균각(°)"})
-        st.dataframe(df_summary[["month_s","평균각(°)","AI","고정60°","수직90°"]].round(1),
+        df_summary = df_summary.rename(columns={"avg_angle":"시뮬 평균각(°)"})
+        df_summary["V13 참조각(°)"] = [v13_ref_angles[m] for m in range(1,13)]
+        st.dataframe(df_summary[["month_s","시뮬 평균각(°)","V13 참조각(°)","AI","고정60°","수직90°"]].round(1),
                      use_container_width=True, hide_index=True)
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -694,15 +804,10 @@ def run_app():
                 "시간":        times[mask_day].strftime("%H:%M").tolist(),
                 "예측 GHI":   np.round(ghi_real[mask_day], 1).tolist(),
                 "AI 각도(°)": ai_angles[mask_day].astype(int).tolist(),
-                "음영률":     [f"{calc_shading_fraction(a, e, width_mm, pitch_mm)*100:.1f}%"
+                "음영률":     [f"{calc_shading_fraction(a, e, half_depth_mm, blade_depth_mm, pitch_mm)*100:.1f}%"
                                 for a, e in zip(ai_angles[mask_day], elev[mask_day])],
-                "예측 발전(Wh)": [
-                    f"{poa_with_iam(90-a, 180, z, az_v, d, g, dh) * (1-calc_shading_fraction(a,e,width_mm,pitch_mm)) / 1000 * capacity_w * unit_count * eff_factor * DEFAULT_LOSS * area_scale:.1f}"
-                    for a, z, az_v, d, g, dh, e in zip(
-                        ai_angles[mask_day], zen[mask_day], az[mask_day],
-                        dni_arr[mask_day], ghi_real[mask_day], dhi_arr[mask_day], elev[mask_day]
-                    )
-                ],
+                "SVF":        [f"{sky_view_factor(a, half_depth_mm, blade_depth_mm, pitch_mm):.2f}"
+                                for a in ai_angles[mask_day]],
             })
             st.dataframe(df_tom, use_container_width=True, hide_index=True)
 
@@ -767,43 +872,45 @@ def run_app():
     # TAB 9: 파라미터 튜닝
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[9]:
-        st.subheader("🔧 파라미터 튜닝 — 실시간 발전량 변화 확인")
+        st.subheader("🔧 파라미터 튜닝 — V13 물리모델 기반")
         st.markdown("슬라이더를 조절하면 해당 파라미터 변경 시 발전량이 어떻게 바뀌는지 확인할 수 있습니다.")
 
         col1, col2 = st.columns(2)
         with col1:
             t_angle_min = st.slider("최소 각도 (°)", 5,  30, ANGLE_MIN, key="t_amin")
-            t_width     = st.slider("블레이드 폭 (mm)", 300, 1200, int(width_mm), step=50, key="t_w")
+            t_blade_depth = st.slider("블레이드 DEPTH (mm)", 50, 200, int(blade_depth_mm), step=2, key="t_bd")
             t_pitch     = st.slider("피치 (mm)",   80, 200, int(pitch_mm), step=2, key="t_p")
         with col2:
             t_loss      = st.slider("시스템 손실률", 0.70, 0.95, DEFAULT_LOSS, step=0.01, key="t_loss")
             t_capacity  = st.slider("패널 용량 (W)", 100, 600, DEFAULT_CAPACITY, step=50, key="t_cap")
 
+        t_half_depth = t_blade_depth / 2.0
+
         # 튜닝된 각도 계산
         tuned_angles = np.where(ghi_real < 10, float(ANGLE_NIGHT),
-                                np.clip(90 - zen, t_angle_min, ANGLE_MAX).astype(float))
+                                np.clip(elev, t_angle_min, ANGLE_MAX).astype(float))
 
-        def calc_tuned(angles, w, p, loss, cap):
-            tilt = 90 - np.asarray(angles, dtype=float)
-            sf   = calc_shading_fraction(np.asarray(angles, dtype=float), elev, w, p)
-            poa  = poa_with_iam(tilt, np.full_like(tilt, 180), zen, az, dni_arr, ghi_real, dhi_arr)
+        def calc_tuned(angles, hd, bd, p, loss, cap):
+            tilt = np.asarray(angles, dtype=float)  # ★ 수정4: 변환 없음
+            poa_dir, poa_diff, poa_sky = poa_components(tilt, np.full_like(tilt, 180.0), zen, az, dni_arr, ghi_real, dhi_arr)
+            eff_poa = calc_effective_poa(poa_dir, poa_diff, poa_sky, tilt, elev, hd, bd, p)
             mask = ghi_real >= 10
-            return (poa[mask] * (1-sf[mask]) / 1000 * cap * unit_count * eff_factor * loss * area_scale).sum()
+            return (eff_poa[mask] / 1000 * cap * unit_count * eff_factor * loss * area_scale).sum()
 
-        pow_tuned   = calc_tuned(tuned_angles, t_width, t_pitch, t_loss, t_capacity)
+        pow_tuned   = calc_tuned(tuned_angles, t_half_depth, t_blade_depth, t_pitch, t_loss, t_capacity)
         pow_default = calc_power_day(ai_angles)
         delta_pct   = (pow_tuned / pow_default - 1) * 100 if pow_default > 0 else 0
 
         c1, c2, c3 = st.columns(3)
         c1.metric("기본 AI 발전량",  f"{pow_default/1000:.3f} kWh")
         c2.metric("튜닝 후 발전량",  f"{pow_tuned/1000:.3f} kWh",  f"{delta_pct:+.1f}%")
-        c3.metric("음영률 (정오)",
-                   f"{calc_shading_fraction(45, 60, t_width, t_pitch)*100:.1f}%",
+        c3.metric("음영률 (정오 45°)",
+                   f"{calc_shading_fraction(45, 60, t_half_depth, t_blade_depth, t_pitch)*100:.1f}%",
                    help="루버 45° + 태양고도 60° 기준 음영률")
 
         # 각도별 발전량 스캔
         angle_scan = np.arange(t_angle_min, 91, 2)
-        pow_scan   = [calc_tuned(np.full(24, a), t_width, t_pitch, t_loss, t_capacity) for a in angle_scan]
+        pow_scan   = [calc_tuned(np.full(24, float(a)), t_half_depth, t_blade_depth, t_pitch, t_loss, t_capacity) for a in angle_scan]
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=angle_scan, y=[p/1000 for p in pow_scan],
                                   mode="lines+markers", line=dict(color="#4fc3f7", width=2),
@@ -811,9 +918,10 @@ def run_app():
         fig.add_vline(x=t_angle_min, line_dash="dash", line_color="red",
                        annotation_text=f"최소각 {t_angle_min}°")
         fig.update_layout(height=320, xaxis_title="고정 각도 (°)", yaxis_title="발전량 (kWh)",
-                           title="고정 각도별 하루 발전량 스캔")
+                           title="고정 각도별 하루 발전량 스캔 (V13)")
         st.plotly_chart(fig, use_container_width=True)
         st.caption("💡 AI 제어는 매 시간 최적각을 선택하므로 어떤 고정각보다 항상 높거나 같습니다.")
+        st.caption("💡 V13: PPO 강화학습을 향후 실시예로 추가 가능 (현재는 XGBoost/규칙 기반)")
 
 
 if __name__ == "__main__":
