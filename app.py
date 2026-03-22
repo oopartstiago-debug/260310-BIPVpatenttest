@@ -1,14 +1,18 @@
 # ==============================================================================
-# BIPV 통합 관제 시스템 v8.1 — 라이트 테마 + 해석 강화
+# BIPV 통합 관제 시스템 v8.2 — V13 물리모델 완전 반영
 # ==============================================================================
-# v8.1 변경사항:
-#   1. 전체 라이트 테마 전환 (plotly "plotly_white", CSS 라이트 팔레트)
-#   2. explain-box 라이트 테마 적용 (연한 파랑/회색 배경)
-#   3. 학습데이터셋 — hour_sin/cos, doy_sin/cos 설명 + 시각화 추가
-#   4. 발전량비교 — get_annual_data에 XGBoost 모델 연동 + 그래프 해석 추가
-#   5. 규칙 기반 폴백 개선 (겨울철 각도 보정)
+# v8.2 변경사항 (from v8.1):
+#   1. calc_effective_poa 확산성분 이중계산 버그 수정
+#      (poa_diffuse*svf + poa_sky_diffuse*svf → poa_sky_diffuse*svf만 사용)
+#   2. 피처 중요도 V13 실제값 반영 (doy_cos=0.379, ghi=0.154 등)
+#   3. MAE 1.44° / R² 0.9905 / RMSE 2.75° 갱신
+#   4. V13 월별 참조각 갱신 (1월 83.8°, 12월 81.9° 등)
+#   5. 발전량 비교 해석 — 겨울 최적각 80~84° 반영
+#   6. 월별 각도 해석 텍스트 V13 범위 반영
+#   7. GitHub 모델/CSV URL V13 파일명으로 변경
+#   8. 학습 데이터 탭: V13 CSV 대응 (target_angle_v13 컬럼)
 # ==============================================================================
-__version__ = "8.1"
+__version__ = "8.2"
 
 import os
 import io
@@ -51,10 +55,11 @@ ANGLE_MIN          = 15
 ANGLE_MAX          = 90
 ANGLE_NIGHT        = 90
 
+# GitHub 리소스 — V13
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/oopartstiago-debug/260310-BIPVpatenttest/main"
-MODEL_URL = f"{GITHUB_RAW_BASE}/bipv_xgboost_model.pkl"
-CSV_URL   = f"{GITHUB_RAW_BASE}/bipv_ai_master_data_v5.csv"
-XGB_MODEL_FILENAME = "bipv_xgboost_model.pkl"
+MODEL_URL = f"{GITHUB_RAW_BASE}/bipv_xgboost_model_v13.pkl"
+CSV_URL   = f"{GITHUB_RAW_BASE}/bipv_ai_master_data_v13.csv"
+XGB_MODEL_FILENAME = "bipv_xgboost_model_v13.pkl"
 
 # 라이트 테마 plotly 설정
 PLOT_TEMPLATE = "plotly_white"
@@ -93,7 +98,9 @@ def load_training_csv():
         r = requests.get(CSV_URL, timeout=30)
         if r.status_code == 200:
             df = pd.read_csv(io.StringIO(r.text))
-            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            if df["timestamp"].dt.tz is None:
+                df["timestamp"] = df["timestamp"].dt.tz_localize("Asia/Seoul")
             return df
     except Exception:
         pass
@@ -130,7 +137,6 @@ def poa_components(surface_tilt, surface_azimuth, solar_zenith, solar_azimuth, d
         dni=dni, ghi=ghi, dhi=dhi,
         solar_zenith=solar_zenith, solar_azimuth=solar_azimuth)
     poa_direct      = np.nan_to_num(irrad["poa_direct"],   nan=0.0)
-    poa_diffuse     = np.nan_to_num(irrad["poa_diffuse"],  nan=0.0)
     poa_sky_diffuse = np.nan_to_num(irrad.get("poa_sky_diffuse", irrad["poa_diffuse"]), nan=0.0)
     aoi = np.clip(np.asarray(pvlib.irradiance.aoi(
         surface_tilt, surface_azimuth, solar_zenith, solar_azimuth), dtype=float), 0, 90)
@@ -138,13 +144,18 @@ def poa_components(surface_tilt, surface_azimuth, solar_zenith, solar_azimuth, d
         iam = pvlib.iam.martin_ruiz(aoi, a_r=a_r)
     except AttributeError:
         iam = pvlib.irradiance.iam.martin_ruiz(aoi, a_r=a_r)
-    return poa_direct * iam, poa_diffuse, poa_sky_diffuse
+    return poa_direct * iam, poa_sky_diffuse
 
-def calc_effective_poa(poa_direct, poa_diffuse, poa_sky_diffuse, tilt_deg, elev_deg,
+
+def calc_effective_poa(poa_direct, poa_sky_diffuse, tilt_deg, elev_deg,
                         half_depth=HALF_DEPTH_MM, blade_depth=DEFAULT_HEIGHT_MM, pitch=DEFAULT_PITCH_MM):
+    """
+    V13 유효 POA — Colab 코드와 동일한 공식:
+      effective_poa = poa_direct × (1 - SF × 0.7) + poa_sky_diffuse × SVF
+    """
     sf  = calc_shading_fraction(tilt_deg, elev_deg, half_depth, blade_depth, pitch)
     svf = sky_view_factor(tilt_deg, half_depth, blade_depth, pitch)
-    return np.maximum(poa_direct * (1 - sf * 0.7) + poa_diffuse * svf + poa_sky_diffuse * svf, 0.0)
+    return np.maximum(poa_direct * (1 - sf * 0.7) + poa_sky_diffuse * svf, 0.0)
 
 # ==============================================================================
 # XGBoost 예측
@@ -241,9 +252,9 @@ def get_annual_data(year, half_depth, blade_depth, pitch_mm, capacity_w,
 
     def energy(angles):
         tilt = np.asarray(angles, dtype=float)
-        poa_dir, poa_diff, poa_sky = poa_components(
+        poa_dir, poa_sky = poa_components(
             tilt, np.full_like(tilt, 180), zen_y, az_y, dni_y, ghi_y, dhi_y)
-        eff_poa = calc_effective_poa(poa_dir, poa_diff, poa_sky, tilt, elev_y,
+        eff_poa = calc_effective_poa(poa_dir, poa_sky, tilt, elev_y,
                                       half_depth, blade_depth, pitch_mm)
         mask = ghi_y >= 10
         return (eff_poa[mask] / 1000 * capacity_w * unit_count * eff_factor * default_loss).sum()
@@ -267,9 +278,9 @@ def get_annual_data(year, half_depth, blade_depth, pitch_mm, capacity_w,
 
         def e_m(ang):
             tilt = np.asarray(ang, dtype=float)
-            poa_dir, poa_diff, poa_sky = poa_components(
+            poa_dir, poa_sky = poa_components(
                 tilt, np.full_like(tilt, 180), zen_m, az_m, dni_m, ghi_m, dhi_m)
-            eff_poa = calc_effective_poa(poa_dir, poa_diff, poa_sky, tilt, elev_m,
+            eff_poa = calc_effective_poa(poa_dir, poa_sky, tilt, elev_m,
                                           half_depth, blade_depth, pitch_mm)
             return (eff_poa / 1000 * capacity_w * unit_count * eff_factor * default_loss).sum()
 
@@ -292,10 +303,7 @@ def run_app():
     # ── 라이트 테마 CSS ────────────────────────────────────────────────────────
     st.markdown("""
     <style>
-    /* 전체 배경 */
     .stApp { background-color: #F8F9FA; }
-
-    /* explain-box: 라이트 테마 */
     .explain-box {
         background: #EEF2FF;
         border-left: 3px solid #3B5BDB;
@@ -326,8 +334,6 @@ def run_app():
         color: #1B3A1E;
         line-height: 1.65;
     }
-
-    /* 메트릭 카드 */
     div[data-testid="stMetricValue"] { font-size: 1.5rem; font-weight: 700; }
     div[data-testid="stMetricLabel"] { font-size: 0.85rem; color: #555; }
     </style>
@@ -339,9 +345,9 @@ def run_app():
     # ── 사이드바 ──────────────────────────────────────────────────────────────
     st.sidebar.title("■ 통합 환경 설정")
     if xgb_model:
-        st.sidebar.success("✅ XGBoost 모델 로드됨")
+        st.sidebar.success("✅ XGBoost V13 모델 로드됨")
     else:
-        st.sidebar.warning("⚠️ 규칙 기반 모드")
+        st.sidebar.warning("⚠️ 규칙 기반 모드 (V13 모델 미로드)")
 
     st.sidebar.subheader("1. 시뮬레이션 날짜")
     tomorrow_dt = datetime.strptime(tomorrow, "%Y%m%d") if tomorrow else datetime.now() + timedelta(days=1)
@@ -389,20 +395,21 @@ def run_app():
     ghi_real = np.asarray(cs["ghi"].values, dtype=float) * (1.0 - cloud_series * 0.65)
     dni_arr  = pvlib.irradiance.dirint(ghi_real, zen, times).fillna(0).values
     dhi_arr  = (ghi_real - dni_arr * np.cos(np.radians(zen))).clip(0)
+    # V13 학습 데이터의 cloud_cover는 0~9 스케일 (기상청 원시)
     cloud_kma_scale = cloud_series * 9.0
 
     xgb_angles = None
     if xgb_model:
         xgb_angles = predict_angles_xgb(xgb_model, times, ghi_real, cloud_kma_scale, temp_series, ANGLE_MAX)
     ai_angles = xgb_angles if xgb_angles is not None else improved_rule_angles(elev, ghi_real)
-    angle_mode = "XGBoost" if xgb_angles is not None else "규칙 기반"
+    angle_mode = "XGBoost V13" if xgb_angles is not None else "규칙 기반"
 
     def calc_power_day(angles):
         tilt = np.asarray(angles, dtype=float)
-        poa_dir, poa_diff, poa_sky = poa_components(
+        poa_dir, poa_sky = poa_components(
             tilt, np.full_like(tilt, 180.0), zen, az, dni_arr, ghi_real, dhi_arr)
         eff_poa = calc_effective_poa(
-            poa_dir, poa_diff, poa_sky, tilt, elev, half_depth_mm, blade_depth_mm, pitch_mm)
+            poa_dir, poa_sky, tilt, elev, half_depth_mm, blade_depth_mm, pitch_mm)
         mask = ghi_real >= 10
         return (eff_poa[mask] / 1000 * capacity_w * unit_count * eff_factor * DEFAULT_LOSS * area_scale).sum()
 
@@ -527,13 +534,17 @@ def run_app():
     # TAB 1: 학습 데이터셋
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[1]:
-        st.subheader("📊 XGBoost 학습 데이터셋 탐색 (V5 실측 데이터)")
+        st.subheader("📊 XGBoost 학습 데이터셋 탐색 (V13)")
         df_csv = load_training_csv()
 
         if df_csv is not None:
-            st.success(f"✅ 실측 학습 데이터 로드 완료 | {len(df_csv):,}행 | 2014~2023년 기상청 관측 기반")
+            # V13 CSV에는 target_angle_v13 컬럼, V5에는 target_angle_v5
+            target_col = "target_angle_v13" if "target_angle_v13" in df_csv.columns else "target_angle_v5"
+            csv_version = "V13" if target_col == "target_angle_v13" else "V5"
 
-            st.markdown("""
+            st.success(f"✅ 학습 데이터 로드 완료 ({csv_version}) | {len(df_csv):,}행 | 2014~2023년 기상청 관측 기반")
+
+            st.markdown(f"""
             <div class="explain-box">
             <b>📖 학습 변수 전체 설명</b><br>
             • <b>ghi_w_m2</b>: 수평면 전일사량 (W/m²). 태양이 지표에 보내는 에너지 총량. 발전량 예측의 핵심 입력값.<br>
@@ -544,7 +555,7 @@ def run_app():
               두 성분을 함께 써야 시각의 앞뒤 관계를 모두 표현 가능.<br>
             • <b>doy_sin / doy_cos</b>: 연중 날짜(1~365일)를 사인·코사인으로 변환한 값.
               계절 순환성 표현. 예: 하지(172일) → sin≈1, cos≈0 / 동지(355일) → sin≈-1, cos≈0.<br>
-            • <b>target_angle_v5</b>: 학습 타겟. 해당 시간 최대 발전량을 내는 루버 최적 각도 (°).
+            • <b>{target_col}</b>: 학습 타겟. V13 물리모델로 산출한 시간별 최적 루버 각도 (°).
             </div>
             """, unsafe_allow_html=True)
 
@@ -583,24 +594,22 @@ def run_app():
                 st.plotly_chart(fig3, use_container_width=True)
                 st.caption("여름 고온 → 패널 효율 저하 요인. 겨울 저온은 효율에 유리하나 일사량 부족.")
             with c4:
-                st.markdown("**최적 루버 각도 월별 분포 (타겟)**")
-                fig4 = px.box(df_plot, x="month_s", y="target_angle_v5", color="month_s",
+                st.markdown(f"**최적 루버 각도 월별 분포 ({csv_version} 타겟)**")
+                fig4 = px.box(df_plot, x="month_s", y=target_col, color="month_s",
                                category_orders={"month_s": month_order}, template=PLOT_TEMPLATE)
                 fig4.update_layout(showlegend=False, height=300, yaxis_title="최적 각도 (°)")
                 st.plotly_chart(fig4, use_container_width=True)
-                st.caption("여름: 태양고도 높아 낮은 각도(15~30°) 최적. 겨울: 태양이 낮게 떠 높은 각도(40~90°) 유리.")
+                st.caption("여름: 태양고도 높아 낮은 각도(~15°) 최적. 겨울: 태양이 낮게 떠 높은 각도(80~84°) 유리.")
 
-            # Row 3: hour_sin/cos 패턴, doy_sin/cos 패턴
+            # Row 3: hour/doy 패턴
             st.markdown("---")
             st.markdown("**시각·날짜 순환 변수 패턴**")
             c5, c6 = st.columns(2)
             with c5:
                 st.markdown("**hour_sin / hour_cos — 시간대별 평균 최적각**")
-                hour_avg = df_plot.groupby("hour")["target_angle_v5"].mean().reset_index()
-                hour_avg["hour_sin"] = np.sin(2 * np.pi * hour_avg["hour"] / 24)
-                hour_avg["hour_cos"] = np.cos(2 * np.pi * hour_avg["hour"] / 24)
+                hour_avg = df_plot.groupby("hour")[target_col].mean().reset_index()
                 fig5 = go.Figure()
-                fig5.add_trace(go.Scatter(x=hour_avg["hour"], y=hour_avg["target_angle_v5"],
+                fig5.add_trace(go.Scatter(x=hour_avg["hour"], y=hour_avg[target_col],
                                            mode="lines+markers", name="평균 최적각",
                                            line=dict(color=COLOR_AI, width=2)))
                 fig5.update_layout(height=280, xaxis_title="시각 (h)", yaxis_title="평균 최적각 (°)",
@@ -610,9 +619,9 @@ def run_app():
                            "hour_sin/cos는 이 패턴을 모델이 인식할 수 있도록 수치화한 것.")
             with c6:
                 st.markdown("**doy_sin / doy_cos — 월별 평균 최적각**")
-                doy_avg = df_plot.groupby("month")["target_angle_v5"].mean().reset_index()
+                doy_avg = df_plot.groupby("month")[target_col].mean().reset_index()
                 fig6 = go.Figure()
-                fig6.add_trace(go.Scatter(x=doy_avg["month"], y=doy_avg["target_angle_v5"],
+                fig6.add_trace(go.Scatter(x=doy_avg["month"], y=doy_avg[target_col],
                                            mode="lines+markers", name="월평균 최적각",
                                            line=dict(color=COLOR_F60, width=2)))
                 fig6.update_layout(height=280, xaxis_title="월", yaxis_title="평균 최적각 (°)",
@@ -620,14 +629,14 @@ def run_app():
                                                ticktext=month_order),
                                     template=PLOT_TEMPLATE)
                 st.plotly_chart(fig6, use_container_width=True)
-                st.caption("겨울(1·12월)에 최적각 높고 여름(6·7월)에 낮음. "
+                st.caption("겨울(1·12월)에 최적각 높고(80°+) 여름(6·7월)에 낮음(~15°). "
                            "doy_sin/cos는 이 계절 패턴을 365일 순환으로 수치화한 것.")
 
-            st.markdown("**GHI vs 최적각 산점도 (10년 실측)**")
+            st.markdown(f"**GHI vs 최적각 산점도 (10년 실측, {csv_version})**")
             sample = df_plot.sample(min(3000, len(df_plot)), random_state=42)
-            fig7 = px.scatter(sample, x="ghi_w_m2", y="target_angle_v5", color="month_s",
+            fig7 = px.scatter(sample, x="ghi_w_m2", y=target_col, color="month_s",
                                opacity=0.4, template=PLOT_TEMPLATE,
-                               labels={"ghi_w_m2":"GHI (W/m²)", "target_angle_v5":"최적 각도 (°)"})
+                               labels={"ghi_w_m2":"GHI (W/m²)", target_col:"최적 각도 (°)"})
             fig7.update_layout(height=350)
             st.plotly_chart(fig7, use_container_width=True)
             st.caption("GHI 높을수록 최적각 낮아지는 경향 (태양이 높이 뜨면 루버를 눕힘). 계절별로 클러스터가 분리됨.")
@@ -636,7 +645,7 @@ def run_app():
             st.warning("⚠️ 학습 데이터 CSV를 불러올 수 없습니다. GitHub 연결 확인 필요.")
 
     # ══════════════════════════════════════════════════════════════════════════
-    # TAB 2: 피처 중요도
+    # TAB 2: 피처 중요도 — V13 실제값
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[2]:
         st.subheader("🎯 피처 중요도 (Feature Importance) — V13")
@@ -649,17 +658,18 @@ def run_app():
         </div>
         """, unsafe_allow_html=True)
 
+        # ★ V13 실제 Feature Importance (Colab 재학습 결과)
         importance_data = {
-            "피처":      ["ghi_real", "doy_cos", "hour_sin", "cloud_cover", "doy_sin", "hour_cos", "temp_actual"],
-            "Gain":      [0.408, 0.149, 0.126, 0.125, 0.072, 0.068, 0.052],
+            "피처":      ["doy_cos", "ghi_w_m2", "hour_sin", "temp_actual", "doy_sin", "hour_cos", "cloud_cover"],
+            "Gain":      [0.379,      0.154,      0.140,      0.135,         0.092,     0.085,      0.015],
             "변수 설명": [
+                "연중 날짜 코사인 — 계절 위치 (하지/동지 구분). V13에서 가장 중요한 변수.",
                 "수평면 일사량 — 발전 가능한 태양에너지의 절대량",
-                "연중 날짜 코사인 — 계절 위치 (하지/동지 구분)",
                 "하루 중 시각 사인 — 오전/오후 태양 위치",
-                "운량 (0~9) — 구름에 의한 일사 감쇠 정도",
+                "외기온도 — 패널 온도계수에 의한 효율 보정",
                 "연중 날짜 사인 — 계절 위치 보완 성분",
                 "하루 중 시각 코사인 — 시각 보완 성분",
-                "외기온도 — 패널 온도계수에 의한 효율 보정",
+                "운량 (0~9) — 구름에 의한 일사 감쇠 정도 (GHI에 이미 반영되어 기여도 낮음)",
             ],
         }
         df_imp = pd.DataFrame(importance_data).sort_values("Gain", ascending=True)
@@ -672,7 +682,7 @@ def run_app():
             customdata=df_imp["변수 설명"],
             hovertemplate="<b>%{y}</b><br>Gain: %{x:.3f}<br>%{customdata}<extra></extra>"
         ))
-        fig.update_layout(height=380, xaxis_title="Gain", xaxis_range=[0, 0.50],
+        fig.update_layout(height=380, xaxis_title="Gain", xaxis_range=[0, 0.45],
                            template=PLOT_TEMPLATE)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -680,27 +690,29 @@ def run_app():
         with col1:
             st.markdown("""
             <div class="explain-box">
-            <b>🥇 ghi_real (40.8%)</b><br>
-            가장 중요한 변수. 일사량이 높으면 루버를 눕혀 직달광 최대화,
-            낮으면 각도를 세워 확산광 활용.
+            <b>🥇 doy_cos (37.9%)</b><br>
+            V13에서 가장 중요한 변수. 계절(겨울↔여름)에 따른 태양 고도 변화가
+            최적 루버 각도를 가장 크게 좌우함.
+            겨울(1월 83.8°) vs 여름(6월 15.0°)의 극단적 차이를 이 변수가 포착.
             </div>
             <div class="explain-box">
-            <b>📅 doy_cos + doy_sin (22.1%)</b><br>
-            계절 정보. 여름·겨울의 태양 고도 패턴이 달라 최적 각도 전략이 완전히 다름.
+            <b>📅 doy_cos + doy_sin (47.1%)</b><br>
+            계절 정보 합산. 거의 절반에 달하는 기여도.
+            여름·겨울의 태양 고도 패턴이 달라 최적 각도 전략이 완전히 다름.
             두 성분이 함께 1년 순환을 표현.
             </div>
             """, unsafe_allow_html=True)
         with col2:
             st.markdown("""
             <div class="explain-box">
-            <b>🕐 hour_sin + hour_cos (19.4%)</b><br>
-            하루 중 시각 정보. 같은 계절이라도 아침·정오·저녁의 태양 위치가 달라
-            시각별 최적 각도가 달라짐.
+            <b>🕐 ghi_w_m2 (15.4%) + hour_sin/cos (22.5%)</b><br>
+            일사량과 시각 정보. 같은 계절이라도 아침·정오·저녁의 태양 위치가 달라
+            시각별 최적 각도가 달라짐. GHI는 실시간 기상 상태를 반영.
             </div>
             <div class="explain-box">
-            <b>☁️ cloud_cover (12.5%) + 🌡️ temp_actual (5.2%)</b><br>
-            운량이 높으면 확산광 비중 증가 → 각도 전략 변화.
-            기온은 온도계수(-0.4%/°C)를 통해 효율에 미세 영향.
+            <b>🌡️ temp_actual (13.5%) + ☁️ cloud_cover (1.5%)</b><br>
+            기온은 온도계수(-0.4%/°C)를 통해 효율에 영향.
+            운량(1.5%)은 GHI에 이미 구름 효과가 반영되어 있어 기여도가 매우 낮음.
             </div>
             """, unsafe_allow_html=True)
 
@@ -709,18 +721,18 @@ def run_app():
         with m1:
             st.markdown("""
             <div class="good-box">
-            <b>MAE (평균절대오차) = 1.56°</b><br>
-            예측 각도와 실제 최적 각도의 평균 차이가 1.56°.
+            <b>MAE (평균절대오차) = 1.44°</b><br>
+            예측 각도와 실제 최적 각도의 평균 차이가 1.44°.
             루버 제어 모터 물리적 정밀도(±2~3°)보다 작아 실제 제어에 지장 없는 수준.
             </div>
             """, unsafe_allow_html=True)
         with m2:
             st.markdown("""
             <div class="good-box">
-            <b>R² (결정계수) = 0.9564</b><br>
-            루버 각도 변동의 95.6%를 모델이 설명.
-            0.95 이상은 실용적으로 매우 높은 수준.
-            나머지 4.4%는 예측하기 어려운 순간적 기상 변동에 기인.
+            <b>R² (결정계수) = 0.9905 | RMSE = 2.75°</b><br>
+            루버 각도 변동의 99.1%를 모델이 설명.
+            0.99 이상은 매우 높은 적합도.
+            나머지 0.9%는 순간적 기상 변동에 기인.
             </div>
             """, unsafe_allow_html=True)
 
@@ -923,7 +935,7 @@ def run_app():
         st.subheader("⚡ AI vs 고정60° vs 수직90° 발전량 비교")
 
         if use_xgb_annual:
-            st.success("✅ XGBoost 모델 기반 연간 시뮬레이션")
+            st.success("✅ XGBoost V13 모델 기반 연간 시뮬레이션")
         else:
             st.info("ℹ️ 규칙 기반 각도 (XGBoost 미로드 시 대체)")
 
@@ -945,19 +957,14 @@ def run_app():
                            legend=dict(orientation="h", y=1.05))
         st.plotly_chart(fig, use_container_width=True)
 
-        # ★ v8.1: 발전량 비교 해석
-        winter_ai  = df_monthly.loc[df_monthly["month"].isin([12,1,2]), "AI"].mean() * area_scale / 1000
-        winter_60  = df_monthly.loc[df_monthly["month"].isin([12,1,2]), "고정60°"].mean() * area_scale / 1000
-        summer_ai  = df_monthly.loc[df_monthly["month"].isin([6,7,8]),  "AI"].mean() * area_scale / 1000
-        summer_60  = df_monthly.loc[df_monthly["month"].isin([6,7,8]),  "고정60°"].mean() * area_scale / 1000
-
+        # ★ v8.2: V13 결과 반영 해석
         st.markdown(f"""
         <div class="explain-box">
         <b>📊 월별 발전량 그래프 해석</b><br><br>
-        <b>🌞 여름 (6~8월)</b>: 태양 고도가 높아 일사량이 풍부. 연중 최대 발전 구간.
-        AI는 낮은 각도로 직달광을 최적화하여 고정60°보다 높은 발전량 달성.<br><br>
+        <b>🌞 여름 (6~8월)</b>: 태양 고도가 높아(최대 76°) 일사량이 풍부. 연중 최대 발전 구간.
+        AI는 낮은 각도(~15°)로 직달광을 최적화하여 고정60°보다 +45~76% 높은 발전량 달성.<br><br>
         <b>❄️ 겨울 (12~2월)</b>: 서울 기준 태양 최대 고도 약 29°로 낮고 일조 시간도 짧음.
-        {"XGBoost 모델이 겨울 최적각(40~50°)을 학습하여 고정60°에 근접하거나 상회하는 발전량 달성." if use_xgb_annual else "현재 규칙 기반 모드에서는 겨울철 AI 각도가 최적값보다 낮게 설정될 수 있어 고정60°보다 낮게 나올 수 있음. XGBoost 모델 로드 후 정확한 비교 가능."}<br><br>
+        {"XGBoost V13 모델이 겨울 최적각(80~84°)을 학습하여 고정60°보다 +7~21% 높은 발전량 달성. 낮은 태양 고도에서 루버를 거의 수직으로 세워 직달광을 최대화하는 전략." if use_xgb_annual else "현재 규칙 기반 모드에서는 겨울철 AI 각도가 최적값보다 낮게 설정될 수 있어 고정60°보다 낮게 나올 수 있음. XGBoost V13 모델 로드 후 정확한 비교 가능."}<br><br>
         <b>🍂 봄·가을</b>: 중간 수준의 발전량. 계절 전환에 따라 AI가 각도 전략을 유동적으로 조정.<br><br>
         <b>수직90° 비교</b>: 겨울에는 태양이 낮게 떠 수직(90°)에 가까울수록 유리하여
         고정90°가 생각보다 선전. 여름에는 수직이 직달광을 못 받아 크게 불리.
@@ -990,7 +997,7 @@ def run_app():
         st.caption("누적 곡선의 기울기가 가파른 구간이 발전량이 많은 계절. AI 곡선이 다른 두 곡선 위에 있을수록 제어 효과가 큼.")
 
     # ══════════════════════════════════════════════════════════════════════════
-    # TAB 6: 월별 각도
+    # TAB 6: 월별 각도 — V13 참조각 갱신
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[6]:
         st.subheader("📅 월별 AI 제어 각도 분포")
@@ -1014,23 +1021,25 @@ def run_app():
 
         st.markdown("""
         <div class="explain-box">
-        <b>📊 월별 각도 분포 전체 해석</b><br><br>
-        <b>🌞 여름 (6~8월) — 낮은 각도, 넓은 분포</b><br>
+        <b>📊 월별 각도 분포 전체 해석 (V13)</b><br><br>
+        <b>🌞 여름 (6~8월) — 낮은 각도 (~15°)</b><br>
         서울 여름철 최대 태양 고도각 약 76°. 태양이 높이 떠 있으므로 루버를 눕혀야(낮은 각도)
-        직달광이 수광면에 가장 수직에 가깝게 입사. 평균 15~20°.
-        분포가 넓은 이유는 장마철 흐린 날(확산광 위해 각도↑)과 맑은 날(각도↓)이 혼재하기 때문.<br><br>
-        <b>❄️ 겨울 (12~2월) — 높은 각도, 좁은 분포</b><br>
+        직달광이 수광면에 가장 수직에 가깝게 입사. V13 정답지 기준 6~7월 평균 15.0°.
+        분포가 좁은 이유는 대부분의 시간에 최저각(15°)이 최적이기 때문.<br><br>
+        <b>❄️ 겨울 (12~2월) — 높은 각도 (50~84°)</b><br>
         겨울철 최대 고도각 약 29°. 태양이 낮게 떠 루버를 세워야(높은 각도) 직달광을 효과적으로 수광.
-        평균 35~45°. 맑은 날이 많고 태양 궤적이 단순해 분포가 좁음.<br><br>
+        V13 정답지 기준 1월 평균 83.8°, 12월 81.9°로 거의 수직에 가까움.
+        2월(49.1°)부터 급격히 내려가는 전환 구간.<br><br>
         <b>🍂 봄·가을 (3~5월, 9~11월) — 점진적 전환</b><br>
-        태양 고도각이 여름·겨울 사이를 오가며 각도도 중간값(20~35°).
-        월별로 각도가 뚜렷하게 변화하는 전환 구간.
+        태양 고도각이 여름·겨울 사이를 오가며 각도도 중간값(15~73°).
+        특히 11월(73.3°)은 겨울에 가까운 높은 각도로 빠르게 전환.
         </div>
         """, unsafe_allow_html=True)
 
         st.subheader("월별 평균 각도 & 발전량")
-        v13_ref = {1:43.6,2:27.5,3:25.0,4:19.4,5:15.8,6:15.5,
-                   7:16.3,8:18.8,9:18.0,10:28.4,11:31.9,12:38.9}
+        # ★ V13 정답지 실제 월별 평균 최적각
+        v13_ref = {1: 83.8, 2: 49.1, 3: 31.1, 4: 19.7, 5: 15.1, 6: 15.0,
+                   7: 15.0, 8: 15.8, 9: 24.8, 10: 37.2, 11: 73.3, 12: 81.9}
         df_summary = df_monthly.copy()
         df_summary["month_s"]    = [month_names[i] for i in range(12)]
         df_summary               = df_summary.rename(columns={"avg_angle":"시뮬 평균각(°)"})
@@ -1224,10 +1233,10 @@ def run_app():
             angles_tmp = np.where(ghi_y < 10, float(ANGLE_NIGHT),
                                    np.clip(elev_y, float(amin), ANGLE_MAX).astype(float))
             tilt = np.asarray(angles_tmp, dtype=float)
-            poa_dir, poa_diff, poa_sky = poa_components(
+            poa_dir, poa_sky = poa_components(
                 tilt, np.full_like(tilt, 180), zen_y, az_y, dni_y, ghi_y, dhi_y)
             eff_poa = calc_effective_poa(
-                poa_dir, poa_diff, poa_sky, tilt, elev_y, half_depth_mm, blade_depth_mm, pitch_mm)
+                poa_dir, poa_sky, tilt, elev_y, half_depth_mm, blade_depth_mm, pitch_mm)
             mask = ghi_y >= 10
             wh = (eff_poa[mask] / 1000 * capacity_w * unit_count * eff_factor * t_loss).sum()
             pow_by_amin.append(wh * area_scale / 1000)
