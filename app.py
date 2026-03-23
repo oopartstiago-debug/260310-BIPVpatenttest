@@ -720,5 +720,4 @@ def run_app():
         fig2.update_layout(height=280,xaxis_title="PITCH(mm)",yaxis_title="음영률%",template=PLOT_TEMPLATE)
         st.plotly_chart(fig2,use_container_width=True)
 
-if __name__ == "__main__":
-    run_app()
+run_app()
