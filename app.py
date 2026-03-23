@@ -30,12 +30,21 @@ try:
 except ImportError:
     _XGB_AVAILABLE = False
 
+# 페이지 설정 — 반드시 첫 번째 Streamlit 명령어
+st.set_page_config(page_title="BIPV AI V15", layout="wide", page_icon="☀️")
+
 # ==============================================================================
 # 상수
 # ==============================================================================
-KMA_SERVICE_KEY = st.secrets.get("KMA_SERVICE_KEY", "")
-GH_TOKEN        = st.secrets.get("GH_TOKEN", "")
-GH_HEADERS      = {"Authorization": f"token {GH_TOKEN}"} if GH_TOKEN else {}
+try:
+    KMA_SERVICE_KEY = st.secrets["KMA_SERVICE_KEY"]
+except Exception:
+    KMA_SERVICE_KEY = ""
+try:
+    GH_TOKEN = st.secrets["GH_TOKEN"]
+except Exception:
+    GH_TOKEN = ""
+GH_HEADERS = {"Authorization": f"token {GH_TOKEN}"} if GH_TOKEN else {}
 
 LAT, LON, TZ = 37.5665, 126.9780, "Asia/Seoul"
 NX, NY = 60, 127
@@ -65,16 +74,25 @@ site = Location(LAT, LON, tz=TZ)
 # ==============================================================================
 @st.cache_resource
 def load_xgb_model():
-    if not _XGB_AVAILABLE: return None
+    if not _XGB_AVAILABLE:
+        st.sidebar.error("xgboost/joblib 미설치")
+        return None
     if not os.path.exists(XGB_MODEL_FILENAME):
         try:
             r = requests.get(MODEL_URL, headers=GH_HEADERS, timeout=30)
             if r.status_code == 200:
                 with open(XGB_MODEL_FILENAME, "wb") as f: f.write(r.content)
-        except Exception: return None
+            else:
+                st.sidebar.error(f"모델 HTTP {r.status_code}")
+                return None
+        except Exception as e:
+            st.sidebar.error(f"모델 다운로드 에러: {e}")
+            return None
     if os.path.isfile(XGB_MODEL_FILENAME):
         try: return joblib.load(XGB_MODEL_FILENAME)
-        except Exception: return None
+        except Exception as e:
+            st.sidebar.error(f"모델 로드 에러: {e}")
+            return None
     return None
 
 @st.cache_data(ttl=86400)
@@ -87,8 +105,12 @@ def load_training_csv():
             if df["timestamp"].dt.tz is None:
                 df["timestamp"] = df["timestamp"].dt.tz_localize("Asia/Seoul")
             return df
-    except Exception: pass
-    return None
+        else:
+            st.sidebar.error(f"CSV HTTP {r.status_code}")
+            return None
+    except Exception as e:
+        st.sidebar.error(f"CSV 로드 에러: {e}")
+        return None
 
 # ==============================================================================
 # V15 물리 계산 — 선분교차 기반
@@ -257,7 +279,6 @@ def get_annual_data(year, half_depth, pitch_mm, capacity_w,
 # 메인 앱
 # ==============================================================================
 def run_app():
-    st.set_page_config(page_title="BIPV AI V15", layout="wide", page_icon="☀️")
     st.markdown("""<style>
     .stApp{background-color:#F8F9FA}
     .explain-box{background:#EEF2FF;border-left:3px solid #3B5BDB;padding:12px 16px;
