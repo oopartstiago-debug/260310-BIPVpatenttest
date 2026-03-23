@@ -1,1 +1,10 @@
+# Streamlit secrets
+.streamlit/secrets.toml
 
+# 다운로드된 모델 캐시
+*.pkl
+
+# Python
+__pycache__/
+*.pyc
+.env
