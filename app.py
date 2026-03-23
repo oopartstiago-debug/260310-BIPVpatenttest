@@ -513,8 +513,12 @@ def run_app():
                     for a, e in zip(ai_angles[mask_day], elev[mask_day])]
         svf_vals = [sky_view_factor(a, half_depth_mm, blade_depth_mm, pitch_mm)
                     for a in ai_angles[mask_day]]
+        ghi_day  = ghi_real[mask_day]
+        elev_day = elev[mask_day]
 
-        def sf_status(sf):
+        def sf_status(sf, ghi_val, elev_val):
+            if ghi_val < 10 or elev_val <= 0:
+                return "— (비활성)"
             if sf < 0.3:   return f"{sf*100:.1f}% 🟢 양호"
             elif sf < 0.5: return f"{sf*100:.1f}% 🟡 경미"
             elif sf < 0.8: return f"{sf*100:.1f}% 🟠 주의"
@@ -523,9 +527,9 @@ def run_app():
         df_sch = pd.DataFrame({
             "시간":        times[mask_day].strftime("%H:%M").tolist(),
             "AI 각도(°)": ai_angles[mask_day].astype(int).tolist(),
-            "GHI (W/m²)": np.round(ghi_real[mask_day], 1).tolist(),
-            "음영률 상태": [sf_status(sf) for sf in sf_vals],
-            "SVF":         [f"{svf:.2f}" for svf in svf_vals],
+            "GHI (W/m²)": np.round(ghi_day, 1).tolist(),
+            "음영률 상태": [sf_status(sf, g, e) for sf, g, e in zip(sf_vals, ghi_day, elev_day)],
+            "SVF":         [f"{svf:.2f}" if g >= 10 and e > 0 else "—" for svf, g, e in zip(svf_vals, ghi_day, elev_day)],
         })
         st.dataframe(df_sch, use_container_width=True, hide_index=True)
 
@@ -1091,9 +1095,11 @@ def run_app():
             "기온 (°C)":      np.round(temp_series[mask_day], 1).tolist(),
             "AI 각도(°)":    ai_angles[mask_day].astype(int).tolist(),
             "음영률":         [f"{calc_shading_fraction(a,e,half_depth_mm,blade_depth_mm,pitch_mm)*100:.1f}%"
-                               for a, e in zip(ai_angles[mask_day], elev[mask_day])],
+                               if g >= 10 and e > 0 else "—"
+                               for a, e, g in zip(ai_angles[mask_day], elev[mask_day], ghi_real[mask_day])],
             "SVF":            [f"{sky_view_factor(a,half_depth_mm,blade_depth_mm,pitch_mm):.2f}"
-                               for a in ai_angles[mask_day]],
+                               if g >= 10 and e > 0 else "—"
+                               for a, g, e in zip(ai_angles[mask_day], ghi_real[mask_day], elev[mask_day])],
         })
         st.dataframe(df_tom, use_container_width=True, hide_index=True)
 
