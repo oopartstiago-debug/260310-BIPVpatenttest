@@ -52,8 +52,8 @@ HALF_DEPTH_MM      = 57.0
 ANGLE_MIN, ANGLE_MAX, ANGLE_NIGHT = 15, 90, 90
 
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/oopartstiago-debug/260310-BIPVpatenttest/main"
-MODEL_URL = f"{GITHUB_RAW_BASE}/models/bipv_xgboost_model_v15.pkl"
-CSV_URL   = f"{GITHUB_RAW_BASE}/data/bipv_ai_master_data_v15.csv"
+MODEL_URL = f"{GITHUB_RAW_BASE}/bipv_xgboost_model_v15.pkl"
+CSV_URL   = f"{GITHUB_RAW_BASE}/bipv_ai_master_data_v15.csv"
 XGB_MODEL_FILENAME = "bipv_xgboost_model_v15.pkl"
 
 PLOT_TEMPLATE = "plotly_white"
