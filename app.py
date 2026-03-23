@@ -1,6 +1,11 @@
 # ==============================================================================
-# BIPV 통합 관제 시스템 v8.3 — V13 물리모델 + 시크릿 관리
+# BIPV 통합 관제 시스템 v8.4 — V14 SVF 수정 + 시크릿 관리
 # ==============================================================================
+# v8.4 변경사항 (from v8.3):
+#   1. SVF 공식 수정: gap/(gap+protrusion) → 1 - protrusion/PITCH
+#      수직(90°) SVF=1.0 (V13에서는 0.05 오류), 물리적으로 정확
+#   2. V14 Colab 재학습 결과 반영 예정 (피처중요도, MAE, 참조각 등)
+#
 # v8.3 변경사항 (from v8.2):
 #   1. KMA_SERVICE_KEY / GH_TOKEN → st.secrets로 이동 (하드코딩 제거)
 #   2. GitHub private repo 지원 (GH_HEADERS 인증 헤더)
@@ -8,15 +13,12 @@
 #
 # v8.2 변경사항 (from v8.1):
 #   1. calc_effective_poa 확산성분 이중계산 버그 수정
-#   2. 피처 중요도 V13 실제값 반영 (doy_cos=0.379, ghi=0.154 등)
+#   2. 피처 중요도 V13 실제값 반영
 #   3. MAE 1.44° / R² 0.9905 / RMSE 2.75° 갱신
-#   4. V13 월별 참조각 갱신 (1월 83.8°, 12월 81.9° 등)
-#   5. 발전량 비교 해석 — 겨울 최적각 80~84° 반영
-#   6. 월별 각도 해석 텍스트 V13 범위 반영
-#   7. GitHub 모델/CSV URL V13 파일명으로 변경
-#   8. 학습 데이터 탭: V13 CSV 대응 (target_angle_v13 컬럼)
+#   4. V13 월별 참조각 갱신
+#   5~8. 기타 V13 수치 반영
 # ==============================================================================
-__version__ = "8.3"
+__version__ = "8.4"
 
 import os
 import io
@@ -63,11 +65,11 @@ ANGLE_MIN          = 15
 ANGLE_MAX          = 90
 ANGLE_NIGHT        = 90
 
-# GitHub 리소스 — V13 (private repo → GH_HEADERS 인증 필요)
+# GitHub 리소스 — V14 (private repo → GH_HEADERS 인증 필요)
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/oopartstiago-debug/260310-BIPVpatenttest/main"
-MODEL_URL = f"{GITHUB_RAW_BASE}/models/bipv_xgboost_model_v13.pkl"
-CSV_URL   = f"{GITHUB_RAW_BASE}/data/bipv_ai_master_data_v13.csv"
-XGB_MODEL_FILENAME = "bipv_xgboost_model_v13.pkl"
+MODEL_URL = f"{GITHUB_RAW_BASE}/models/bipv_xgboost_model_v14.pkl"
+CSV_URL   = f"{GITHUB_RAW_BASE}/data/bipv_ai_master_data_v14.csv"
+XGB_MODEL_FILENAME = "bipv_xgboost_model_v14.pkl"
 
 # 라이트 테마 plotly 설정
 PLOT_TEMPLATE = "plotly_white"
@@ -115,7 +117,7 @@ def load_training_csv():
     return None
 
 # ==============================================================================
-# V13 물리 계산
+# V14 물리 계산
 # ==============================================================================
 def blade_geometry(tilt_deg, half_depth=HALF_DEPTH_MM, blade_depth=DEFAULT_HEIGHT_MM, pitch=DEFAULT_PITCH_MM):
     tilt_rad = np.radians(np.asarray(tilt_deg, dtype=float))
@@ -125,9 +127,9 @@ def blade_geometry(tilt_deg, half_depth=HALF_DEPTH_MM, blade_depth=DEFAULT_HEIGH
     return protrusion, vertical_occupy, gap
 
 def sky_view_factor(tilt_deg, half_depth=HALF_DEPTH_MM, blade_depth=DEFAULT_HEIGHT_MM, pitch=DEFAULT_PITCH_MM):
-    protrusion, _, gap = blade_geometry(tilt_deg, half_depth, blade_depth, pitch)
-    denom = gap + protrusion
-    return np.clip(np.where(denom > 0, gap / denom, 0.0), 0.05, 1.0)
+    """V14 SVF: 1 - protrusion/pitch. 수직(90°)→1.0, 수평(0°)→~0.5"""
+    protrusion, _, _ = blade_geometry(tilt_deg, half_depth, blade_depth, pitch)
+    return np.clip(1.0 - protrusion / pitch, 0.05, 1.0)
 
 def calc_shading_fraction(tilt_deg, elev_deg, half_depth=HALF_DEPTH_MM,
                            blade_depth=DEFAULT_HEIGHT_MM, pitch=DEFAULT_PITCH_MM,
@@ -158,7 +160,7 @@ def poa_components(surface_tilt, surface_azimuth, solar_zenith, solar_azimuth, d
 def calc_effective_poa(poa_direct, poa_sky_diffuse, tilt_deg, elev_deg,
                         half_depth=HALF_DEPTH_MM, blade_depth=DEFAULT_HEIGHT_MM, pitch=DEFAULT_PITCH_MM):
     """
-    V13 유효 POA — Colab 코드와 동일한 공식:
+    V14 유효 POA — Colab 코드와 동일한 공식:
       effective_poa = poa_direct × (1 - SF × 0.7) + poa_sky_diffuse × SVF
     """
     sf  = calc_shading_fraction(tilt_deg, elev_deg, half_depth, blade_depth, pitch)
@@ -306,7 +308,7 @@ def get_annual_data(year, half_depth, blade_depth, pitch_mm, capacity_w,
 # 메인 앱
 # ==============================================================================
 def run_app():
-    st.set_page_config(page_title="BIPV AI 관제 V13", layout="wide", page_icon="☀️")
+    st.set_page_config(page_title="BIPV AI 관제 V14", layout="wide", page_icon="☀️")
 
     # ── 라이트 테마 CSS ────────────────────────────────────────────────────────
     st.markdown("""
@@ -353,15 +355,15 @@ def run_app():
     # ── 사이드바 ──────────────────────────────────────────────────────────────
     st.sidebar.title("■ 통합 환경 설정")
     if xgb_model:
-        st.sidebar.success("✅ XGBoost V13 모델 로드됨")
+        st.sidebar.success("✅ XGBoost V14 모델 로드됨")
     else:
-        st.sidebar.warning("⚠️ 규칙 기반 모드 (V13 모델 미로드)")
+        st.sidebar.warning("⚠️ 규칙 기반 모드 (V14 모델 미로드)")
 
     st.sidebar.subheader("1. 시뮬레이션 날짜")
     tomorrow_dt = datetime.strptime(tomorrow, "%Y%m%d") if tomorrow else datetime.now() + timedelta(days=1)
     sim_date = st.sidebar.date_input("날짜", tomorrow_dt)
 
-    st.sidebar.subheader("2. 블레이드 스펙 (V13)")
+    st.sidebar.subheader("2. 블레이드 스펙 (V14)")
     st.sidebar.caption("중심축 회전 | 가로(발전면적) × 세로(음영계산) | 피치 | 개수")
     width_mm       = st.sidebar.number_input("블레이드 가로 (mm)", min_value=100.0, value=DEFAULT_WIDTH_MM, step=100.0)
     blade_depth_mm = st.sidebar.number_input("블레이드 세로/DEPTH (mm)", min_value=10.0, value=DEFAULT_HEIGHT_MM, step=1.0)
@@ -410,7 +412,7 @@ def run_app():
     if xgb_model:
         xgb_angles = predict_angles_xgb(xgb_model, times, ghi_real, cloud_kma_scale, temp_series, ANGLE_MAX)
     ai_angles = xgb_angles if xgb_angles is not None else improved_rule_angles(elev, ghi_real)
-    angle_mode = "XGBoost V13" if xgb_angles is not None else "규칙 기반"
+    angle_mode = "XGBoost V14" if xgb_angles is not None else "규칙 기반"
 
     def calc_power_day(angles):
         tilt = np.asarray(angles, dtype=float)
@@ -442,7 +444,7 @@ def run_app():
 
     # ── 탭 ────────────────────────────────────────────────────────────────────
     st.title("☀️ BIPV AI 통합 관제 대시보드")
-    st.caption(f"v{__version__} (V13 물리모델) | {_sim_d} | {weather_status} | {angle_mode} 모드 | {kma_status}")
+    st.caption(f"v{__version__} (V14 물리모델) | {_sim_d} | {weather_status} | {angle_mode} 모드 | {kma_status}")
 
     tabs = st.tabs([
         "🏠 메인", "📊 학습 데이터셋", "🎯 피처 중요도",
@@ -542,13 +544,17 @@ def run_app():
     # TAB 1: 학습 데이터셋
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[1]:
-        st.subheader("📊 XGBoost 학습 데이터셋 탐색 (V13)")
+        st.subheader("📊 XGBoost 학습 데이터셋 탐색 (V14)")
         df_csv = load_training_csv()
 
         if df_csv is not None:
-            # V13 CSV에는 target_angle_v13 컬럼, V5에는 target_angle_v5
-            target_col = "target_angle_v13" if "target_angle_v13" in df_csv.columns else "target_angle_v5"
-            csv_version = "V13" if target_col == "target_angle_v13" else "V5"
+            # V14 CSV에는 target_angle_v14 컬럼, V13에는 v13, V5에는 v5
+            if "target_angle_v14" in df_csv.columns:
+                target_col, csv_version = "target_angle_v14", "V14"
+            elif "target_angle_v13" in df_csv.columns:
+                target_col, csv_version = "target_angle_v13", "V13"
+            else:
+                target_col, csv_version = "target_angle_v5", "V5"
 
             st.success(f"✅ 학습 데이터 로드 완료 ({csv_version}) | {len(df_csv):,}행 | 2014~2023년 기상청 관측 기반")
 
@@ -563,7 +569,7 @@ def run_app():
               두 성분을 함께 써야 시각의 앞뒤 관계를 모두 표현 가능.<br>
             • <b>doy_sin / doy_cos</b>: 연중 날짜(1~365일)를 사인·코사인으로 변환한 값.
               계절 순환성 표현. 예: 하지(172일) → sin≈1, cos≈0 / 동지(355일) → sin≈-1, cos≈0.<br>
-            • <b>{target_col}</b>: 학습 타겟. V13 물리모델로 산출한 시간별 최적 루버 각도 (°).
+            • <b>{target_col}</b>: 학습 타겟. V14 물리모델(SVF 수정)로 산출한 시간별 최적 루버 각도 (°).
             </div>
             """, unsafe_allow_html=True)
 
@@ -607,7 +613,7 @@ def run_app():
                                category_orders={"month_s": month_order}, template=PLOT_TEMPLATE)
                 fig4.update_layout(showlegend=False, height=300, yaxis_title="최적 각도 (°)")
                 st.plotly_chart(fig4, use_container_width=True)
-                st.caption("여름: 태양고도 높아 낮은 각도(~15°) 최적. 겨울: 태양이 낮게 떠 높은 각도(80~84°) 유리.")
+                st.caption("여름: 태양고도 높아 낮은 각도(~18°) 최적. 겨울: 태양이 낮게 떠 높은 각도(84~86°) 유리.")
 
             # Row 3: hour/doy 패턴
             st.markdown("---")
@@ -637,7 +643,7 @@ def run_app():
                                                ticktext=month_order),
                                     template=PLOT_TEMPLATE)
                 st.plotly_chart(fig6, use_container_width=True)
-                st.caption("겨울(1·12월)에 최적각 높고(80°+) 여름(6·7월)에 낮음(~15°). "
+                st.caption("겨울(1·12월)에 최적각 높고(84°+) 여름(6·7월)에 낮음(~18°). "
                            "doy_sin/cos는 이 계절 패턴을 365일 순환으로 수치화한 것.")
 
             st.markdown(f"**GHI vs 최적각 산점도 (10년 실측, {csv_version})**")
@@ -653,10 +659,10 @@ def run_app():
             st.warning("⚠️ 학습 데이터 CSV를 불러올 수 없습니다. GitHub 연결 확인 필요.")
 
     # ══════════════════════════════════════════════════════════════════════════
-    # TAB 2: 피처 중요도 — V13 실제값
+    # TAB 2: 피처 중요도 — V14 실제값
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[2]:
-        st.subheader("🎯 피처 중요도 (Feature Importance) — V13")
+        st.subheader("🎯 피처 중요도 (Feature Importance) — V14")
 
         st.markdown("""
         <div class="explain-box">
@@ -666,15 +672,15 @@ def run_app():
         </div>
         """, unsafe_allow_html=True)
 
-        # ★ V13 실제 Feature Importance (Colab 재학습 결과)
+        # ★ V14 실제 Feature Importance (Colab 재학습 결과)
         importance_data = {
-            "피처":      ["doy_cos", "ghi_w_m2", "hour_sin", "temp_actual", "doy_sin", "hour_cos", "cloud_cover"],
-            "Gain":      [0.379,      0.154,      0.140,      0.135,         0.092,     0.085,      0.015],
+            "피처":      ["doy_cos", "ghi_w_m2", "temp_actual", "hour_sin", "doy_sin", "hour_cos", "cloud_cover"],
+            "Gain":      [0.358,      0.196,      0.135,         0.124,      0.084,     0.082,      0.021],
             "변수 설명": [
-                "연중 날짜 코사인 — 계절 위치 (하지/동지 구분). V13에서 가장 중요한 변수.",
+                "연중 날짜 코사인 — 계절 위치 (하지/동지 구분). 가장 중요한 변수.",
                 "수평면 일사량 — 발전 가능한 태양에너지의 절대량",
-                "하루 중 시각 사인 — 오전/오후 태양 위치",
                 "외기온도 — 패널 온도계수에 의한 효율 보정",
+                "하루 중 시각 사인 — 오전/오후 태양 위치",
                 "연중 날짜 사인 — 계절 위치 보완 성분",
                 "하루 중 시각 코사인 — 시각 보완 성분",
                 "운량 (0~9) — 구름에 의한 일사 감쇠 정도 (GHI에 이미 반영되어 기여도 낮음)",
@@ -698,13 +704,13 @@ def run_app():
         with col1:
             st.markdown("""
             <div class="explain-box">
-            <b>🥇 doy_cos (37.9%)</b><br>
-            V13에서 가장 중요한 변수. 계절(겨울↔여름)에 따른 태양 고도 변화가
+            <b>🥇 doy_cos (35.8%)</b><br>
+            가장 중요한 변수. 계절(겨울↔여름)에 따른 태양 고도 변화가
             최적 루버 각도를 가장 크게 좌우함.
-            겨울(1월 83.8°) vs 여름(6월 15.0°)의 극단적 차이를 이 변수가 포착.
+            겨울(1월 85.7°) vs 여름(6월 18.3°)의 극단적 차이를 이 변수가 포착.
             </div>
             <div class="explain-box">
-            <b>📅 doy_cos + doy_sin (47.1%)</b><br>
+            <b>📅 doy_cos + doy_sin (44.2%)</b><br>
             계절 정보 합산. 거의 절반에 달하는 기여도.
             여름·겨울의 태양 고도 패턴이 달라 최적 각도 전략이 완전히 다름.
             두 성분이 함께 1년 순환을 표현.
@@ -713,14 +719,14 @@ def run_app():
         with col2:
             st.markdown("""
             <div class="explain-box">
-            <b>🕐 ghi_w_m2 (15.4%) + hour_sin/cos (22.5%)</b><br>
+            <b>🕐 ghi_w_m2 (19.6%) + hour_sin/cos (20.6%)</b><br>
             일사량과 시각 정보. 같은 계절이라도 아침·정오·저녁의 태양 위치가 달라
             시각별 최적 각도가 달라짐. GHI는 실시간 기상 상태를 반영.
             </div>
             <div class="explain-box">
-            <b>🌡️ temp_actual (13.5%) + ☁️ cloud_cover (1.5%)</b><br>
+            <b>🌡️ temp_actual (13.5%) + ☁️ cloud_cover (2.1%)</b><br>
             기온은 온도계수(-0.4%/°C)를 통해 효율에 영향.
-            운량(1.5%)은 GHI에 이미 구름 효과가 반영되어 있어 기여도가 매우 낮음.
+            운량(2.1%)은 GHI에 이미 구름 효과가 반영되어 있어 기여도가 매우 낮음.
             </div>
             """, unsafe_allow_html=True)
 
@@ -729,18 +735,18 @@ def run_app():
         with m1:
             st.markdown("""
             <div class="good-box">
-            <b>MAE (평균절대오차) = 1.44°</b><br>
-            예측 각도와 실제 최적 각도의 평균 차이가 1.44°.
+            <b>MAE (평균절대오차) = 1.46°</b><br>
+            예측 각도와 실제 최적 각도의 평균 차이가 1.46°.
             루버 제어 모터 물리적 정밀도(±2~3°)보다 작아 실제 제어에 지장 없는 수준.
             </div>
             """, unsafe_allow_html=True)
         with m2:
             st.markdown("""
             <div class="good-box">
-            <b>R² (결정계수) = 0.9905 | RMSE = 2.75°</b><br>
-            루버 각도 변동의 99.1%를 모델이 설명.
+            <b>R² (결정계수) = 0.9915 | RMSE = 2.60°</b><br>
+            루버 각도 변동의 99.2%를 모델이 설명.
             0.99 이상은 매우 높은 적합도.
-            나머지 0.9%는 순간적 기상 변동에 기인.
+            나머지 0.8%는 순간적 기상 변동에 기인.
             </div>
             """, unsafe_allow_html=True)
 
@@ -748,7 +754,7 @@ def run_app():
     # TAB 3: 음영 원리
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[3]:
-        st.subheader("💡 V13 중심축 회전 루버의 음영 원리")
+        st.subheader("💡 V14 중심축 회전 루버의 음영 원리")
 
         st.markdown("""
         <div class="explain-box">
@@ -835,7 +841,7 @@ def run_app():
                 xaxis=dict(range=[-30, 260], showgrid=False, zeroline=False, showticklabels=False),
                 yaxis=dict(range=[-30, n_louvers*pitch_px+80], showgrid=False, zeroline=False,
                            showticklabels=False, scaleanchor="x"),
-                title=f"V13 단면도 — 태양고도 {elev_example}° | 루버각 {tilt_example}°",
+                title=f"V14 단면도 — 태양고도 {elev_example}° | 루버각 {tilt_example}°",
                 legend=dict(orientation="h", y=-0.05))
             st.plotly_chart(fig, use_container_width=True)
 
@@ -872,7 +878,7 @@ def run_app():
     # TAB 4: 음영 시각화
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[4]:
-        st.subheader("🔥 Tilt vs 태양고도별 음영률 히트맵 (V13)")
+        st.subheader("🔥 Tilt vs 태양고도별 음영률 히트맵 (V14)")
 
         c1, c2 = st.columns(2)
         with c1:
@@ -917,7 +923,7 @@ def run_app():
                             font=dict(color="blue", size=11))
         fig.update_layout(height=500, xaxis_title="루버 각도 (°)",
                            yaxis_title="태양 고도각 (°)",
-                           title="V13 음영률 히트맵 — AI 운전 궤적")
+                           title="V14 음영률 히트맵 — AI 운전 궤적")
         st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("""
@@ -943,7 +949,7 @@ def run_app():
         st.subheader("⚡ AI vs 고정60° vs 수직90° 발전량 비교")
 
         if use_xgb_annual:
-            st.success("✅ XGBoost V13 모델 기반 연간 시뮬레이션")
+            st.success("✅ XGBoost V14 모델 기반 연간 시뮬레이션")
         else:
             st.info("ℹ️ 규칙 기반 각도 (XGBoost 미로드 시 대체)")
 
@@ -970,9 +976,9 @@ def run_app():
         <div class="explain-box">
         <b>📊 월별 발전량 그래프 해석</b><br><br>
         <b>🌞 여름 (6~8월)</b>: 태양 고도가 높아(최대 76°) 일사량이 풍부. 연중 최대 발전 구간.
-        AI는 낮은 각도(~15°)로 직달광을 최적화하여 고정60°보다 +45~76% 높은 발전량 달성.<br><br>
+        AI는 낮은 각도(~18°)로 직달광을 최적화하여 고정60°보다 +23~48% 높은 발전량 달성.<br><br>
         <b>❄️ 겨울 (12~2월)</b>: 서울 기준 태양 최대 고도 약 29°로 낮고 일조 시간도 짧음.
-        {"XGBoost V13 모델이 겨울 최적각(80~84°)을 학습하여 고정60°보다 +7~21% 높은 발전량 달성. 낮은 태양 고도에서 루버를 거의 수직으로 세워 직달광을 최대화하는 전략." if use_xgb_annual else "현재 규칙 기반 모드에서는 겨울철 AI 각도가 최적값보다 낮게 설정될 수 있어 고정60°보다 낮게 나올 수 있음. XGBoost V13 모델 로드 후 정확한 비교 가능."}<br><br>
+        {"XGBoost V14 모델이 겨울 최적각(84~86°)을 학습하여 고정60°보다 +6~22% 높은 발전량 달성. 낮은 태양 고도에서 루버를 거의 수직으로 세워 직달광 + 확산광을 최대화하는 전략." if use_xgb_annual else "현재 규칙 기반 모드에서는 겨울철 AI 각도가 최적값보다 낮게 설정될 수 있어 고정60°보다 낮게 나올 수 있음. XGBoost V14 모델 로드 후 정확한 비교 가능."}<br><br>
         <b>🍂 봄·가을</b>: 중간 수준의 발전량. 계절 전환에 따라 AI가 각도 전략을 유동적으로 조정.<br><br>
         <b>수직90° 비교</b>: 겨울에는 태양이 낮게 떠 수직(90°)에 가까울수록 유리하여
         고정90°가 생각보다 선전. 여름에는 수직이 직달광을 못 받아 크게 불리.
@@ -1005,7 +1011,7 @@ def run_app():
         st.caption("누적 곡선의 기울기가 가파른 구간이 발전량이 많은 계절. AI 곡선이 다른 두 곡선 위에 있을수록 제어 효과가 큼.")
 
     # ══════════════════════════════════════════════════════════════════════════
-    # TAB 6: 월별 각도 — V13 참조각 갱신
+    # TAB 6: 월별 각도 — V14 참조각 갱신
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[6]:
         st.subheader("📅 월별 AI 제어 각도 분포")
@@ -1029,31 +1035,31 @@ def run_app():
 
         st.markdown("""
         <div class="explain-box">
-        <b>📊 월별 각도 분포 전체 해석 (V13)</b><br><br>
-        <b>🌞 여름 (6~8월) — 낮은 각도 (~15°)</b><br>
+        <b>📊 월별 각도 분포 전체 해석 (V14)</b><br><br>
+        <b>🌞 여름 (6~8월) — 낮은 각도 (~18~22°)</b><br>
         서울 여름철 최대 태양 고도각 약 76°. 태양이 높이 떠 있으므로 루버를 눕혀야(낮은 각도)
-        직달광이 수광면에 가장 수직에 가깝게 입사. V13 정답지 기준 6~7월 평균 15.0°.
+        직달광이 수광면에 가장 수직에 가깝게 입사. V14 정답지 기준 6~7월 평균 18~20°.
         분포가 좁은 이유는 대부분의 시간에 최저각(15°)이 최적이기 때문.<br><br>
-        <b>❄️ 겨울 (12~2월) — 높은 각도 (50~84°)</b><br>
+        <b>❄️ 겨울 (12~2월) — 높은 각도 (57~86°)</b><br>
         겨울철 최대 고도각 약 29°. 태양이 낮게 떠 루버를 세워야(높은 각도) 직달광을 효과적으로 수광.
-        V13 정답지 기준 1월 평균 83.8°, 12월 81.9°로 거의 수직에 가까움.
+        V14 정답지 기준 1월 평균 85.7°, 12월 83.6°로 거의 수직에 가까움.
         2월(49.1°)부터 급격히 내려가는 전환 구간.<br><br>
         <b>🍂 봄·가을 (3~5월, 9~11월) — 점진적 전환</b><br>
-        태양 고도각이 여름·겨울 사이를 오가며 각도도 중간값(15~73°).
+        태양 고도각이 여름·겨울 사이를 오가며 각도도 중간값(22~79°).
         특히 11월(73.3°)은 겨울에 가까운 높은 각도로 빠르게 전환.
         </div>
         """, unsafe_allow_html=True)
 
         st.subheader("월별 평균 각도 & 발전량")
-        # ★ V13 정답지 실제 월별 평균 최적각
-        v13_ref = {1: 83.8, 2: 49.1, 3: 31.1, 4: 19.7, 5: 15.1, 6: 15.0,
-                   7: 15.0, 8: 15.8, 9: 24.8, 10: 37.2, 11: 73.3, 12: 81.9}
+        # ★ V14 정답지 실제 월별 평균 최적각
+        v14_ref = {1: 85.7, 2: 57.0, 3: 39.2, 4: 23.3, 5: 22.6, 6: 18.3,
+                   7: 20.0, 8: 21.7, 9: 35.2, 10: 46.0, 11: 79.1, 12: 83.6}
         df_summary = df_monthly.copy()
         df_summary["month_s"]    = [month_names[i] for i in range(12)]
         df_summary               = df_summary.rename(columns={"avg_angle":"시뮬 평균각(°)"})
-        df_summary["V13 참조각"] = [v13_ref[m] for m in range(1, 13)]
+        df_summary["V14 참조각"] = [v14_ref[m] for m in range(1, 13)]
         st.dataframe(
-            df_summary[["month_s","시뮬 평균각(°)","V13 참조각","AI","고정60°","수직90°"]].round(1),
+            df_summary[["month_s","시뮬 평균각(°)","V14 참조각","AI","고정60°","수직90°"]].round(1),
             use_container_width=True, hide_index=True)
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1167,7 +1173,7 @@ def run_app():
     # TAB 9: 파라미터 튜닝
     # ══════════════════════════════════════════════════════════════════════════
     with tabs[9]:
-        st.subheader("🔧 파라미터 민감도 분석 — V13 물리모델 기반")
+        st.subheader("🔧 파라미터 민감도 분석 — V14 물리모델 기반")
         st.markdown("파라미터 변화에 따라 발전량·음영률이 어떻게 달라지는지 확인합니다.")
 
         col1, col2 = st.columns(2)
@@ -1258,7 +1264,7 @@ def run_app():
                             yaxis_title="연간 발전량 (kWh)", template=PLOT_TEMPLATE)
         st.plotly_chart(fig3, use_container_width=True)
 
-        st.caption("💡 V13: PPO 강화학습을 향후 실시예로 추가 가능 (현재는 XGBoost/규칙 기반)")
+        st.caption("💡 V14: PPO 강화학습을 향후 실시예로 추가 가능 (현재는 XGBoost/규칙 기반)")
 
 
 if __name__ == "__main__":
