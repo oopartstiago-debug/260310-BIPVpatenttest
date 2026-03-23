@@ -1,9 +1,13 @@
 # ==============================================================================
-# BIPV 통합 관제 시스템 v8.2 — V13 물리모델 완전 반영
+# BIPV 통합 관제 시스템 v8.3 — V13 물리모델 + 시크릿 관리
 # ==============================================================================
+# v8.3 변경사항 (from v8.2):
+#   1. KMA_SERVICE_KEY / GH_TOKEN → st.secrets로 이동 (하드코딩 제거)
+#   2. GitHub private repo 지원 (GH_HEADERS 인증 헤더)
+#   3. MODEL_URL, CSV_URL 경로 → /models/, /data/ 하위폴더 반영
+#
 # v8.2 변경사항 (from v8.1):
 #   1. calc_effective_poa 확산성분 이중계산 버그 수정
-#      (poa_diffuse*svf + poa_sky_diffuse*svf → poa_sky_diffuse*svf만 사용)
 #   2. 피처 중요도 V13 실제값 반영 (doy_cos=0.379, ghi=0.154 등)
 #   3. MAE 1.44° / R² 0.9905 / RMSE 2.75° 갱신
 #   4. V13 월별 참조각 갱신 (1월 83.8°, 12월 81.9° 등)
@@ -12,7 +16,7 @@
 #   7. GitHub 모델/CSV URL V13 파일명으로 변경
 #   8. 학습 데이터 탭: V13 CSV 대응 (target_angle_v13 컬럼)
 # ==============================================================================
-__version__ = "8.2"
+__version__ = "8.3"
 
 import os
 import io
@@ -38,7 +42,11 @@ except ImportError:
 # ==============================================================================
 # 상수
 # ==============================================================================
-KMA_SERVICE_KEY = "c6ffb5b520437f3e6983a55234e73701fce509cbb3153c9473ebbe5756a1da00"
+# 시크릿: .streamlit/secrets.toml 또는 Streamlit Cloud Secrets에서 로드
+KMA_SERVICE_KEY = st.secrets.get("KMA_SERVICE_KEY", "")
+GH_TOKEN        = st.secrets.get("GH_TOKEN", "")
+GH_HEADERS      = {"Authorization": f"token {GH_TOKEN}"} if GH_TOKEN else {}
+
 LAT, LON, TZ = 37.5665, 126.9780, "Asia/Seoul"
 NX, NY = 60, 127
 DEFAULT_CAPACITY   = 300
@@ -55,10 +63,10 @@ ANGLE_MIN          = 15
 ANGLE_MAX          = 90
 ANGLE_NIGHT        = 90
 
-# GitHub 리소스 — V13
+# GitHub 리소스 — V13 (private repo → GH_HEADERS 인증 필요)
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/oopartstiago-debug/260310-BIPVpatenttest/main"
-MODEL_URL = f"{GITHUB_RAW_BASE}/bipv_xgboost_model_v13.pkl"
-CSV_URL   = f"{GITHUB_RAW_BASE}/bipv_ai_master_data_v13.csv"
+MODEL_URL = f"{GITHUB_RAW_BASE}/models/bipv_xgboost_model_v13.pkl"
+CSV_URL   = f"{GITHUB_RAW_BASE}/data/bipv_ai_master_data_v13.csv"
 XGB_MODEL_FILENAME = "bipv_xgboost_model_v13.pkl"
 
 # 라이트 테마 plotly 설정
@@ -79,7 +87,7 @@ def load_xgb_model():
         return None
     if not os.path.exists(XGB_MODEL_FILENAME):
         try:
-            r = requests.get(MODEL_URL, timeout=30)
+            r = requests.get(MODEL_URL, headers=GH_HEADERS, timeout=30)
             if r.status_code == 200:
                 with open(XGB_MODEL_FILENAME, "wb") as f:
                     f.write(r.content)
@@ -95,7 +103,7 @@ def load_xgb_model():
 @st.cache_data(ttl=86400)
 def load_training_csv():
     try:
-        r = requests.get(CSV_URL, timeout=30)
+        r = requests.get(CSV_URL, headers=GH_HEADERS, timeout=30)
         if r.status_code == 200:
             df = pd.read_csv(io.StringIO(r.text))
             df["timestamp"] = pd.to_datetime(df["timestamp"])
