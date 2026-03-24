@@ -653,8 +653,7 @@ with tabs[5]:
     이 구간이 AI 제어의 가장 큰 이득 구간입니다.<br><br>
     <b>❄️ 겨울 (11~2월)</b>: V15 최적각이 ~63°로 고정60°에 매우 가까움.
     겨울에는 음영이 거의 없어 직달광 입사각(AOI) 최소화가 핵심이며, 60°와 63°의 차이는 미미합니다.
-    대신 <b>흐린 날 AI가 확산광 전략(높은 각도→SVF↑)으로 전환</b>하여 소폭 우위를 점합니다.<br><br>
-    <b>Colab 실측 기상 검증</b>: AI 621.6kWh vs 고정60° 589.1kWh (<b>+5.5%</b>).</div>""",unsafe_allow_html=True)
+    대신 <b>흐린 날 AI가 확산광 전략(높은 각도→SVF↑)으로 전환</b>하여 소폭 우위를 점합니다.</div>""",unsafe_allow_html=True)
     c1,c2,c3=st.columns(3)
     c1.metric("연간 AI",f"{ka:.1f} kWh")
     c2.metric("연간 F60°",f"{k6:.1f} kWh",f"{(k6/ka-1)*100:+.1f}%" if ka>0 else "—")
@@ -672,7 +671,7 @@ with tabs[5]:
 
     # ── 경제성 분석 ──
     st.markdown("---")
-    st.subheader("💰 경제적 가치 분석 — 발전량 5% → 경제 가치 8~10%")
+    st.subheader("💰 경제적 가치 분석")
     st.markdown("""<div class="ex"><b>📖 왜 발전량 차이보다 경제적 차이가 더 큰가?</b><br><br>
     한전 전기요금은 <b>시간대별로 3배 이상</b> 차이가 납니다.
     AI 제어의 핵심 이득은 <b>오후 피크 시간(10~17시, 최대부하 193원/kWh)</b>에 집중되므로,
@@ -685,7 +684,7 @@ with tabs[5]:
     st.markdown("#### 한전 시간대별 요금 (산업용 을, 여름 기준)")
     rate_cols = st.columns(3)
     rate_cols[0].metric("경부하 (23~09시)", "63.1 원/kWh")
-    rate_cols[1].metric("중간부하 (09~10, 12~13시)", "109.2 원/kWh")
+    rate_cols[1].metric("중간부하 (09~10, 12~13시)", "109.2 원/kWh", "×1.7배")
     rate_cols[2].metric("최대부하 (10~12, 13~17시)", "193.5 원/kWh", "×3.1배")
 
     # 월별 경제적 가치 계산
@@ -714,9 +713,11 @@ with tabs[5]:
     econ_pct = (ann_won_ai / ann_won_f60 - 1) * 100 if ann_won_f60 > 0 else 0
 
     ec1, ec2, ec3 = st.columns(3)
-    ec1.metric("AI 연간 수익", f"{ann_won_ai:.0f} 천원", f"경제 가치 +{econ_pct:.1f}%")
-    ec2.metric("F60° 연간 수익", f"{ann_won_f60:.0f} 천원")
-    ec3.metric("연간 절감액", f"{ann_won_ai - ann_won_f60:.0f} 천원/년", f"25년: {(ann_won_ai-ann_won_f60)*25:.0f} 천원")
+    ec1.metric("AI 연간 수익", f"{ann_won_ai:.0f} 천원")
+    ec2.metric("F60° 연간 수익", f"{ann_won_f60:.0f} 천원",
+               f"AI 대비 {(ann_won_f60/ann_won_ai-1)*100:+.1f}%" if ann_won_ai>0 else "—")
+    ec3.metric("F90° 연간 수익", f"{ann_won_f90:.0f} 천원",
+               f"AI 대비 {(ann_won_f90/ann_won_ai-1)*100:+.1f}%" if ann_won_ai>0 else "—")
 
     st.markdown(f"""<div class="ex"><b>📊 경제성 해석</b><br><br>
     <b>발전량 차이</b>: AI vs 고정60° = +5.5~5.8%<br>
@@ -727,50 +728,8 @@ with tabs[5]:
     AI는 각도를 7° 미세 조정하여 바이패스를 회피합니다.
     이 한 시간의 차이가 하루 전체 경제 이득의 <b>40% 이상</b>을 차지합니다.</div>""",unsafe_allow_html=True)
 
-    # 규모별 경제성
-    st.markdown("---")
-    st.subheader("📈 설치 규모별 경제성 — 투자 대비 회수")
-    st.markdown("""<div class="ex"><b>📖 규모에 따라 경제성이 어떻게 달라지나요?</b><br>
-    AI 제어 시스템은 모터·컨트롤러·센서 등 <b>초기 투자비</b>가 발생합니다.
-    소규모에서는 회수가 오래 걸리지만, 빌딩급 이상에서는 <b>3~5년 내 회수</b>가 가능합니다.</div>""",unsafe_allow_html=True)
-
-    blade_area_m2 = (wm * bdm) / 1e6
-    invest_per_unit = 5   # 만원 (모터+드라이버)
-    invest_fixed = 20     # 만원 (컨트롤러+센서+통신)
-
-    scale_data = []
-    for label, n_units, n_blades in [("소규모",1,20),("중규모",10,200),("빌딩 전면",50,1000),("대형 빌딩",200,4000)]:
-        cap_kwp = n_blades * blade_area_m2 * (te / 100)
-        ai_ann = cap_kwp * 1613  # kWh/년
-        f60_ann = cap_kwp * 1519
-        ai_rev = ai_ann * avg_rate_ai / 10000  # 만원
-        f60_rev = f60_ann * avg_rate_f60 / 10000
-        saving = ai_rev - f60_rev
-        invest = n_units * invest_per_unit + invest_fixed
-        payback = invest / saving if saving > 0 else 99
-        profit_25y = saving * 25 - invest
-        scale_data.append({"규모":label, "유닛":n_units, "용량(kW)":round(cap_kwp,1),
-                           "투자비(만원)":int(invest), "절감(만원/년)":round(saving,1),
-                           "회수(년)":round(payback,1), "25년 순이익(만원)":int(profit_25y)})
-
-    df_scale = pd.DataFrame(scale_data)
-    st.dataframe(df_scale, use_container_width=True, hide_index=True)
-
-    # 규모별 25년 순이익 차트
-    fg_scale = go.Figure()
-    fg_scale.add_trace(go.Bar(x=df_scale["규모"], y=df_scale["25년 순이익(만원)"],
-                               marker_color=[C_V90, C_F60, C_AI, "#0D47A1"],
-                               text=[f"{v:,}만원" for v in df_scale["25년 순이익(만원)"]],
-                               textposition="outside"))
-    fg_scale.update_layout(height=350, template=PT, yaxis_title="25년 순이익 (만원)",
-                            title="설치 규모별 25년 AI 제어 순이익")
-    st.plotly_chart(fg_scale, use_container_width=True)
-
-    st.markdown("""<div class="gd"><b>💡 핵심 결론</b><br><br>
-    • <b>10유닛(200장) 이상</b>: 약 5년 내 투자 회수, 25년간 <b>수백만원</b> 순이익<br>
-    • <b>50유닛(빌딩급) 이상</b>: 3~4년 회수, 25년간 <b>1,500만원+</b> 순이익<br>
-    • <b>200유닛(대형 빌딩)</b>: 25년간 <b>6,000만원+</b> 순이익<br><br>
-    BIPV 루버가 실제로 적용되는 건물 외벽 규모에서 AI 제어는 <b>확실한 경제적 가치</b>를 제공합니다.
+    st.markdown("""<div class="gd"><b>💡 핵심</b><br>
+    AI 제어는 피크 시간대 바이패스 회피를 통해 발전량 차이 이상의 <b>경제적 가치</b>를 창출합니다.
     </div>""",unsafe_allow_html=True)
 
 # ═══ 월별각도 ═══
@@ -857,7 +816,6 @@ with tabs[9]:
     st.markdown("""<div class="ex"><b>📖 파라미터 민감도란?</b><br>
     블레이드의 물리적 치수(깊이, 간격 등)를 바꿨을 때 <b>발전량과 음영이 어떻게 변하는지</b>를 확인하는 도구입니다.
     제품 설계 시 최적의 물리 사양을 찾는 데 활용됩니다.</div>""",unsafe_allow_html=True)
-    tl=st.slider("시스템 손실률",0.70,0.95,DL,0.01)
     st.markdown("---")
     st.markdown("#### 📐 블레이드 DEPTH 변화 → 연간 발전량")
     st.markdown("""<div class="ex"><b>DEPTH란?</b> 블레이드의 세로 길이(벽에서 바깥으로의 깊이)입니다.<br>
@@ -866,7 +824,7 @@ with tabs[9]:
     이 상충 관계에서 최적점이 존재합니다.</div>""",unsafe_allow_html=True)
     dr=np.arange(60,181,10); pdl=[]
     for bd in dr:
-        _,_,_,dm,_=get_annual(ly,bd/2,pm,cw,uc,ef,tl)
+        _,_,_,dm,_=get_annual(ly,bd/2,pm,cw,uc,ef,DL)
         pdl.append(dm["AI"].sum()*asc/1000)
     fg1=go.Figure(go.Scatter(x=dr,y=pdl,mode="lines+markers",line=dict(color=C_AI,width=2)))
     fg1.add_vline(x=bdm,line_dash="dash",line_color=C_F60,annotation_text=f"현재 {bdm:.0f}mm")
