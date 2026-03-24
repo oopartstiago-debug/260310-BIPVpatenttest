@@ -260,7 +260,71 @@ def dpow(ang):
     return (e[ghi>=10]/1000*cw*uc*ef*DL*asc).sum()
 pa,p6,p9=dpow(ai),dpow(np.full(24,60.0)),dpow(np.full(24,90.0))
 ly=sim_date.year-1; ux=mdl is not None
-wa,w6,w9,dmo,dan=get_annual(ly,hdm,pm,cw,uc,ef,DL,ux)
+
+# 연간 발전량: CSV 실측 데이터 우선, 없으면 clearsky 시뮬
+df_csv_raw, csv_err_raw = load_csv()
+
+@st.cache_data(ttl=86400)
+def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
+    """CSV 실측 기상 데이터로 발전량 직접 계산 — Colab과 동일 결과"""
+    df2 = df_src.copy()
+    df2["ts"] = pd.to_datetime(df2["timestamp"])
+    # 2023년 (또는 가장 최근 1년) 필터
+    max_year = df2["ts"].dt.year.max()
+    df2 = df2[df2["ts"].dt.year == max_year]
+    
+    mask = df2["ghi_w_m2"] >= 10
+    el2 = df2["solar_elevation"].values
+    az2 = df2["solar_azimuth"].values
+    dn2 = df2["dni"].values
+    dh2 = df2["dhi"].values
+    ghi2 = df2["ghi_w_m2"].values
+    
+    # AI 각도: 모델 예측
+    model = load_model()
+    if model is not None:
+        h2 = df2["ts"].dt.hour.values.astype(float)
+        d2 = df2["ts"].dt.dayofyear.values.astype(float)
+        X2 = np.column_stack([np.sin(2*np.pi*h2/24), np.cos(2*np.pi*h2/24),
+            np.sin(2*np.pi*d2/365), np.cos(2*np.pi*d2/365),
+            ghi2, df2["cloud_cover"].values, df2["temp_actual"].values])
+        ai2 = np.clip(model.predict(X2), AMIN, AMAX)
+        ai2[ghi2 < 10] = ANIGHT
+    else:
+        ai2 = rule_angles(el2, ghi2)
+    
+    def en(ang):
+        e = eff_poa(np.asarray(ang,dtype=float), el2, az2, dn2, dh2, hd, p)
+        return (e[mask]/1000*cw_p*uc_p*ef_p*dl_p).sum()
+    
+    wa2, w62, w92 = en(ai2), en(np.full(len(el2), 60.0)), en(np.full(len(el2), 90.0))
+    
+    da2 = df2.copy()
+    da2["angle_ai"] = ai2
+    da2["month"] = da2["ts"].dt.month
+    
+    ml2 = []
+    for m in range(1,13):
+        mm = (da2["month"]==m) & mask
+        if mm.sum() == 0:
+            ml2.append({"month":m,"AI":0,"고정60°":0,"수직90°":0,"avg_angle":0})
+            continue
+        def em(ang):
+            e = eff_poa(np.asarray(ang,dtype=float), el2[mm], az2[mm], dn2[mm], dh2[mm], hd, p)
+            return (e/1000*cw_p*uc_p*ef_p*dl_p).sum()
+        ml2.append({"month":m,"AI":em(ai2[mm]),
+                    "고정60°":em(np.full(mm.sum(),60.0)),"수직90°":em(np.full(mm.sum(),90.0)),
+                    "avg_angle":float(ai2[mm].mean())})
+    return wa2, w62, w92, pd.DataFrame(ml2), da2, max_year
+
+# CSV 로드 성공 → 실측 기반, 실패 → clearsky 시뮬
+if df_csv_raw is not None and "solar_elevation" in df_csv_raw.columns:
+    wa,w6,w9,dmo,dan,data_year = get_annual_from_csv(df_csv_raw, hdm, pm, cw, uc, ef, DL)
+    annual_source = f"실측 기상 ({data_year}년)"
+else:
+    wa,w6,w9,dmo,dan = get_annual(ly,hdm,pm,cw,uc,ef,DL,ux)
+    annual_source = f"청천 모델 근사 ({ly}년)"
+
 ka=wa/1000*asc; k6=w6/1000*asc; k9=w9/1000*asc
 ks="✅ 기상청 연동" if (kma is not None and sd.replace("-","")==tom) else "⚠️ 청천 기준"
 ws="맑음" if np.mean(cl)<0.3 else("구름많음" if np.mean(cl)<0.8 else "흐림")
@@ -335,7 +399,8 @@ with tabs[1]:
     st.markdown("""<div class="ex"><b>📖 학습 데이터란?</b><br>
     AI 모델이 '이런 날씨·시간에는 이 각도가 최적이다'를 배우기 위한 <b>과거 10년(2014~2023) 기상 데이터</b>입니다.
     기상청 실측 관측값을 바탕으로 물리 시뮬레이션을 통해 각 시간대의 최적 각도를 미리 계산해 놓은 것입니다.</div>""",unsafe_allow_html=True)
-    df_csv, csv_err = load_csv()
+    df_csv = df_csv_raw
+    csv_err = csv_err_raw
     if df_csv is not None:
         if "target_angle_v15" in df_csv.columns: tc,cv="target_angle_v15","V15"
         elif "target_angle_v14" in df_csv.columns: tc,cv="target_angle_v14","V14"
@@ -554,8 +619,8 @@ with tabs[4]:
 # ═══ 발전량비교 ═══
 with tabs[5]:
     st.subheader("⚡ AI vs 고정60° vs 수직90° 발전량 비교")
-    if ux: st.success("✅ XGBoost V15 + 실측 기상 근사 시뮬레이션")
-    else: st.info("ℹ️ 규칙 기반 (XGBoost 미로드)")
+    if ux: st.success(f"✅ XGBoost V15 | 데이터: {annual_source}")
+    else: st.info(f"ℹ️ 규칙 기반 | 데이터: {annual_source}")
     st.markdown("""<div class="ex"><b>📖 이 그래프는 무엇을 보여주나요?</b><br>
     세 가지 루버 운전 방식의 <b>월별 발전량</b>을 비교합니다:<br>
     • <b>AI 제어</b>: XGBoost 모델이 매 시간 최적 각도를 예측하여 제어<br>
