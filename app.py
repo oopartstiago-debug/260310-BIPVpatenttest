@@ -61,7 +61,7 @@ def load_model():
     try: return joblib.load(MODEL_FN)
     except: return None
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=600)  # 10분 캐시 (디버깅용 단축)
 def load_csv():
     """CSV 로드 — 디버그 정보 포함"""
     url = CSV_URL
@@ -76,12 +76,14 @@ def load_csv():
             return None, f"HTTP {status}: 알 수 없는 오류"
         content = r.text
         if len(content) < 100:
-            return None, f"파일 내용 너무 짧음 ({len(content)}자). GitHub LFS 파일일 수 있음."
+            return None, f"파일 내용 너무 짧음 ({len(content)}자). GitHub LFS?"
         df = pd.read_csv(io.StringIO(content))
         df["timestamp"] = pd.to_datetime(df["timestamp"])
         if df["timestamp"].dt.tz is None:
             df["timestamp"] = df["timestamp"].dt.tz_localize("Asia/Seoul")
-        return df, None
+        # 디버깅: 실제 컬럼 반환
+        cols_info = [c for c in df.columns if "target" in c]
+        return df, f"OK | 컬럼: {cols_info} | {len(df)}행"
     except Exception as e:
         return None, f"예외: {str(e)[:200]}"
 
@@ -273,7 +275,7 @@ def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
     max_year = df2["ts"].dt.year.max()
     df2 = df2[df2["ts"].dt.year == max_year]
     
-    mask = df2["ghi_w_m2"] >= 10
+    mask = ghi2 >= 10  # numpy boolean 배열
     el2 = df2["solar_elevation"].values
     az2 = df2["solar_azimuth"].values
     dn2 = df2["dni"].values
@@ -299,13 +301,21 @@ def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
     
     wa2, w62, w92 = en(ai2), en(np.full(len(el2), 60.0)), en(np.full(len(el2), 90.0))
     
-    da2 = df2.copy()
-    da2["angle_ai"] = ai2
-    da2["month"] = da2["ts"].dt.month
+    da2 = pd.DataFrame({
+        "timestamp": df2["ts"].values,
+        "ghi": ghi2,
+        "zenith": df2["solar_zenith"].values if "solar_zenith" in df2.columns else 90.0 - el2,
+        "azimuth": az2,
+        "elevation": el2,
+        "angle_ai": ai2
+    })
+    da2["month"] = pd.to_datetime(da2["timestamp"]).dt.month
+    
+    months_arr = pd.to_datetime(da2["timestamp"]).dt.month.values
     
     ml2 = []
     for m in range(1,13):
-        mm = (da2["month"]==m) & mask
+        mm = (months_arr == m) & mask
         if mm.sum() == 0:
             ml2.append({"month":m,"AI":0,"고정60°":0,"수직90°":0,"avg_angle":0})
             continue
@@ -401,7 +411,12 @@ with tabs[1]:
     기상청 실측 관측값을 바탕으로 물리 시뮬레이션을 통해 각 시간대의 최적 각도를 미리 계산해 놓은 것입니다.</div>""",unsafe_allow_html=True)
     df_csv = df_csv_raw
     csv_err = csv_err_raw
+    # 디버깅 표시
+    if csv_err:
+        st.sidebar.info(f"CSV: {csv_err}")
     if df_csv is not None:
+        target_cols = [c for c in df_csv.columns if "target" in c]
+        st.sidebar.info(f"CSV 타겟 컬럼: {target_cols}")
         if "target_angle_v15" in df_csv.columns: tc,cv="target_angle_v15","V15"
         elif "target_angle_v14" in df_csv.columns: tc,cv="target_angle_v14","V14"
         else: tc,cv="target_angle_v5","V5"
