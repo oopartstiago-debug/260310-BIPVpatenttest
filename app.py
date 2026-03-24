@@ -275,12 +275,12 @@ def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
     max_year = df2["ts"].dt.year.max()
     df2 = df2[df2["ts"].dt.year == max_year]
     
+    ghi2 = df2["ghi_w_m2"].values
     mask = ghi2 >= 10  # numpy boolean 배열
     el2 = df2["solar_elevation"].values
     az2 = df2["solar_azimuth"].values
     dn2 = df2["dni"].values
     dh2 = df2["dhi"].values
-    ghi2 = df2["ghi_w_m2"].values
     
     # AI 각도: 모델 예측
     model = load_model()
