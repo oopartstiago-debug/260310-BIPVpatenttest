@@ -1,13 +1,8 @@
 # ==============================================================================
-# BIPV 통합 관제 시스템 v9.3
-# V15 선분교차 물리모델 | 실측 기상 10년 평균 연간 시뮬 | 비전문가용 설명 강화
+# BIPV 통합 관제 시스템 v9.2
+# V15 선분교차 물리모델 | 실측 기상 연간 시뮬 | 비전문가용 설명 강화
 # ==============================================================================
-# v9.3 변경사항:
-#   - get_annual_from_csv: 단일연도(2023) → 10년 전체 평균으로 변경
-#   - Colab V15 연간 발전량(621.6 kWh)과 대시보드 수치 일치
-#   - annual_source 표시 개선
-# ==============================================================================
-__version__ = "9.3"
+__version__ = "9.2"
 
 import os, io, json
 import numpy as np
@@ -66,7 +61,7 @@ def load_model():
     try: return joblib.load(MODEL_FN)
     except: return None
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=600)  # 10분 캐시 (디버깅용 단축)
 def load_csv():
     """CSV 로드 — 디버그 정보 포함"""
     url = CSV_URL
@@ -86,6 +81,7 @@ def load_csv():
         df["timestamp"] = pd.to_datetime(df["timestamp"])
         if df["timestamp"].dt.tz is None:
             df["timestamp"] = df["timestamp"].dt.tz_localize("Asia/Seoul")
+        # 디버깅: 실제 컬럼 반환
         cols_info = [c for c in df.columns if "target" in c]
         return df, f"OK | 컬럼: {cols_info} | {len(df)}행"
     except Exception as e:
@@ -161,7 +157,7 @@ def get_kma():
     except: return None,None
 
 # ==============================================================================
-# 연간 데이터 — clearsky + cloud factor로 실측 근사 (폴백용)
+# 연간 데이터 — clearsky + cloud factor로 실측 근사
 # ==============================================================================
 @st.cache_data(ttl=86400)
 def get_annual(year,hd,p,cw,uc,ef,dl,use_xgb=False):
@@ -170,6 +166,8 @@ def get_annual(year,hd,p,cw,uc,ef,dl,use_xgb=False):
     ghi_cs=np.asarray(cs["ghi"].values,dtype=float)
     zn,az2=sp["apparent_zenith"].values,sp["azimuth"].values; el=90-zn
 
+    # 월별 구름 감쇠 계수 (서울 10년 평균 기상 반영)
+    # 1~12월: 겨울 맑음(0.15), 장마(0.45), 가을 맑음(0.10)
     cloud_monthly = {1:0.20, 2:0.20, 3:0.25, 4:0.25, 5:0.30,
                      6:0.45, 7:0.50, 8:0.40, 9:0.25, 10:0.15, 11:0.15, 12:0.20}
     months = pd.DatetimeIndex(ty).month
@@ -268,27 +266,22 @@ ly=sim_date.year-1; ux=mdl is not None
 # 연간 발전량: CSV 실측 데이터 우선, 없으면 clearsky 시뮬
 df_csv_raw, csv_err_raw = load_csv()
 
-# ==============================================================================
-# ★ v9.3 변경: 10년 전체 평균으로 연간 발전량 계산 (Colab V15 일치)
-# ==============================================================================
 @st.cache_data(ttl=86400)
 def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
-    """CSV 실측 기상 데이터로 발전량 직접 계산 — 10년 평균 (Colab V15 동일)"""
+    """CSV 실측 기상 데이터로 발전량 직접 계산 — Colab과 동일 결과"""
     df2 = df_src.copy()
     df2["ts"] = pd.to_datetime(df2["timestamp"])
-
-    # ── v9.3: 전체 연도 사용, 연수로 나누어 연평균 ──
-    years = sorted(df2["ts"].dt.year.unique())
-    n_years = len(years)
-    year_range = f"{years[0]}~{years[-1]}" if n_years > 1 else str(years[0])
-
+    # 2023년 (또는 가장 최근 1년) 필터
+    max_year = df2["ts"].dt.year.max()
+    df2 = df2[df2["ts"].dt.year == max_year]
+    
     ghi2 = df2["ghi_w_m2"].values
-    mask = ghi2 >= 10
+    mask = ghi2 >= 10  # numpy boolean 배열
     el2 = df2["solar_elevation"].values
     az2 = df2["solar_azimuth"].values
     dn2 = df2["dni"].values
     dh2 = df2["dhi"].values
-
+    
     # AI 각도: 모델 예측
     model = load_model()
     if model is not None:
@@ -301,14 +294,13 @@ def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
         ai2[ghi2 < 10] = ANIGHT
     else:
         ai2 = rule_angles(el2, ghi2)
-
-    # ── v9.3: 전체 합산 / 연수 = 연평균 ──
+    
     def en(ang):
         e = eff_poa(np.asarray(ang,dtype=float), el2, az2, dn2, dh2, hd, p)
-        return (e[mask]/1000*cw_p*uc_p*ef_p*dl_p).sum() / n_years
-
+        return (e[mask]/1000*cw_p*uc_p*ef_p*dl_p).sum()
+    
     wa2, w62, w92 = en(ai2), en(np.full(len(el2), 60.0)), en(np.full(len(el2), 90.0))
-
+    
     da2 = pd.DataFrame({
         "timestamp": df2["ts"].values,
         "ghi": ghi2,
@@ -318,28 +310,27 @@ def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
         "angle_ai": ai2
     })
     da2["month"] = pd.to_datetime(da2["timestamp"]).dt.month
-
+    
     months_arr = pd.to_datetime(da2["timestamp"]).dt.month.values
-
+    
     ml2 = []
     for m in range(1,13):
         mm = (months_arr == m) & mask
         if mm.sum() == 0:
             ml2.append({"month":m,"AI":0,"고정60°":0,"수직90°":0,"avg_angle":0})
             continue
-        # ── v9.3: 월별도 연수로 나누기 ──
         def em(ang):
             e = eff_poa(np.asarray(ang,dtype=float), el2[mm], az2[mm], dn2[mm], dh2[mm], hd, p)
-            return (e/1000*cw_p*uc_p*ef_p*dl_p).sum() / n_years
+            return (e/1000*cw_p*uc_p*ef_p*dl_p).sum()
         ml2.append({"month":m,"AI":em(ai2[mm]),
                     "고정60°":em(np.full(mm.sum(),60.0)),"수직90°":em(np.full(mm.sum(),90.0)),
                     "avg_angle":float(ai2[mm].mean())})
-    return wa2, w62, w92, pd.DataFrame(ml2), da2, year_range
+    return wa2, w62, w92, pd.DataFrame(ml2), da2, max_year
 
-# ── v9.3: 호출부 수정 ──
+# CSV 로드 성공 → 실측 기반, 실패 → clearsky 시뮬
 if df_csv_raw is not None and "solar_elevation" in df_csv_raw.columns:
-    wa,w6,w9,dmo,dan,year_range = get_annual_from_csv(df_csv_raw, hdm, pm, cw, uc, ef, DL)
-    annual_source = f"실측 기상 {year_range} 평균"
+    wa,w6,w9,dmo,dan,data_year = get_annual_from_csv(df_csv_raw, hdm, pm, cw, uc, ef, DL)
+    annual_source = f"실측 기상 ({data_year}년)"
 else:
     wa,w6,w9,dmo,dan = get_annual(ly,hdm,pm,cw,uc,ef,DL,ux)
     annual_source = f"청천 모델 근사 ({ly}년)"
@@ -420,6 +411,7 @@ with tabs[1]:
     기상청 실측 관측값을 바탕으로 물리 시뮬레이션을 통해 각 시간대의 최적 각도를 미리 계산해 놓은 것입니다.</div>""",unsafe_allow_html=True)
     df_csv = df_csv_raw
     csv_err = csv_err_raw
+    # 디버깅 표시
     if csv_err:
         st.sidebar.info(f"CSV: {csv_err}")
     if df_csv is not None:
@@ -649,8 +641,8 @@ with tabs[5]:
     • <b>AI 제어</b>: XGBoost 모델이 매 시간 최적 각도를 예측하여 제어<br>
     • <b>고정 60°</b>: 일년 내내 60°로 고정 (서울 위도 기준 일반적 설치각)<br>
     • <b>수직 90°</b>: 일년 내내 수직 고정<br><br>
-    연간 시뮬레이션은 <b>서울 기상청 실측 데이터 10년 평균</b>을 적용하여
-    단일 연도 편차를 제거한 안정적인 수치입니다.</div>""",unsafe_allow_html=True)
+    연간 시뮬레이션은 <b>서울 10년 평균 기상 패턴</b>(월별 구름 감쇠 포함)을 적용하여
+    청천 모델의 한계를 보완했습니다.</div>""",unsafe_allow_html=True)
     fg=go.Figure()
     for col,color,name in [("AI",C_AI,"AI 제어"),("고정60°",C_F60,"고정 60°"),("수직90°",C_V90,"수직 90°")]:
         fg.add_trace(go.Bar(x=mn,y=dmo[col]*asc/1000,name=name,marker_color=color))
@@ -688,17 +680,20 @@ with tabs[5]:
     출력이 33% 단위로 급감하는 현상)가 발생하지만,
     AI는 각도를 미세 조정하여 이를 <b>회피</b>합니다.</div>""",unsafe_allow_html=True)
 
+    # 시간대별 요금 설정
     st.markdown("#### 한전 시간대별 요금 (산업용 을, 여름 기준)")
     rate_cols = st.columns(3)
     rate_cols[0].metric("경부하 (23~09시)", "63.1 원/kWh")
     rate_cols[1].metric("중간부하 (09~10, 12~13시)", "109.2 원/kWh", "×1.7배")
     rate_cols[2].metric("최대부하 (10~12, 13~17시)", "193.5 원/kWh", "×3.1배")
 
-    avg_rate_ai = 155
-    avg_rate_f60 = 140
+    # 월별 경제적 가치 계산
+    # 시간대별 가중 요금: AI는 피크 비중 높음, F60은 균등
+    avg_rate_ai = 155   # 원/kWh (피크 집중)
+    avg_rate_f60 = 140  # 원/kWh (균등 분포)
 
     dmo_econ = dmo.copy()
-    dmo_econ["AI_원"] = dmo_econ["AI"] * asc / 1000 * avg_rate_ai / 1000
+    dmo_econ["AI_원"] = dmo_econ["AI"] * asc / 1000 * avg_rate_ai / 1000    # 천원
     dmo_econ["F60_원"] = dmo_econ["고정60°"] * asc / 1000 * avg_rate_f60 / 1000
     dmo_econ["F90_원"] = dmo_econ["수직90°"] * asc / 1000 * avg_rate_f60 / 1000
 
@@ -711,7 +706,8 @@ with tabs[5]:
                            yaxis_title="경제적 가치 (천원)", legend=dict(orientation="h", y=1.05))
     st.plotly_chart(fg_econ, use_container_width=True)
 
-    ann_won_ai = ka * avg_rate_ai / 1000
+    # 연간 경제 가치 메트릭
+    ann_won_ai = ka * avg_rate_ai / 1000     # 천원
     ann_won_f60 = k6 * avg_rate_f60 / 1000
     ann_won_f90 = k9 * avg_rate_f60 / 1000
     econ_pct = (ann_won_ai / ann_won_f60 - 1) * 100 if ann_won_f60 > 0 else 0
