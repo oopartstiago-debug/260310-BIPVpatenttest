@@ -506,24 +506,24 @@ with tabs[1]:
         c1,c2=st.columns(2)
         with c1:
             st.markdown("**GHI 월별 분포** — 태양 에너지가 계절별로 얼마나 다른가?")
-            fg=px.box(dp,x="ms",y="ghi_w_m2",color="ms",category_orders={"ms":mo},template=PT)
-            fg.update_layout(showlegend=False,height=300,yaxis_title="GHI (W/m²)",paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg,use_container_width=True)
+            fg=px.box(dp,x="ms",y="ghi_w_m2",color="ms",category_orders={"ms":mo},template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)")
+            fg.update_layout(showlegend=False,height=300,yaxis_title="GHI (W/m²)"); st.plotly_chart(fg,use_container_width=True)
             st.caption("여름(6~8월)은 일사량이 높지만 장마로 변동도 큼. 겨울은 일사량 자체가 적음.")
         with c2:
             st.markdown("**운량 월별 분포** — 구름이 발전에 미치는 영향")
-            fg2=px.box(dp,x="ms",y="cloud_cover",color="ms",category_orders={"ms":mo},template=PT)
-            fg2.update_layout(showlegend=False,height=300,yaxis_title="운량 (0~9)",paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg2,use_container_width=True)
+            fg2=px.box(dp,x="ms",y="cloud_cover",color="ms",category_orders={"ms":mo},template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)")
+            fg2.update_layout(showlegend=False,height=300,yaxis_title="운량 (0~9)"); st.plotly_chart(fg2,use_container_width=True)
             st.caption("6~7월 장마철 운량↑ → 직달광 감소 → AI가 확산광 전략으로 전환해야 하는 구간")
         c3,c4=st.columns(2)
         with c3:
             st.markdown("**기온 월별 분포** — 패널 효율에 미치는 영향")
-            fg3=px.box(dp,x="ms",y="temp_actual",color="ms",category_orders={"ms":mo},template=PT)
-            fg3.update_layout(showlegend=False,height=300,yaxis_title="°C",paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg3,use_container_width=True)
+            fg3=px.box(dp,x="ms",y="temp_actual",color="ms",category_orders={"ms":mo},template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)")
+            fg3.update_layout(showlegend=False,height=300,yaxis_title="°C"); st.plotly_chart(fg3,use_container_width=True)
             st.caption("여름 30°C+ → 패널 효율 약 3~4% 하락. 겨울 저온은 효율에 유리하지만 일사량 부족.")
         with c4:
             st.markdown(f"**최적 각도 월별 분포 ({cv})** — AI가 배우는 정답")
-            fg4=px.box(dp,x="ms",y=tc,color="ms",category_orders={"ms":mo},template=PT)
-            fg4.update_layout(showlegend=False,height=300,yaxis_title="최적 각도(°)",paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg4,use_container_width=True)
+            fg4=px.box(dp,x="ms",y=tc,color="ms",category_orders={"ms":mo},template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)")
+            fg4.update_layout(showlegend=False,height=300,yaxis_title="최적 각도(°)"); st.plotly_chart(fg4,use_container_width=True)
             st.caption("여름: ~22° (루버를 눕혀 직달광 수집). 겨울: ~63° (태양이 낮아 루버를 세움)")
         st.markdown("---")
         c5,c6=st.columns(2)
@@ -542,9 +542,9 @@ with tabs[1]:
             st.caption("여름↔겨울 각도 차이 약 40°. 이 큰 변화를 AI가 자동으로 추적합니다.")
         st.markdown(f"**GHI vs 최적각** — 일사량과 각도의 관계")
         samp=dp.sample(min(3000,len(dp)),random_state=42)
-        fg7=px.scatter(samp,x="ghi_w_m2",y=tc,color="ms",opacity=0.4,template=PT,
+        fg7=px.scatter(samp,x="ghi_w_m2",y=tc,color="ms",opacity=0.4,template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)",
                        labels={"ghi_w_m2":"GHI","ms":"월",tc:"최적각(°)"})
-        fg7.update_layout(height=350,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg7,use_container_width=True)
+        fg7.update_layout(height=350); st.plotly_chart(fg7,use_container_width=True)
         st.caption("GHI가 높을수록(태양이 강할수록) 최적각이 낮아지는 경향. 계절별로 뚜렷한 클러스터가 형성됨.")
     else:
         st.warning(f"⚠️ CSV 로드 실패")
