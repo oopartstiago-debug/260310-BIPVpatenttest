@@ -8,3 +8,4 @@
 __pycache__/
 *.pyc
 .env
+bipv_ai_master_data_v16.csv
