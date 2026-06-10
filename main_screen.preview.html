@@ -1,0 +1,656 @@
+<!doctype html><html><head><meta charset='utf-8'><title>BIPV preview</title></head><body style='margin:0;background:#0A0A0C;'><!--
+  BIPV Dashboard — 현황 (Status) tab
+  Single-file fragment for streamlit.components.v1.html() iframe embed.
+  Data injection: replace the BIPV_DATA placeholder with json.dumps(payload).
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.17.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<style>
+  .bipv-root {
+    --bg: #0A0A0C;
+    --surface: #111114;
+    --surface-hi: #16161A;
+    --border: #1F1F23;
+    --border-hi: #2A2A2E;
+    --text-1: #E8E8EC;
+    --text-2: #9A9AA3;
+    --text-3: #5C5C64;
+    --accent: #7F77DD;
+    --accent-strong: #9A93EA;
+    --accent-soft: rgba(127, 119, 221, 0.18);
+    --accent-line: rgba(127, 119, 221, 0.42);
+    --cmp-1: #4A4A52;
+    --cmp-2: #2E2E34;
+    --status: #6FD49C;
+
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: 'Pretendard Variable', 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    padding: 32px 36px 40px;
+    min-height: 100vh;
+    box-sizing: border-box;
+  }
+  .bipv-root *, .bipv-root *::before, .bipv-root *::after { box-sizing: border-box; }
+  .bipv-root .num { font-family: 'Inter', 'Pretendard Variable', sans-serif; font-feature-settings: 'tnum', 'ss01'; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Header ---------- */
+  .bp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 26px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bp-brand { display: flex; align-items: center; gap: 14px; }
+  .bp-mark {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border: 1px solid var(--border-hi);
+    border-radius: 7px;
+    background: var(--surface);
+  }
+  .bp-mark svg { display: block; }
+  .bp-title {
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-1);
+  }
+  .bp-meta {
+    margin-top: 5px;
+    font-size: 12px; color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .bp-meta span + span::before {
+    content: ""; display: inline-block;
+    width: 3px; height: 3px; border-radius: 50%;
+    background: var(--border-hi);
+    margin: 0 9px 2px; vertical-align: middle;
+  }
+  .bp-status {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 13px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 12px; color: var(--text-2);
+  }
+  .bp-status .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--status);
+    box-shadow: 0 0 0 3px rgba(111, 212, 156, 0.12);
+  }
+  .bp-status strong { color: var(--text-1); font-weight: 500; }
+  .bp-status .sep { color: var(--border-hi); margin: 0 1px; }
+
+  /* ---------- Hero ---------- */
+  .bp-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 40px;
+    padding: 44px 4px 40px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bp-hero-main { min-width: 0; }
+  .bp-hero-label {
+    font-size: 11px; color: var(--text-3);
+    letter-spacing: 0.14em; text-transform: uppercase;
+    margin-bottom: 16px;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .bp-hero-label .ti { font-size: 13px; color: var(--text-3); }
+  .bp-hero-value {
+    font-size: 72px; font-weight: 600;
+    letter-spacing: -0.038em; line-height: 0.98;
+    color: var(--text-1);
+    display: inline-flex; align-items: baseline;
+  }
+  .bp-hero-value .sign { color: var(--accent); margin-right: 2px; }
+  .bp-hero-value .unit {
+    font-size: 30px; font-weight: 500;
+    margin-left: 4px; color: var(--text-2);
+    letter-spacing: -0.02em;
+  }
+  .bp-hero-sub {
+    margin-top: 16px;
+    font-size: 13.5px; color: var(--text-2);
+    max-width: 560px;
+  }
+  .bp-hero-divider { width: 1px; height: 78px; background: var(--border); }
+  .bp-sec { min-width: 140px; }
+  .bp-sec-label {
+    font-size: 11px; color: var(--text-3);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .bp-sec-value {
+    font-size: 26px; font-weight: 500;
+    letter-spacing: -0.025em; color: var(--text-1);
+    line-height: 1;
+  }
+  .bp-sec-value .unit {
+    font-size: 13px; color: var(--text-3);
+    margin-left: 4px; font-weight: 400;
+  }
+  .bp-sec-note {
+    font-size: 11.5px; color: var(--text-3);
+    margin-top: 8px;
+  }
+
+  /* ---------- Charts ---------- */
+  .bp-charts {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 18px;
+    padding-top: 28px;
+  }
+  .bp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 24px 20px;
+    position: relative;
+  }
+  .bp-card-head {
+    display: flex; align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 6px;
+  }
+  .bp-card-title {
+    font-size: 13.5px; font-weight: 500;
+    color: var(--text-1);
+  }
+  .bp-card-sub {
+    font-size: 11.5px; color: var(--text-3);
+    margin-top: 3px;
+  }
+  .bp-legend {
+    display: flex; align-items: center; gap: 16px;
+    font-size: 11.5px; color: var(--text-2);
+  }
+  .bp-legend-item { display: inline-flex; align-items: center; gap: 7px; }
+  .bp-legend-swatch { width: 10px; height: 10px; border-radius: 2px; }
+  .bp-legend-line { width: 16px; height: 2px; border-radius: 2px; }
+  .bp-chart-wrap { margin-top: 18px; height: 280px; position: relative; }
+  .bp-chart-wrap.sm { height: 230px; }
+
+  /* ---------- Details (hourly table) ---------- */
+  .bp-details {
+    margin-top: 20px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .bp-details summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 15px 22px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px; color: var(--text-2);
+    user-select: none;
+    transition: color 0.15s ease;
+  }
+  .bp-details summary::-webkit-details-marker { display: none; }
+  .bp-details summary:hover { color: var(--text-1); }
+  .bp-details summary .left { display: inline-flex; align-items: center; gap: 9px; }
+  .bp-details summary .ti { font-size: 14px; }
+  .bp-details summary .chev {
+    font-size: 15px; color: var(--text-3);
+    transition: transform 0.2s ease;
+  }
+  .bp-details[open] summary .chev { transform: rotate(90deg); }
+  .bp-table-wrap { padding: 0 12px 14px; overflow-x: auto; border-top: 1px solid var(--border); }
+  .bp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    font-size: 12.5px;
+  }
+  .bp-table th, .bp-table td {
+    text-align: right;
+    padding: 9px 14px;
+    color: var(--text-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .bp-table th:first-child, .bp-table td:first-child { text-align: left; }
+  .bp-table thead th {
+    font-size: 10.5px; color: var(--text-3);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 500;
+    padding-top: 14px; padding-bottom: 10px;
+  }
+  .bp-table tbody tr:last-child td { border-bottom: none; }
+  .bp-table tbody tr:hover td { color: var(--text-1); background: var(--surface-hi); }
+  .bp-table td.accent { color: var(--accent-strong); }
+
+  /* ---------- Footer ---------- */
+  .bp-foot {
+    margin-top: 16px;
+    font-size: 11.5px; color: var(--text-3);
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .bp-foot .ti { font-size: 13px; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 1080px) {
+    .bp-hero { grid-template-columns: 1fr; gap: 28px; padding: 32px 0; }
+    .bp-hero-divider { display: none; }
+    .bp-hero-value { font-size: 58px; }
+    .bp-charts { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .bipv-root { padding: 22px 18px 28px; }
+    .bp-header { flex-direction: column; align-items: flex-start; }
+    .bp-hero-value { font-size: 48px; }
+  }
+</style>
+
+<div class="bipv-root" id="bipv-root">
+
+  <!-- ===== Header ===== -->
+  <header class="bp-header">
+    <div class="bp-brand">
+      <div class="bp-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <line x1="3.5" y1="4.5" x2="14.5" y2="3.2" />
+          <line x1="3.5" y1="9" x2="14.5" y2="9" stroke="#7F77DD" stroke-width="1.6" />
+          <line x1="3.5" y1="13.5" x2="14.5" y2="14.8" />
+        </svg>
+      </div>
+      <div>
+        <div class="bp-title">BIPV Control</div>
+        <div class="bp-meta">
+          <span id="bp-loc">서울</span>
+          <span id="bp-date" class="num">2026.05.14</span>
+          <span id="bp-model">XGBoost V15</span>
+        </div>
+      </div>
+    </div>
+    <div class="bp-status">
+      <span class="dot"></span>
+      <span>운영 중</span>
+      <span class="sep">·</span>
+      <strong id="bp-status-detail">AI 자동 제어</strong>
+    </div>
+  </header>
+
+  <!-- ===== Hero ===== -->
+  <section class="bp-hero">
+    <div class="bp-hero-main">
+      <div class="bp-hero-label">
+        <i class="ti ti-trending-up"></i>
+        AI 제어 vs 고정각 — 발전량 증분
+      </div>
+      <div class="bp-hero-value num">
+        <span class="sign">+</span><span id="bp-uplift">27.3</span><span class="unit">%</span>
+      </div>
+      <div class="bp-hero-sub" id="bp-hero-sub">
+        AI 각도 제어 vs 고정 60° · 연환산 약 168 kWh / 35,200원 추가 수익
+      </div>
+    </div>
+    <div class="bp-hero-divider"></div>
+    <div class="bp-sec">
+      <div class="bp-sec-label">오늘 AI 발전량</div>
+      <div class="bp-sec-value num"><span id="bp-kwh">0.79</span><span class="unit">kWh</span></div>
+      <div class="bp-sec-note">패널당 일일</div>
+    </div>
+    <div class="bp-sec">
+      <div class="bp-sec-label">추가 수익</div>
+      <div class="bp-sec-value num">₩<span id="bp-revenue">35,200</span></div>
+      <div class="bp-sec-note">vs 고정 60° · 연환산</div>
+    </div>
+  </section>
+
+  <!-- ===== Charts ===== -->
+  <section class="bp-charts">
+
+    <div class="bp-card">
+      <div class="bp-card-head">
+        <div>
+          <div class="bp-card-title">24시간 AI 제어</div>
+          <div class="bp-card-sub">시간별 일사량과 AI 결정 각도</div>
+        </div>
+        <div class="bp-legend">
+          <span class="bp-legend-item">
+            <span class="bp-legend-swatch" style="background: var(--accent-soft); border: 1px solid var(--accent-line);"></span>
+            GHI <span style="color: var(--text-3); margin-left: 2px;">W/m²</span>
+          </span>
+          <span class="bp-legend-item">
+            <span class="bp-legend-line" style="background: var(--accent);"></span>
+            AI 각도 <span style="color: var(--text-3); margin-left: 2px;">°</span>
+          </span>
+        </div>
+      </div>
+      <div class="bp-chart-wrap">
+        <canvas id="bp-chart-combo"></canvas>
+      </div>
+    </div>
+
+    <div class="bp-card">
+      <div class="bp-card-head">
+        <div>
+          <div class="bp-card-title">발전량 비교</div>
+          <div class="bp-card-sub">오늘 · 패널당 kWh</div>
+        </div>
+      </div>
+      <div class="bp-chart-wrap sm">
+        <canvas id="bp-chart-compare"></canvas>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ===== Hourly detail ===== -->
+  <details class="bp-details">
+    <summary>
+      <span class="left">
+        <i class="ti ti-table"></i>
+        시간별 상세
+      </span>
+      <span class="chev"><i class="ti ti-chevron-right"></i></span>
+    </summary>
+    <div class="bp-table-wrap">
+      <table class="bp-table" id="bp-table">
+        <thead>
+          <tr>
+            <th>시간</th>
+            <th>GHI (W/m²)</th>
+            <th>AI 각도 (°)</th>
+            <th>AI 발전 (kWh)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </details>
+
+  <div class="bp-foot">
+    <i class="ti ti-info-circle"></i>
+    데이터: 10년 기상 시계열 · 모델: XGBoost V15
+  </div>
+
+</div>
+
+<script>
+(function () {
+  // ---------- Fallback (for standalone preview) ----------
+  const FALLBACK = {
+    hero_uplift_pct: 27.3,
+    hero_subtitle: "AI 각도 제어 vs 고정 60° · 연환산 약 168 kWh / 35,200원 추가 수익",
+    today_kwh: 0.79,
+    today_revenue: 35200,
+    date: "2026.05.14",
+    location: "서울",
+    model: "XGBoost V15",
+    status_detail: "AI 자동 제어",
+    hours: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")),
+    ghi:   [0,0,0,0,0,12,68,180,340,520,680,790,830,790,690,540,360,180,60,8,0,0,0,0],
+    angle: [90,90,90,90,90,82,72,60,50,42,36,32,30,32,38,46,58,72,82,90,90,90,90,90],
+    compare: { AI: 0.79, F60: 0.62, F90: 0.51 }
+  };
+
+  // Python replaces the BIPV_DATA placeholder below with json.dumps(payload, ensure_ascii=False).
+  // For standalone preview, swap the next line for:  let data = FALLBACK;
+  let data = {"hero_uplift_pct": 27.3, "hero_subtitle": "AI 각도 제어 vs 고정 60° · 연환산 약 168 kWh / 35,200원 추가 수익", "today_kwh": 0.79, "today_revenue": 35200, "date": "2026.05.14", "location": "서울", "model": "XGBoost V15", "status_detail": "AI 자동 제어", "hours": ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"], "ghi": [0, 0, 0, 0, 0, 12, 68, 180, 340, 520, 680, 790, 830, 790, 690, 540, 360, 180, 60, 8, 0, 0, 0, 0], "angle": [90, 90, 90, 90, 90, 82, 72, 60, 50, 42, 36, 32, 30, 32, 38, 46, 58, 72, 82, 90, 90, 90, 90, 90], "compare": {"AI": 0.79, "F60": 0.62, "F90": 0.51}};
+  if (!data || typeof data !== "object") data = FALLBACK;
+
+  // ---------- DOM injection ----------
+  const $ = (id) => document.getElementById(id);
+  const fmtKRW = new Intl.NumberFormat("ko-KR");
+
+  $("bp-loc").textContent = data.location ?? "—";
+  $("bp-date").textContent = data.date ?? "—";
+  $("bp-model").textContent = data.model ?? "XGBoost V15";
+  $("bp-status-detail").textContent = data.status_detail ?? "AI 자동 제어";
+  $("bp-uplift").textContent = Number(data.hero_uplift_pct ?? 0).toFixed(1);
+  $("bp-hero-sub").textContent = data.hero_subtitle ?? "";
+  $("bp-kwh").textContent = Number(data.today_kwh ?? 0).toFixed(2);
+  $("bp-revenue").textContent = fmtKRW.format(Math.round(data.today_revenue ?? 0));
+
+  // ---------- Chart.js defaults ----------
+  const css = getComputedStyle(document.getElementById("bipv-root"));
+  const T1 = css.getPropertyValue("--text-1").trim();
+  const T2 = css.getPropertyValue("--text-2").trim();
+  const T3 = css.getPropertyValue("--text-3").trim();
+  const BORDER = css.getPropertyValue("--border").trim();
+  const BORDER_HI = css.getPropertyValue("--border-hi").trim();
+  const ACC = css.getPropertyValue("--accent").trim();
+  const ACC_STRONG = css.getPropertyValue("--accent-strong").trim();
+  const ACC_SOFT = "rgba(127, 119, 221, 0.20)";
+  const ACC_LINE = "rgba(127, 119, 221, 0.45)";
+  const CMP1 = css.getPropertyValue("--cmp-1").trim();
+  const CMP2 = css.getPropertyValue("--cmp-2").trim();
+  const SURFACE_HI = css.getPropertyValue("--surface-hi").trim();
+
+  Chart.defaults.font.family = "'Pretendard Variable', 'Pretendard', 'Inter', sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = T3;
+  Chart.defaults.animation.duration = 380;
+  Chart.defaults.animation.easing = "easeOutQuart";
+
+  const tooltipBase = {
+    backgroundColor: SURFACE_HI,
+    borderColor: BORDER_HI,
+    borderWidth: 1,
+    titleColor: T1,
+    bodyColor: T2,
+    titleFont: { size: 11, weight: "500" },
+    bodyFont: { size: 11.5, weight: "500" },
+    padding: { top: 9, right: 12, bottom: 9, left: 12 },
+    boxPadding: 4,
+    cornerRadius: 6,
+    caretSize: 0,
+    displayColors: false
+  };
+
+  // ---------- Chart 1: 24h GHI bars + AI angle line ----------
+  const ctx1 = document.getElementById("bp-chart-combo").getContext("2d");
+  new Chart(ctx1, {
+    data: {
+      labels: data.hours,
+      datasets: [
+        {
+          type: "bar",
+          label: "GHI",
+          data: data.ghi,
+          backgroundColor: ACC_SOFT,
+          borderColor: ACC_LINE,
+          borderWidth: 1,
+          borderSkipped: false,
+          borderRadius: 2,
+          maxBarThickness: 14,
+          yAxisID: "y",
+          order: 2
+        },
+        {
+          type: "line",
+          label: "각도",
+          data: data.angle,
+          borderColor: ACC,
+          backgroundColor: ACC,
+          borderWidth: 1.75,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: ACC_STRONG,
+          pointHoverBorderColor: "#0A0A0C",
+          pointHoverBorderWidth: 2,
+          tension: 0.32,
+          yAxisID: "y1",
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...tooltipBase,
+          displayColors: false,
+          callbacks: {
+            title: (items) => `${items[0].label}:00`,
+            label: (item) => {
+              const v = item.parsed.y;
+              if (item.dataset.label === "GHI") return `GHI  ${v} W/m²`;
+              return `각도  ${v}°`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          border: { color: BORDER },
+          ticks: {
+            color: T3,
+            font: { size: 10.5 },
+            maxRotation: 0,
+            autoSkip: false,
+            callback: function (val, idx) {
+              return idx % 3 === 0 ? this.getLabelForValue(val) : "";
+            }
+          }
+        },
+        y: {
+          position: "left",
+          grid: { color: BORDER, drawTicks: false },
+          border: { display: false },
+          ticks: {
+            color: T3,
+            font: { size: 10.5 },
+            padding: 8,
+            maxTicksLimit: 4,
+            callback: (v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v
+          }
+        },
+        y1: {
+          position: "right",
+          min: 0, max: 90,
+          grid: { display: false },
+          border: { display: false },
+          ticks: {
+            color: T3,
+            font: { size: 10.5 },
+            padding: 8,
+            stepSize: 30,
+            callback: (v) => `${v}°`
+          }
+        }
+      }
+    }
+  });
+
+  // ---------- Chart 2: AI / F60 / F90 horizontal bars ----------
+  const cmp = data.compare ?? { AI: 0, F60: 0, F90: 0 };
+  const ctx2 = document.getElementById("bp-chart-compare").getContext("2d");
+  new Chart(ctx2, {
+    type: "bar",
+    data: {
+      labels: ["AI 자동", "고정 60°", "수직 90°"],
+      datasets: [{
+        data: [cmp.AI, cmp.F60, cmp.F90],
+        backgroundColor: [ACC, CMP1, CMP2],
+        borderWidth: 0,
+        borderRadius: 2,
+        borderSkipped: false,
+        barThickness: 22
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...tooltipBase,
+          callbacks: {
+            label: (item) => `${item.parsed.x.toFixed(2)} kWh`
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: { color: BORDER, drawTicks: false },
+          border: { display: false },
+          ticks: {
+            color: T3,
+            font: { size: 10.5 },
+            padding: 6,
+            maxTicksLimit: 4,
+            callback: (v) => `${v}`
+          }
+        },
+        y: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: {
+            color: T2,
+            font: { size: 12.5 },
+            padding: 12
+          }
+        }
+      },
+      layout: { padding: { right: 52, top: 4, bottom: 4 } }
+    },
+    plugins: [{
+      id: "bp-bar-value-labels",
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const meta = chart.getDatasetMeta(0);
+        ctx.save();
+        ctx.font = "500 12.5px Inter, sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "left";
+        meta.data.forEach((bar, i) => {
+          const v = chart.data.datasets[0].data[i];
+          ctx.fillStyle = i === 0 ? T1 : T2;
+          ctx.fillText(v.toFixed(2), bar.x + 10, bar.y);
+          ctx.fillStyle = T3;
+          ctx.font = "400 10.5px Inter, sans-serif";
+          ctx.fillText("kWh", bar.x + 10 + ctx.measureText(v.toFixed(2)).width + 4, bar.y + 0.5);
+          ctx.font = "500 12.5px Inter, sans-serif";
+        });
+        ctx.restore();
+      }
+    }]
+  });
+
+  // ---------- Hourly table ----------
+  const tbody = document.querySelector("#bp-table tbody");
+  const totalKwh = Number(data.today_kwh ?? 0);
+  const ghiSum = (data.ghi || []).reduce((a, b) => a + b, 0) || 1;
+  (data.hours || []).forEach((h, i) => {
+    const ghi = (data.ghi || [])[i] ?? 0;
+    const ang = (data.angle || [])[i] ?? 0;
+    const kwh = totalKwh * (ghi / ghiSum);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${h}:00</td>
+      <td>${ghi}</td>
+      <td>${ang}°</td>
+      <td class="${kwh > 0.05 ? "accent" : ""}">${kwh.toFixed(3)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+})();
+</script>
+</body></html>

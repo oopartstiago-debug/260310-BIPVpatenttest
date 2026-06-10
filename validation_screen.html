@@ -1,0 +1,423 @@
+<!--
+  BIPV Dashboard — 성능 검증 (Validation) tab
+  Inherits design tokens from main_screen.html.
+  Data injection: replace the BIPV_DATA placeholder with json.dumps(payload).
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.17.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<style>
+  .bipv-root {
+    --bg:#0A0A0C; --surface:#111114; --surface-hi:#16161A;
+    --border:#1F1F23; --border-hi:#2A2A2E;
+    --text-1:#E8E8EC; --text-2:#9A9AA3; --text-3:#5C5C64;
+    --accent:#7F77DD; --accent-strong:#9A93EA;
+    --accent-soft:rgba(127,119,221,0.18); --accent-line:rgba(127,119,221,0.42);
+    --cmp-1:#4A4A52; --cmp-2:#2E2E34; --status:#6FD49C; --warn:#E0B85B;
+
+    background:var(--bg); color:var(--text-1);
+    font-family:'Pretendard Variable','Pretendard','Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    font-size:14px; line-height:1.5; letter-spacing:-0.005em;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    padding:28px 32px 36px; min-height:100vh; box-sizing:border-box;
+  }
+  .bipv-root *, .bipv-root *::before, .bipv-root *::after { box-sizing:border-box; }
+  .bipv-root .num { font-family:'Inter',sans-serif; font-feature-settings:'tnum','ss01'; font-variant-numeric:tabular-nums; }
+
+  .bp-header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding-bottom:22px; border-bottom:1px solid var(--border); }
+  .bp-brand { display:flex; align-items:center; gap:14px; }
+  .bp-mark { width:34px; height:34px; display:grid; place-items:center; border:1px solid var(--border-hi); border-radius:7px; background:var(--surface); }
+  .bp-title { font-size:13px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; }
+  .bp-meta { margin-top:5px; font-size:12px; color:var(--text-3); font-variant-numeric:tabular-nums; }
+  .bp-meta span + span::before { content:""; display:inline-block; width:3px; height:3px; border-radius:50%; background:var(--border-hi); margin:0 9px 2px; vertical-align:middle; }
+  .bp-status { display:inline-flex; align-items:center; gap:8px; padding:7px 13px; border:1px solid var(--border); border-radius:999px; background:var(--surface); font-size:12px; color:var(--text-2); }
+  .bp-status .dot { width:6px; height:6px; border-radius:50%; background:var(--status); box-shadow:0 0 0 3px rgba(111,212,156,0.12); }
+  .bp-status strong { color:var(--text-1); font-weight:500; }
+
+  /* Hero */
+  .bp-hero { display:grid; grid-template-columns:auto 1fr; gap:48px; align-items:center; padding:36px 4px 32px; border-bottom:1px solid var(--border); }
+  .bp-hero-main { min-width:0; }
+  .bp-hero-label { font-size:11px; color:var(--text-3); letter-spacing:0.14em; text-transform:uppercase; margin-bottom:14px; display:inline-flex; align-items:center; gap:8px; }
+  .bp-hero-label .ti { font-size:13px; }
+  .bp-hero-value { font-size:64px; font-weight:600; letter-spacing:-0.035em; line-height:0.98; color:var(--text-1); display:inline-flex; align-items:baseline; }
+  .bp-hero-value .unit { font-size:24px; font-weight:500; margin-left:6px; color:var(--text-2); letter-spacing:-0.02em; }
+  .bp-hero-sub { margin-top:14px; font-size:13.5px; color:var(--text-2); max-width:480px; }
+
+  /* Dataset summary cards */
+  .bp-summary { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; }
+  .bp-summary-card { padding:18px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+  .bp-summary-icon { width:30px; height:30px; border-radius:6px; background:var(--accent-soft); border:1px solid var(--accent-line); display:grid; place-items:center; color:var(--accent-strong); margin-bottom:14px; }
+  .bp-summary-icon .ti { font-size:15px; }
+  .bp-summary-label { font-size:11px; color:var(--text-3); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:6px; }
+  .bp-summary-value { font-size:24px; font-weight:500; letter-spacing:-0.025em; color:var(--text-1); line-height:1; }
+  .bp-summary-value .unit { font-size:12px; color:var(--text-3); margin-left:4px; font-weight:400; }
+  .bp-summary-note { font-size:11.5px; color:var(--text-3); margin-top:8px; }
+
+  /* Sections */
+  .bp-section-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:14px; }
+  .bp-section-title { font-size:14px; font-weight:500; color:var(--text-1); }
+  .bp-section-sub { font-size:11.5px; color:var(--text-3); margin-top:3px; }
+
+  /* Row */
+  .bp-row { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1.1fr); gap:18px; padding-top:24px; }
+  .bp-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:22px 24px 20px; }
+  .bp-chart-wrap { margin-top:16px; height:300px; position:relative; }
+  .bp-chart-wrap.tall { height:320px; }
+  .bp-legend { display:flex; align-items:center; gap:16px; font-size:11.5px; color:var(--text-2); }
+  .bp-legend-item { display:inline-flex; align-items:center; gap:6px; }
+  .bp-legend-swatch { width:10px; height:10px; border-radius:2px; }
+  .bp-legend-line { width:14px; height:2px; border-radius:2px; }
+
+  /* Feature meanings list */
+  .bp-meanings { margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+  .bp-meanings-item { display:flex; gap:10px; font-size:11.5px; color:var(--text-2); padding:5px 0; }
+  .bp-meanings-item .k { color:var(--text-1); font-weight:500; min-width:88px; font-family:'Inter',sans-serif; font-size:11px; }
+
+  /* Hero side metrics */
+  .bp-hero-side { display:flex; gap:32px; }
+  .bp-hero-sec { min-width:120px; }
+  .bp-hero-sec-label { font-size:11px; color:var(--text-3); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:10px; }
+  .bp-hero-sec-value { font-size:24px; font-weight:500; letter-spacing:-0.025em; color:var(--text-1); line-height:1; }
+  .bp-hero-sec-value .unit { font-size:12px; color:var(--text-3); margin-left:4px; font-weight:400; }
+
+  .bp-foot { margin-top:18px; font-size:11.5px; color:var(--text-3); display:inline-flex; align-items:center; gap:7px; }
+  .bp-foot .ti { font-size:13px; }
+
+  @media (max-width: 1080px) {
+    .bp-hero { grid-template-columns: 1fr; gap:24px; }
+    .bp-summary { grid-template-columns: repeat(2, 1fr); }
+    .bp-row { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="bipv-root" id="bipv-root">
+
+  <header class="bp-header">
+    <div class="bp-brand">
+      <div class="bp-mark">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <line x1="3.5" y1="4.5" x2="14.5" y2="3.2" />
+          <line x1="3.5" y1="9" x2="14.5" y2="9" stroke="#7F77DD" stroke-width="1.6" />
+          <line x1="3.5" y1="13.5" x2="14.5" y2="14.8" />
+        </svg>
+      </div>
+      <div>
+        <div class="bp-title">BIPV Control — 성능 검증</div>
+        <div class="bp-meta">
+          <span id="bp-loc">서울</span>
+          <span id="bp-date" class="num">2026.05.14</span>
+          <span id="bp-model">XGBoost V15</span>
+        </div>
+      </div>
+    </div>
+    <div class="bp-status">
+      <span class="dot"></span>
+      <span>학습 완료</span>
+      <span style="color:var(--border-hi); margin:0 1px;">·</span>
+      <strong id="bp-status-detail">5-fold CV</strong>
+    </div>
+  </header>
+
+  <section class="bp-hero">
+    <div class="bp-hero-main">
+      <div class="bp-hero-label"><i class="ti ti-target"></i> 모델 설명력</div>
+      <div class="bp-hero-value num">R² <span id="bp-r2">0.9966</span></div>
+      <div class="bp-hero-sub" id="bp-r2-sub">
+        XGBoost V15가 루버 최적각의 분산을 99.66% 설명. 잔여 0.3%는 순간 기상 변동 — 본질적으로 예측이 어려운 영역.
+      </div>
+    </div>
+    <div class="bp-hero-side">
+      <div class="bp-hero-sec">
+        <div class="bp-hero-sec-label">평균 절대 오차</div>
+        <div class="bp-hero-sec-value num"><span id="bp-mae">0.70</span><span class="unit">°</span></div>
+      </div>
+      <div class="bp-hero-sec">
+        <div class="bp-hero-sec-label">모터 정밀도</div>
+        <div class="bp-hero-sec-value num">±2<span class="unit">°</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dataset summary -->
+  <div style="padding-top:26px;">
+    <div class="bp-section-head">
+      <div>
+        <div class="bp-section-title">학습 데이터셋</div>
+        <div class="bp-section-sub">기상청 실측 관측 × 물리 시뮬레이션으로 산출한 시간별 최적각 정답값</div>
+      </div>
+    </div>
+    <div class="bp-summary">
+      <div class="bp-summary-card">
+        <div class="bp-summary-icon"><i class="ti ti-database"></i></div>
+        <div class="bp-summary-label">데이터 행</div>
+        <div class="bp-summary-value num"><span id="bp-rows">44,225</span></div>
+        <div class="bp-summary-note">시간 단위 관측 + 정답</div>
+      </div>
+      <div class="bp-summary-card">
+        <div class="bp-summary-icon"><i class="ti ti-calendar-stats"></i></div>
+        <div class="bp-summary-label">연도 범위</div>
+        <div class="bp-summary-value num"><span id="bp-year-range">2014–2023</span></div>
+        <div class="bp-summary-note"><span id="bp-years">10</span>년 연속</div>
+      </div>
+      <div class="bp-summary-card">
+        <div class="bp-summary-icon"><i class="ti ti-list-numbers"></i></div>
+        <div class="bp-summary-label">입력 피처</div>
+        <div class="bp-summary-value num"><span id="bp-features">7</span></div>
+        <div class="bp-summary-note">GHI · 시간 · 계절 · 운량 · 기온</div>
+      </div>
+      <div class="bp-summary-card">
+        <div class="bp-summary-icon"><i class="ti ti-checkbox"></i></div>
+        <div class="bp-summary-label">검증 방식</div>
+        <div class="bp-summary-value num">5<span class="unit">-fold CV</span></div>
+        <div class="bp-summary-note">시간 분할 + 홀드아웃</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Importance + Forecast -->
+  <div class="bp-row">
+    <div class="bp-card">
+      <div class="bp-section-head" style="margin:0 0 4px;">
+        <div>
+          <div class="bp-section-title">피처 중요도 (Top 8)</div>
+          <div class="bp-section-sub">Gain 기준 · AI가 결정에 가장 많이 참고하는 정보</div>
+        </div>
+      </div>
+      <div class="bp-chart-wrap tall">
+        <canvas id="bp-importance"></canvas>
+      </div>
+      <div class="bp-meanings" id="bp-meanings"></div>
+    </div>
+
+    <div class="bp-card">
+      <div class="bp-section-head" style="margin:0 0 4px;">
+        <div>
+          <div class="bp-section-title">내일 24시간 예측 스케줄</div>
+          <div class="bp-section-sub" id="bp-forecast-sub">기상청 단기예보 + V15 모델 결합</div>
+        </div>
+        <div class="bp-legend">
+          <span class="bp-legend-item">
+            <span class="bp-legend-swatch" style="background:var(--accent-soft); border:1px solid var(--accent-line);"></span>
+            GHI <span style="color:var(--text-3); margin-left:2px;">W/m²</span>
+          </span>
+          <span class="bp-legend-item">
+            <span class="bp-legend-line" style="background:var(--accent);"></span>
+            AI 각도 <span style="color:var(--text-3); margin-left:2px;">°</span>
+          </span>
+        </div>
+      </div>
+      <div class="bp-chart-wrap tall">
+        <canvas id="bp-forecast"></canvas>
+      </div>
+      <div class="bp-meanings">
+        <div class="bp-meanings-item"><span class="k">예측 발전</span><span id="bp-tom-kwh">패널당 <strong style="color:var(--text-1);">— kWh</strong></span></div>
+        <div class="bp-meanings-item"><span class="k">기상 소스</span><span id="bp-tom-src">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bp-foot">
+    <i class="ti ti-info-circle"></i>
+    Gain은 해당 피처가 분기점에서 손실을 얼마나 줄였는지의 누적값입니다. 합 = 1.0
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const FALLBACK = {
+    location: "서울", date: "2026.05.14", model: "XGBoost V15",
+    r2: 0.9966, mae: 0.70,
+    rows: 44225, year_range: "2014–2023", years: 10, features: 7,
+    importance: [
+      { f: "doy_cos",     gain: 0.324, meaning: "계절 위치 (겨울/여름 구분)" },
+      { f: "ghi_w_m2",    gain: 0.194, meaning: "현재 일사량 세기" },
+      { f: "hour_cos",    gain: 0.139, meaning: "시각 (오전/오후)" },
+      { f: "hour_sin",    gain: 0.133, meaning: "시각 보완" },
+      { f: "temp_actual", gain: 0.120, meaning: "외기 온도" },
+      { f: "doy_sin",     gain: 0.078, meaning: "계절 보완" },
+      { f: "cloud_cover", gain: 0.012, meaning: "구름양 (GHI에 반영됨)" }
+    ],
+    tomorrow_hours: Array.from({length:14}, (_,i) => String(i+6).padStart(2,"0")),
+    tomorrow_ghi:   [0,180,360,540,680,790,830,790,690,540,360,180,60,8],
+    tomorrow_angle: [82,72,60,50,42,36,32,30,32,38,46,58,72,82],
+    tomorrow_kwh: 0.82,
+    forecast_source: "기상청 단기예보 (KMA)"
+  };
+  let data = {{BIPV_DATA}};
+  if (!data || typeof data !== "object") data = FALLBACK;
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = new Intl.NumberFormat("ko-KR");
+
+  $("bp-loc").textContent = data.location ?? "—";
+  $("bp-date").textContent = data.date ?? "—";
+  $("bp-model").textContent = data.model ?? "XGBoost V15";
+  $("bp-r2").textContent = Number(data.r2 ?? 0).toFixed(4);
+  $("bp-mae").textContent = Number(data.mae ?? 0).toFixed(2);
+  $("bp-rows").textContent = fmt.format(data.rows ?? 0);
+  $("bp-year-range").textContent = data.year_range ?? "—";
+  $("bp-years").textContent = data.years ?? "—";
+  $("bp-features").textContent = data.features ?? "—";
+  $("bp-tom-src").textContent = data.forecast_source ?? "—";
+  $("bp-tom-kwh").innerHTML = `패널당 <strong style="color:var(--text-1);">${Number(data.tomorrow_kwh ?? 0).toFixed(2)} kWh</strong>`;
+
+  // Chart.js defaults
+  const css = getComputedStyle(document.getElementById("bipv-root"));
+  const T1 = css.getPropertyValue("--text-1").trim();
+  const T2 = css.getPropertyValue("--text-2").trim();
+  const T3 = css.getPropertyValue("--text-3").trim();
+  const BORDER = css.getPropertyValue("--border").trim();
+  const BORDER_HI = css.getPropertyValue("--border-hi").trim();
+  const ACC = css.getPropertyValue("--accent").trim();
+  const ACC_STRONG = css.getPropertyValue("--accent-strong").trim();
+  const ACC_SOFT = "rgba(127, 119, 221, 0.20)";
+  const ACC_LINE = "rgba(127, 119, 221, 0.45)";
+  const CMP1 = css.getPropertyValue("--cmp-1").trim();
+  const CMP2 = css.getPropertyValue("--cmp-2").trim();
+  const SURFACE_HI = css.getPropertyValue("--surface-hi").trim();
+
+  Chart.defaults.font.family = "'Pretendard Variable', 'Pretendard', 'Inter', sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = T3;
+  Chart.defaults.animation.duration = 380;
+
+  const tooltipBase = {
+    backgroundColor: SURFACE_HI, borderColor: BORDER_HI, borderWidth: 1,
+    titleColor: T1, bodyColor: T2,
+    titleFont:{size:11,weight:"500"}, bodyFont:{size:11.5,weight:"500"},
+    padding:{top:9,right:12,bottom:9,left:12}, cornerRadius:6, caretSize:0, displayColors:false
+  };
+
+  // ----- Feature importance horizontal bars -----
+  const importance = (data.importance ?? []).slice(0, 8);
+  // sort ascending for bottom-up display
+  importance.sort((a,b) => a.gain - b.gain);
+  const impLabels = importance.map(r => r.f);
+  const impVals = importance.map(r => r.gain);
+  const impMax = Math.max(...impVals, 0.05);
+
+  new Chart(document.getElementById("bp-importance").getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: impLabels,
+      datasets: [{
+        data: impVals,
+        backgroundColor: impVals.map(v => v >= 0.10 ? ACC : (v >= 0.05 ? CMP1 : CMP2)),
+        borderWidth: 0, borderRadius: 2, borderSkipped: false, barThickness: 18
+      }]
+    },
+    options: {
+      indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          ...tooltipBase,
+          callbacks: { label: (item) => `Gain  ${item.parsed.x.toFixed(3)}` }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true, max: impMax * 1.25,
+          grid: { color: BORDER, drawTicks: false },
+          border: { display: false },
+          ticks: { color: T3, font:{size:10.5}, padding:6, maxTicksLimit: 4, callback: (v) => v.toFixed(2) }
+        },
+        y: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: T2, font:{size:12, family:"'Inter', sans-serif"}, padding:8 }
+        }
+      },
+      layout: { padding: { right: 56 } }
+    },
+    plugins: [{
+      id: "bp-imp-values",
+      afterDatasetsDraw(chart) {
+        const ctx = chart.ctx;
+        const meta = chart.getDatasetMeta(0);
+        ctx.save();
+        ctx.font = "500 11.5px Inter, sans-serif";
+        ctx.fillStyle = T1;
+        ctx.textBaseline = "middle";
+        meta.data.forEach((bar, i) => {
+          const v = chart.data.datasets[0].data[i];
+          ctx.fillText(v.toFixed(3), bar.x + 8, bar.y);
+        });
+        ctx.restore();
+      }
+    }]
+  });
+
+  // Feature meanings list (top 4 only, to keep card compact)
+  const mList = $("bp-meanings");
+  const topMeanings = (data.importance ?? []).slice(0, 4);
+  topMeanings.forEach(r => {
+    const item = document.createElement("div");
+    item.className = "bp-meanings-item";
+    item.innerHTML = `<span class="k">${r.f}</span><span>${r.meaning}</span>`;
+    mList.appendChild(item);
+  });
+
+  // ----- Tomorrow forecast: GHI bars + angle line -----
+  const fhours = data.tomorrow_hours ?? [];
+  const fghi = data.tomorrow_ghi ?? [];
+  const fang = data.tomorrow_angle ?? [];
+
+  new Chart(document.getElementById("bp-forecast").getContext("2d"), {
+    data: {
+      labels: fhours,
+      datasets: [
+        {
+          type: "bar", label: "GHI", data: fghi, yAxisID: "y",
+          backgroundColor: ACC_SOFT, borderColor: ACC_LINE,
+          borderWidth: 1, borderSkipped: false, borderRadius: 2, maxBarThickness: 14, order: 2
+        },
+        {
+          type: "line", label: "각도", data: fang, yAxisID: "y1",
+          borderColor: ACC, backgroundColor: ACC,
+          borderWidth: 1.75, pointRadius: 0, pointHoverRadius: 4,
+          pointHoverBackgroundColor: ACC_STRONG, pointHoverBorderColor: "#0A0A0C", pointHoverBorderWidth: 2,
+          tension: 0.32, order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode:"index", intersect:false },
+      plugins: {
+        legend: { display:false },
+        tooltip: { ...tooltipBase,
+          callbacks: {
+            title: (items) => `${items[0].label}:00`,
+            label: (item) => item.dataset.label === "GHI" ? `GHI   ${item.parsed.y} W/m²` : `각도  ${item.parsed.y}°`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid:{display:false}, border:{color:BORDER},
+          ticks:{ color:T3, font:{size:10.5}, maxRotation:0, autoSkip:false,
+            callback: function(val, idx) { return idx % 3 === 0 ? this.getLabelForValue(val) : ""; } }
+        },
+        y: {
+          position:"left",
+          grid:{color:BORDER, drawTicks:false}, border:{display:false},
+          ticks:{ color:T3, font:{size:10.5}, padding:8, maxTicksLimit:4,
+            callback:(v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v }
+        },
+        y1: {
+          position:"right", min:0, max:90,
+          grid:{display:false}, border:{display:false},
+          ticks:{ color:T3, font:{size:10.5}, padding:8, stepSize:30, callback:(v) => `${v}°` }
+        }
+      }
+    }
+  });
+})();
+</script>

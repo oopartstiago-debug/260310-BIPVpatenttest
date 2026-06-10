@@ -1,0 +1,2204 @@
+<!-- BIPV dashboard v2.1 — single scroll, 8 sections, Korean labels. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+
+<style>
+  :root {
+    --bipv-bg:#FAFAF7;
+    --bipv-surface:#FFFFFF;
+    --bipv-border:#E8E5DD;
+    --bipv-border-soft:#F0EEE8;
+    --bipv-ink:#1C1A17;
+    --bipv-ink-2:#6B6359;
+    --bipv-ink-3:#A8A095;
+    --bipv-accent:#C8580F;
+    --bipv-accent-soft:rgba(200,88,15,0.22);
+    --bipv-accent-bg:#FAEFE3;
+    --bipv-accent-deep:#8A3F08;
+    --bipv-compare-mid:#1C1A17;
+    --bipv-compare-low:#A8A095;
+    --bipv-sans:'Pretendard','Inter',-apple-system,system-ui,sans-serif;
+    --bipv-serif:'Newsreader','Source Serif Pro',Georgia,serif;
+  }
+
+  .bipv-root, .bipv-root * { box-sizing:border-box; }
+
+  .bipv-root {
+    font-family: var(--bipv-sans);
+    background: var(--bipv-bg);
+    color: var(--bipv-ink);
+    min-height: 100vh;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    padding: 0 0 96px;
+  }
+
+  .bipv-wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 36px;
+  }
+
+  /* ─────────────── Typography utilities ─────────────── */
+  .bipv-eyebrow {
+    font-family: var(--bipv-sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--bipv-ink-2);
+    display: inline-block;
+  }
+  .bipv-eyebrow .num {
+    color: var(--bipv-accent-deep);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bipv-serif { font-family: var(--bipv-serif); font-weight: 400; letter-spacing: -0.005em; }
+  .bipv-section-title {
+    font-family: var(--bipv-serif);
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1.25;
+    color: var(--bipv-ink);
+    margin: 14px 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .bipv-section-lead {
+    font-size: 14px;
+    color: var(--bipv-ink-2);
+    max-width: 640px;
+    margin: 0 0 28px;
+  }
+
+  /* Glossary tooltip — dotted underline + native title fallback */
+  .bipv-term {
+    border-bottom: 1px dotted var(--bipv-ink-3);
+    cursor: help;
+    position: relative;
+  }
+  .bipv-term:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bipv-ink);
+    color: #FAFAF7;
+    font-family: var(--bipv-sans);
+    font-size: 11px;
+    padding: 7px 11px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 10;
+    letter-spacing: 0.02em;
+  }
+  .bipv-term:hover::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: var(--bipv-ink);
+    z-index: 10;
+  }
+
+  /* ─────────────── Header ─────────────── */
+  .bipv-header {
+    border-bottom: 0.5px solid var(--bipv-border);
+    padding: 22px 0 18px;
+    margin-bottom: 60px;
+  }
+  .bipv-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .bipv-logo-block { display:flex; align-items:center; gap:14px; }
+  .bipv-logo-mark {
+    width: 32px; height: 32px;
+    border: 0.5px solid var(--bipv-border);
+    display: grid; place-items: center;
+    background: var(--bipv-surface);
+    border-radius: 4px;
+    animation: bipvLogoWobble 5s ease-in-out infinite;
+    transform-origin: center;
+  }
+  @keyframes bipvLogoWobble {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(1deg); }
+  }
+  .bipv-brand {
+    font-family: var(--bipv-sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    color: var(--bipv-ink);
+  }
+  .bipv-brand-sub {
+    font-size: 11px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.02em;
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .bipv-status-chip {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 7px 14px;
+    border: 0.5px solid var(--bipv-border);
+    background: var(--bipv-surface);
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--bipv-ink-2);
+  }
+  .bipv-status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--bipv-accent);
+    box-shadow: 0 0 0 3px rgba(200, 88, 15, 0.12);
+  }
+  .bipv-status-dot.idle {
+    background: var(--bipv-ink-3);
+    box-shadow: 0 0 0 3px rgba(168, 160, 149, 0.18);
+  }
+  .bipv-status-chip strong { color: var(--bipv-ink); font-weight: 500; letter-spacing: 0.02em; }
+
+  /* ─────────────── Thesis head ─────────────── */
+  .bipv-thesis {
+    margin: 0 0 80px;
+  }
+  .bipv-thesis-head {
+    font-family: var(--bipv-serif);
+    font-size: 38px;
+    font-weight: 400;
+    line-height: 1.25;
+    letter-spacing: -0.018em;
+    color: var(--bipv-ink);
+    margin: 0 0 14px;
+    max-width: 880px;
+  }
+  .bipv-thesis-sub {
+    font-size: 14px;
+    color: var(--bipv-ink-2);
+    line-height: 1.6;
+    max-width: 720px;
+  }
+
+  /* ─────────────── Section spacing ─────────────── */
+  .bipv-section {
+    margin: 0 0 80px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .bipv-section.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ─────────────── Section 01 — 이번 달 성과 ─────────────── */
+  .bipv-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 48px;
+    align-items: center;
+    margin-bottom: 28px;
+  }
+  .bipv-hero-num {
+    font-family: var(--bipv-serif);
+    font-size: 76px;
+    font-weight: 400;
+    line-height: 1.0;
+    letter-spacing: -0.025em;
+    color: var(--bipv-ink);
+    margin: 14px 0 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  .bipv-hero-caption {
+    font-size: 14px;
+    color: var(--bipv-ink-2);
+    margin: 0 0 18px;
+    max-width: 460px;
+    line-height: 1.6;
+  }
+  .bipv-hero-aux {
+    font-size: 12px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.02em;
+  }
+  .bipv-hero-aux strong { color: var(--bipv-ink-2); font-weight: 500; }
+
+  .bipv-aux-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bipv-surface);
+  }
+  .bipv-aux-cell {
+    padding: 18px 22px;
+    border-right: 0.5px solid var(--bipv-border);
+  }
+  .bipv-aux-cell:last-child { border-right: 0; }
+  .bipv-aux-lbl {
+    font-size: 11px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+  .bipv-aux-val {
+    font-family: var(--bipv-serif);
+    font-size: 24px;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.005em;
+  }
+  .bipv-aux-val .unit {
+    font-family: var(--bipv-sans);
+    font-size: 12px;
+    color: var(--bipv-ink-2);
+    margin-left: 5px;
+    letter-spacing: 0.02em;
+  }
+
+  /* ─────────────── SVG stages (Hero + Section 04) ─────────────── */
+  .bipv-anim-stage {
+    width: 100%;
+    aspect-ratio: 460 / 290;
+    background: var(--bipv-bg);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+  .bipv-anim-stage svg { width:100%; height:100%; display:block; }
+
+  .bipv-sun-arc {
+    fill: none;
+    stroke: var(--bipv-border);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+  }
+  .bipv-horizon { stroke: var(--bipv-border); stroke-width: 0.5; }
+  .bipv-time-label {
+    fill: var(--bipv-ink-3);
+    font-family: var(--bipv-sans);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-anchor: middle;
+  }
+  .bipv-wall { fill: var(--bipv-ink); }
+  .bipv-blade-line {
+    stroke: var(--bipv-ink);
+    stroke-width: 3.5;
+    stroke-linecap: round;
+  }
+  .bipv-blade-group {
+    transform-origin: 0 0;
+    animation: bipvBladeTilt 9s ease-in-out infinite alternate;
+  }
+  /* v2.1: 단방향 회전, 일출 75° → 정오 15° → 일몰 75° */
+  @keyframes bipvBladeTilt {
+    0%   { transform: rotate(75deg); }
+    50%  { transform: rotate(15deg); }
+    100% { transform: rotate(75deg); }
+  }
+  .bipv-sun {
+    offset-path: path('M 40 170 Q 230 0 420 170');
+    offset-distance: 0%;
+    animation: bipvSunMove 9s ease-in-out infinite alternate;
+  }
+  .bipv-ray {
+    offset-path: path('M 40 170 Q 230 0 420 170');
+    offset-distance: 0%;
+    animation: bipvSunMove 9s ease-in-out infinite alternate;
+  }
+  @keyframes bipvSunMove { to { offset-distance: 100%; } }
+  .bipv-sun-body { fill: var(--bipv-accent); }
+  .bipv-sun-glow {
+    fill: var(--bipv-accent);
+    opacity: 0.22;
+    animation: bipvSunPulse 3s ease-in-out infinite;
+  }
+  @keyframes bipvSunPulse {
+    0%, 100% { opacity: 0.22; r: 18; }
+    50%      { opacity: 0.38; r: 22; }
+  }
+  .bipv-ray-line {
+    stroke: var(--bipv-accent);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+    opacity: 0.75;
+  }
+
+  /* ─────────────── Section 02 — 시간대별 스케줄 ─────────────── */
+  .bipv-chart-card {
+    background: var(--bipv-surface);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    padding: 28px 28px 22px;
+  }
+  .bipv-chart-legend {
+    display: flex; gap: 24px; margin-bottom: 10px;
+    font-size: 11px; color: var(--bipv-ink-2);
+    letter-spacing: 0.02em;
+  }
+  .bipv-chart-legend .swatch {
+    display: inline-block;
+    width: 14px; height: 8px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-radius: 1px;
+  }
+  .bipv-chart-legend .swatch.ghi { background: var(--bipv-accent-soft); }
+  .bipv-chart-legend .swatch.ai  { background: var(--bipv-ink); height: 2px; }
+  .bipv-chart-canvas-wrap { height: 280px; position: relative; }
+  .bipv-chart-foot {
+    font-size: 11px;
+    color: var(--bipv-ink-3);
+    margin-top: 14px;
+    letter-spacing: 0.02em;
+  }
+  .bipv-chart-foot .bipv-term { color: var(--bipv-ink-2); }
+
+  /* ─────────────── Section 03 — 발전량 비교 ─────────────── */
+  .bipv-compare { display: grid; gap: 18px; }
+  .bipv-cmp-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 140px;
+    align-items: center;
+    gap: 16px;
+  }
+  .bipv-cmp-label {
+    font-size: 12px;
+    color: var(--bipv-ink-2);
+    letter-spacing: 0.02em;
+  }
+  .bipv-cmp-track {
+    position: relative;
+    height: 28px;
+    background: var(--bipv-border-soft);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .bipv-cmp-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 1.4s cubic-bezier(.2,.7,.2,1) 0.1s;
+  }
+  .bipv-section.is-visible .bipv-cmp-fill { width: var(--w, 0%); }
+  .bipv-cmp-fill.ai  { background: var(--bipv-accent); }
+  .bipv-cmp-fill.f60 { background: var(--bipv-compare-mid); }
+  .bipv-cmp-fill.f90 { background: var(--bipv-compare-low); }
+  .bipv-cmp-value {
+    text-align: right;
+    font-family: var(--bipv-serif);
+    font-size: 20px;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .bipv-cmp-value .unit {
+    font-family: var(--bipv-sans);
+    font-size: 11px;
+    color: var(--bipv-ink-3);
+    margin-left: 5px;
+    letter-spacing: 0.02em;
+  }
+  .bipv-cmp-uplift {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 11px;
+    background: var(--bipv-accent-bg);
+    color: var(--bipv-accent-deep);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    border-radius: 999px;
+    margin-top: 16px;
+  }
+
+  /* ─────────────── Section 04 — 각도 시뮬레이션 ─────────────── */
+  .bipv-sim-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: 36px;
+    align-items: stretch;
+  }
+  .bipv-sim-controls {
+    display: flex; flex-direction: column;
+    gap: 24px;
+  }
+  .bipv-sim-angle {
+    background: var(--bipv-surface);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    padding: 20px 22px 22px;
+  }
+  .bipv-sim-angle-lbl {
+    font-size: 11px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .bipv-sim-angle-val {
+    font-family: var(--bipv-serif);
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .bipv-sim-angle-val .unit {
+    font-family: var(--bipv-sans);
+    font-size: 18px;
+    color: var(--bipv-ink-2);
+    margin-left: 4px;
+  }
+  .bipv-sim-range {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 28px;
+    background: transparent;
+    margin-top: 16px;
+  }
+  .bipv-sim-range:focus { outline: none; }
+  .bipv-sim-range::-webkit-slider-runnable-track {
+    height: 3px; background: var(--bipv-border);
+    border-radius: 2px;
+  }
+  .bipv-sim-range::-moz-range-track {
+    height: 3px; background: var(--bipv-border); border-radius: 2px;
+  }
+  .bipv-sim-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--bipv-accent);
+    margin-top: -7.5px;
+    cursor: grab;
+    box-shadow: 0 0 0 3px rgba(200,88,15,0.18);
+  }
+  .bipv-sim-range::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--bipv-accent);
+    border: 0;
+    cursor: grab;
+    box-shadow: 0 0 0 3px rgba(200,88,15,0.18);
+  }
+  .bipv-sim-range-ticks {
+    display: flex; justify-content: space-between;
+    margin-top: 8px;
+    font-size: 10px; color: var(--bipv-ink-3);
+    letter-spacing: 0.04em;
+  }
+  .bipv-sim-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bipv-surface);
+  }
+  .bipv-sim-metric {
+    padding: 16px 16px;
+    border-right: 0.5px solid var(--bipv-border);
+  }
+  .bipv-sim-metric:last-child { border-right: 0; }
+  .bipv-sim-metric-lbl {
+    font-size: 10px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .bipv-sim-metric-val {
+    font-family: var(--bipv-serif);
+    font-size: 22px;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.005em;
+  }
+  .bipv-sim-metric-val .unit {
+    font-family: var(--bipv-sans);
+    font-size: 11px;
+    color: var(--bipv-ink-2);
+    margin-left: 3px;
+  }
+  .bipv-sim-metric-sub {
+    margin-top: 8px;
+    font-size: 10.5px;
+    color: var(--bipv-ink-3);
+    line-height: 1.45;
+    letter-spacing: 0.01em;
+  }
+
+  /* ─── v1 style simulator (Section 04) ─── */
+  .bipv-sim-v1-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: 36px;
+    align-items: center;
+    background: var(--bipv-surface);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    padding: 26px 28px;
+  }
+  .bipv-sim-v1-svg-wrap {
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bipv-sim-v1-svg {
+    width: 100%; max-width: 320px;
+    aspect-ratio: 240 / 320;
+  }
+  .bipv-sim-v1-readouts {
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .bipv-sim-v1-readout {
+    padding: 6px 0;
+  }
+  .bipv-sim-v1-lbl {
+    font-size: 10.5px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .bipv-sim-v1-val {
+    font-family: var(--bipv-serif);
+    font-size: 30px;
+    line-height: 1;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .bipv-sim-v1-val .unit {
+    font-family: var(--bipv-sans);
+    font-size: 13px;
+    color: var(--bipv-ink-2);
+    margin-left: 3px;
+  }
+  .bipv-sim-v1-bar {
+    margin-top: 10px;
+    height: 4px;
+    background: var(--bipv-border-soft);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .bipv-sim-v1-bar > span {
+    display: block; height: 100%; width: 0%;
+    transition: width 0.18s ease;
+  }
+  .bipv-sim-v1-sub {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--bipv-ink-3);
+    line-height: 1.5;
+  }
+  .bipv-sim-v1-sliders {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 32px;
+    margin-top: 22px;
+  }
+  .bipv-sim-v1-slider-block { padding: 0 4px; }
+  .bipv-sim-v1-slider-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .bipv-sim-v1-slider-head .lbl {
+    font-size: 11px;
+    color: var(--bipv-ink-2);
+    letter-spacing: 0.04em;
+  }
+  .bipv-sim-v1-slider-head .val {
+    font-size: 12px;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  input.bipv-sim-v1-range {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px;
+    background: var(--bipv-border);
+    border-radius: 2px;
+    outline: none; cursor: pointer; margin: 0;
+  }
+  input.bipv-sim-v1-range::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--bipv-accent);
+    border: 2px solid var(--bipv-surface);
+    cursor: grab;
+    box-shadow: 0 0 0 1px rgba(200,88,15,0.5);
+  }
+  input.bipv-sim-v1-range::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--bipv-accent);
+    border: 2px solid var(--bipv-surface);
+    cursor: grab;
+  }
+
+  /* ─── 4월 원본 시뮬레이터 (Plotly → SVG 포팅) ─── */
+  .bipv-sim-orig-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+    background: var(--bipv-surface);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    padding: 26px 28px;
+  }
+  .bipv-sim-orig-svg-wrap {
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bipv-bg);
+    border: 0.5px solid var(--bipv-border-soft);
+    border-radius: 6px;
+    padding: 12px;
+  }
+  .bipv-sim-orig-svg {
+    width: 100%; max-width: 360px;
+    aspect-ratio: 240 / 320;
+  }
+  .bipv-sim-orig-readouts { display: flex; flex-direction: column; gap: 14px; }
+  .bipv-sim-orig-card {
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    background: var(--bipv-bg);
+  }
+  .bipv-sim-orig-lbl {
+    font-size: 10.5px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .bipv-sim-orig-val {
+    font-family: var(--bipv-serif);
+    font-size: 28px;
+    line-height: 1;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .bipv-sim-orig-val .unit {
+    font-family: var(--bipv-sans);
+    font-size: 13px;
+    color: var(--bipv-ink-2);
+    margin-left: 3px;
+  }
+  .bipv-sim-orig-tag {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--bipv-ink-2);
+    letter-spacing: 0.02em;
+  }
+  .bipv-sim-orig-tag.good { color: #4F8556; }
+  .bipv-sim-orig-tag.mid  { color: var(--bipv-accent-deep); }
+  .bipv-sim-orig-tag.bad  { color: #B04A2C; }
+  .bipv-sim-orig-info {
+    background: var(--bipv-bg);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    font-size: 11.5px;
+    color: var(--bipv-ink-2);
+    line-height: 1.6;
+  }
+  .bipv-sim-orig-info-title {
+    font-size: 10.5px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+  .bipv-sim-orig-info strong { color: var(--bipv-ink); font-weight: 500; }
+  .bipv-sim-orig-info-row { margin: 2px 0; }
+  .bipv-sim-orig-info-divider { height: 0.5px; background: var(--bipv-border); margin: 10px 0; }
+  .bipv-sim-orig-info-dilemma { font-size: 11.5px; color: var(--bipv-ink-2); line-height: 1.7; }
+
+  .bipv-sim-orig-sliders {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 32px;
+    margin-top: 22px;
+  }
+  .bipv-sim-orig-slider-block { padding: 0 4px; }
+  .bipv-sim-orig-slider-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .bipv-sim-orig-slider-head .lbl {
+    font-size: 11.5px;
+    color: var(--bipv-ink-2);
+    letter-spacing: 0.02em;
+  }
+  .bipv-sim-orig-slider-head .val {
+    font-family: var(--bipv-serif);
+    font-size: 16px;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  input.bipv-sim-orig-range {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px;
+    background: var(--bipv-border);
+    border-radius: 2px;
+    outline: none; cursor: pointer; margin: 0;
+  }
+  input.bipv-sim-orig-range::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--bipv-accent);
+    border: 2px solid var(--bipv-surface);
+    cursor: grab;
+    box-shadow: 0 0 0 1px rgba(200,88,15,0.5);
+  }
+  input.bipv-sim-orig-range::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--bipv-accent);
+    border: 2px solid var(--bipv-surface);
+    cursor: grab;
+  }
+  .bipv-sim-stage {
+    background: var(--bipv-surface);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 460 / 320;
+  }
+  .bipv-sim-stage svg { width:100%; height:100%; display:block; }
+  .bipv-sim-foot {
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--bipv-ink-2);
+    line-height: 1.7;
+    max-width: 880px;
+  }
+  .bipv-sim-foot strong { color: var(--bipv-ink); font-weight: 500; }
+
+  /* ─────────────── Section 05 — 어떻게 학습했나 ─────────────── */
+  .bipv-story-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-bottom: 40px;
+  }
+  .bipv-story-card {
+    background: var(--bipv-surface);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    padding: 22px 24px 24px;
+    position: relative;
+  }
+  .bipv-story-step {
+    font-size: 10px;
+    color: var(--bipv-accent-deep);
+    letter-spacing: 0.14em;
+    margin-bottom: 8px;
+  }
+  .bipv-story-title {
+    font-family: var(--bipv-serif);
+    font-size: 19px;
+    color: var(--bipv-ink);
+    margin: 0 0 10px;
+    letter-spacing: -0.005em;
+  }
+  .bipv-story-body {
+    font-size: 12.5px;
+    color: var(--bipv-ink-2);
+    line-height: 1.65;
+  }
+  .bipv-story-body .b {
+    color: var(--bipv-ink);
+    font-weight: 500;
+  }
+
+  .bipv-perf-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: 28px;
+    margin-bottom: 36px;
+  }
+  .bipv-perf-r2 {
+    background: var(--bipv-surface);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    padding: 28px 28px;
+  }
+  .bipv-perf-r2-lbl {
+    font-size: 11px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+  .bipv-perf-r2-val {
+    font-family: var(--bipv-serif);
+    font-size: 64px;
+    line-height: 1;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.025em;
+  }
+  .bipv-perf-r2-note {
+    font-size: 12px;
+    color: var(--bipv-ink-2);
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+  .bipv-perf-r2-divider {
+    height: 0.5px;
+    background: var(--bipv-border);
+    margin: 18px 0;
+  }
+  .bipv-perf-r2-mae {
+    font-size: 13px;
+    color: var(--bipv-ink-2);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .bipv-perf-r2-mae strong {
+    font-family: var(--bipv-serif);
+    font-size: 22px;
+    color: var(--bipv-ink);
+    font-weight: 400;
+  }
+  .bipv-perf-data {
+    background: var(--bipv-surface);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    padding: 22px 26px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+  }
+  .bipv-perf-data-cell {
+    padding: 8px 12px 16px 0;
+    border-bottom: 0.5px solid var(--bipv-border-soft);
+  }
+  .bipv-perf-data-cell:nth-child(odd)  { padding-right: 18px; }
+  .bipv-perf-data-cell:nth-child(even) { padding-left: 18px; border-left: 0.5px solid var(--bipv-border-soft); }
+  .bipv-perf-data-cell:nth-last-child(-n+2) { border-bottom: 0; padding-bottom: 0; }
+  .bipv-perf-data-cell:first-child { padding-top: 0; }
+  .bipv-perf-data-cell:nth-child(2) { padding-top: 0; }
+  .bipv-perf-data-cell.head { padding-top: 4px; padding-bottom: 18px; }
+  .bipv-perf-data-lbl {
+    font-size: 10px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .bipv-perf-data-val {
+    font-family: var(--bipv-serif);
+    font-size: 21px;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .bipv-perf-data-val .unit {
+    font-family: var(--bipv-sans);
+    font-size: 11px;
+    color: var(--bipv-ink-2);
+    margin-left: 4px;
+  }
+
+  .bipv-feat-block {
+    background: var(--bipv-surface);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    padding: 26px 28px;
+  }
+  .bipv-feat-title {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--bipv-ink-2);
+    margin-bottom: 18px;
+  }
+  .bipv-feat-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 64px;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 0;
+    border-bottom: 0.5px solid var(--bipv-border-soft);
+  }
+  .bipv-feat-row:last-child { border-bottom: 0; }
+  .bipv-feat-name {
+    font-family: var(--bipv-sans);
+    font-size: 13px;
+    color: var(--bipv-ink);
+  }
+  .bipv-feat-name .raw {
+    display: block;
+    font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+    font-size: 10.5px;
+    color: var(--bipv-ink-3);
+    margin-top: 2px;
+    letter-spacing: 0;
+  }
+  .bipv-feat-track {
+    height: 6px;
+    background: var(--bipv-border-soft);
+    position: relative;
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .bipv-feat-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--bipv-ink);
+    transition: width 1.0s cubic-bezier(.2,.7,.2,1);
+  }
+  .bipv-feat-fill.lead { background: var(--bipv-accent); }
+  .bipv-section.is-visible .bipv-feat-fill { width: var(--w, 0%); }
+  .bipv-feat-val {
+    text-align: right;
+    font-family: var(--bipv-serif);
+    font-size: 14px;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .bipv-feat-val .pct {
+    color: var(--bipv-ink-3); font-size: 11px; margin-left: 3px;
+    font-family: var(--bipv-sans);
+  }
+  .bipv-feat-meaning {
+    grid-column: 1 / -1;
+    margin-top: 6px;
+    padding: 4px 0 4px 12px;
+    border-left: 2px solid var(--bipv-accent-bg);
+    font-size: 12.5px;
+    color: var(--bipv-ink-2);
+    line-height: 1.55;
+    letter-spacing: 0.01em;
+  }
+
+  /* ─────────────── Section 06 — 운영 진단 ─────────────── */
+  .bipv-ops-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+    align-items: stretch;
+  }
+  .bipv-ops-card {
+    background: var(--bipv-surface);
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 8px;
+    padding: 24px 26px;
+  }
+  .bipv-ops-row {
+    display: grid;
+    grid-template-columns: 14px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 0.5px solid var(--bipv-border-soft);
+  }
+  .bipv-ops-row:last-child { border-bottom: 0; }
+  .bipv-ops-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--bipv-accent);
+  }
+  .bipv-ops-dot.idle { background: var(--bipv-ink-3); }
+  .bipv-ops-name {
+    font-size: 13px;
+    color: var(--bipv-ink);
+  }
+  .bipv-ops-name .sub {
+    display: block;
+    font-size: 11px;
+    color: var(--bipv-ink-3);
+    margin-top: 2px;
+    letter-spacing: 0.02em;
+  }
+  .bipv-ops-val {
+    font-family: var(--bipv-serif);
+    font-size: 13px;
+    color: var(--bipv-ink);
+    letter-spacing: 0.02em;
+  }
+  .bipv-depth-canvas-wrap { height: 220px; position: relative; margin-top: 8px; }
+  .bipv-card-foot {
+    font-size: 11.5px;
+    color: var(--bipv-ink-3);
+    margin: 0 0 14px;
+    line-height: 1.55;
+    letter-spacing: 0.01em;
+  }
+  .bipv-card-foot em { font-style: normal; color: var(--bipv-ink-2); }
+  .bipv-card-meta {
+    display: flex; gap: 16px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 0.5px solid var(--bipv-border-soft);
+    font-size: 11px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.02em;
+    flex-wrap: wrap;
+  }
+  .bipv-card-meta strong {
+    color: var(--bipv-ink);
+    font-family: var(--bipv-serif);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    margin: 0 2px;
+  }
+
+  .bipv-spec-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border: 0.5px solid var(--bipv-border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .bipv-spec-cell {
+    padding: 14px 16px;
+    border-right: 0.5px solid var(--bipv-border);
+    border-bottom: 0.5px solid var(--bipv-border);
+  }
+  .bipv-spec-cell:nth-child(3n) { border-right: 0; }
+  .bipv-spec-cell:nth-last-child(-n+3) { border-bottom: 0; }
+  .bipv-spec-lbl {
+    font-size: 10px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .bipv-spec-val {
+    font-family: var(--bipv-serif);
+    font-size: 18px;
+    color: var(--bipv-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .bipv-spec-val .unit {
+    font-family: var(--bipv-sans);
+    font-size: 11px;
+    color: var(--bipv-ink-2);
+    margin-left: 3px;
+  }
+
+
+  /* ─────────────── Footer ─────────────── */
+  .bipv-footer {
+    margin-top: 24px;
+    padding: 28px 0 0;
+    border-top: 0.5px solid var(--bipv-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 11px;
+    color: var(--bipv-ink-3);
+    letter-spacing: 0.02em;
+  }
+  .bipv-footer .right { text-align: right; }
+  .bipv-footer strong { color: var(--bipv-ink-2); font-weight: 500; }
+
+  /* ─────────────── Responsive ─────────────── */
+  @media (max-width: 760px) {
+    .bipv-wrap { padding: 0 24px; }
+    .bipv-hero, .bipv-sim-grid, .bipv-ops-grid, .bipv-perf-row { grid-template-columns: 1fr; gap: 28px; }
+    .bipv-thesis-head { font-size: 28px; }
+    .bipv-hero-num { font-size: 60px; }
+    .bipv-aux-cards, .bipv-story-grid { grid-template-columns: 1fr; }
+    .bipv-aux-cell { border-right: 0; border-bottom: 0.5px solid var(--bipv-border); }
+    .bipv-aux-cell:last-child { border-bottom: 0; }
+    .bipv-cmp-row { grid-template-columns: 80px 1fr 110px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .bipv-section { opacity: 1; transform: none; }
+    .bipv-cmp-fill, .bipv-feat-fill { width: var(--w, 0%); }
+  }
+</style>
+
+<div class="bipv-root">
+
+  <!-- ═════════════════ HEADER ═════════════════ -->
+  <header class="bipv-wrap bipv-header">
+    <div class="bipv-header-row">
+      <div class="bipv-logo-block">
+        <div class="bipv-logo-mark" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="#1C1A17" stroke-width="1.2" stroke-linecap="round">
+            <circle cx="9" cy="9" r="2.6" />
+            <line x1="9"   y1="1.6" x2="9"   y2="3.4" />
+            <line x1="9"   y1="14.6" x2="9"   y2="16.4" />
+            <line x1="1.6" y1="9"   x2="3.4" y2="9" />
+            <line x1="14.6" y1="9"   x2="16.4" y2="9" />
+            <line x1="3.7" y1="3.7" x2="5.0" y2="5.0" />
+            <line x1="13.0" y1="13.0" x2="14.3" y2="14.3" />
+            <line x1="3.7" y1="14.3" x2="5.0" y2="13.0" />
+            <line x1="13.0" y1="5.0" x2="14.3" y2="3.7" />
+          </svg>
+        </div>
+        <div>
+          <div class="bipv-brand">BIPV · AI 통합 관제</div>
+          <div class="bipv-brand-sub" id="bipv-header-meta">— · — · v—</div>
+        </div>
+      </div>
+      <div class="bipv-status-chip">
+        <span class="bipv-status-dot" id="bipv-status-dot"></span>
+        <span id="bipv-status-mode">—</span>
+        <span style="color:var(--bipv-border)">·</span>
+        <strong id="bipv-status-model">—</strong>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═════════════════ THESIS HEAD ═════════════════ -->
+  <section class="bipv-wrap bipv-thesis">
+    <h1 class="bipv-thesis-head" id="bipv-thesis-head">—</h1>
+    <p class="bipv-thesis-sub" id="bipv-thesis-sub">—</p>
+  </section>
+
+  <!-- ═════════════════ SECTION 01 — 이번 달 성과 ═════════════════ -->
+  <section class="bipv-wrap bipv-section" id="bipv-sec-1">
+    <div class="bipv-hero">
+      <div>
+        <span class="bipv-eyebrow"><span class="num">01</span> · 이번 달 성과</span>
+        <div class="bipv-hero-num" id="bipv-hero-num">+0.0%</div>
+        <p class="bipv-hero-caption">고정 60° 운영 대비, AI가 매 시간 최적 각도를 결정해 끌어낸 추가 발전량입니다.</p>
+        <div class="bipv-hero-aux">
+          이번 달 누적 <strong id="bipv-hero-month-kwh">— kWh</strong>
+          &nbsp;·&nbsp; 연환산 <strong id="bipv-hero-annual-kwh">— kWh</strong>
+          &nbsp;·&nbsp; 추가 수익 <strong id="bipv-hero-annual-rev">— 원</strong>
+        </div>
+      </div>
+      <div>
+        <div class="bipv-anim-stage" role="img" aria-label="태양 호에 따라 루버가 정오에 가장 열리는 (15°) 라이브 시뮬레이션">
+          <svg viewBox="0 0 460 290" preserveAspectRatio="xMidYMid meet">
+            <path class="bipv-sun-arc" d="M 40 170 Q 230 0 420 170" />
+            <line class="bipv-horizon" x1="20" y1="245" x2="440" y2="245" />
+            <text class="bipv-time-label" x="40"  y="265">일출 06:00</text>
+            <text class="bipv-time-label" x="230" y="265">정오 12:00</text>
+            <text class="bipv-time-label" x="420" y="265">일몰 18:00</text>
+            <rect class="bipv-wall" x="228" y="135" width="4" height="110" />
+            <g class="bipv-ray">
+              <line class="bipv-ray-line" x1="0" y1="0" x2="0" y2="190" />
+            </g>
+            <g transform="translate(230, 155)"><g class="bipv-blade-group"><line class="bipv-blade-line" x1="-24" y1="0" x2="24" y2="0" /></g></g>
+            <g transform="translate(230, 180)"><g class="bipv-blade-group"><line class="bipv-blade-line" x1="-24" y1="0" x2="24" y2="0" /></g></g>
+            <g transform="translate(230, 205)"><g class="bipv-blade-group"><line class="bipv-blade-line" x1="-24" y1="0" x2="24" y2="0" /></g></g>
+            <g transform="translate(230, 230)"><g class="bipv-blade-group"><line class="bipv-blade-line" x1="-24" y1="0" x2="24" y2="0" /></g></g>
+            <g class="bipv-sun">
+              <circle class="bipv-sun-glow" cx="0" cy="0" r="18" />
+              <circle class="bipv-sun-body" cx="0" cy="0" r="11" />
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="bipv-aux-cards" aria-label="오늘 AI 발전 요약">
+      <div class="bipv-aux-cell">
+        <div class="bipv-aux-lbl">오늘 · AI 발전량</div>
+        <div class="bipv-aux-val"><span id="bipv-today-kwh">—</span><span class="unit">kWh</span></div>
+      </div>
+      <div class="bipv-aux-cell">
+        <div class="bipv-aux-lbl">오늘 · 추가 수익</div>
+        <div class="bipv-aux-val"><span id="bipv-today-rev">—</span><span class="unit">원</span></div>
+      </div>
+      <div class="bipv-aux-cell">
+        <div class="bipv-aux-lbl">오늘 · 고정 60° 대비 차이</div>
+        <div class="bipv-aux-val">+<span id="bipv-today-delta">—</span><span class="unit">kWh</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ SECTION 02 — 시간대별 스케줄 ═════════════════ -->
+  <section class="bipv-wrap bipv-section" id="bipv-sec-2">
+    <span class="bipv-eyebrow"><span class="num">02</span> · 시간대별 스케줄</span>
+    <h2 class="bipv-section-title">하루 동안 AI가 결정한 각도</h2>
+    <p class="bipv-section-lead">막대는 시간별 일사량, 라인은 같은 시각의 AI 루버 각도입니다. 일사량이 강할수록 각도가 작아져(블레이드가 열려) 발전면을 더 많이 노출합니다.</p>
+    <div class="bipv-chart-card">
+      <div class="bipv-chart-legend">
+        <span><span class="swatch ghi"></span>일사량 GHI · W/m²</span>
+        <span><span class="swatch ai"></span>AI 루버 각도 · °</span>
+      </div>
+      <div class="bipv-chart-canvas-wrap">
+        <canvas id="bipv-chart-24h" role="img" aria-label="24시간 GHI 막대 및 AI 각도 라인"></canvas>
+      </div>
+      <div class="bipv-chart-foot">
+        <span class="bipv-term" data-tip="—">GHI</span> = 수평면 전일사량 (단위 면적당 받는 태양 에너지). 각도는 15° (가장 열림) ~ 90° (가장 닫힘) 범위.
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ SECTION 03 — 발전량 비교 ═════════════════ -->
+  <section class="bipv-wrap bipv-section" id="bipv-sec-3">
+    <span class="bipv-eyebrow"><span class="num">03</span> · 발전량 비교</span>
+    <h2 class="bipv-section-title">AI 제어 vs 고정 각도</h2>
+    <p class="bipv-section-lead">같은 날 같은 기상에서 세 가지 운영 방식의 일일 발전량(kWh) 비교입니다.</p>
+    <div class="bipv-compare" role="img" aria-label="AI · 고정 60° · 수직 90° 발전량 비교">
+      <div class="bipv-cmp-row">
+        <div class="bipv-cmp-label">AI 자동 제어</div>
+        <div class="bipv-cmp-track"><div class="bipv-cmp-fill ai" id="bipv-cmp-ai" style="--w: 0%;"></div></div>
+        <div class="bipv-cmp-value"><span id="bipv-cmp-ai-val">—</span><span class="unit">kWh</span></div>
+      </div>
+      <div class="bipv-cmp-row">
+        <div class="bipv-cmp-label">고정 60°</div>
+        <div class="bipv-cmp-track"><div class="bipv-cmp-fill f60" id="bipv-cmp-f60" style="--w: 0%;"></div></div>
+        <div class="bipv-cmp-value"><span id="bipv-cmp-f60-val">—</span><span class="unit">kWh</span></div>
+      </div>
+      <div class="bipv-cmp-row">
+        <div class="bipv-cmp-label">수직 90°</div>
+        <div class="bipv-cmp-track"><div class="bipv-cmp-fill f90" id="bipv-cmp-f90" style="--w: 0%;"></div></div>
+        <div class="bipv-cmp-value"><span id="bipv-cmp-f90-val">—</span><span class="unit">kWh</span></div>
+      </div>
+    </div>
+    <div class="bipv-cmp-uplift">
+      <span>AI</span>
+      <span style="color:var(--bipv-accent-deep)">▸</span>
+      <span>고정 60° 대비 +<span id="bipv-cmp-uplift-pct">—</span>%</span>
+    </div>
+  </section>
+
+  <!-- ═════════════════ SECTION 04 — 각도 시뮬레이션 (4월 원본 app.py inline Plotly 로직 그대로 포팅) ═════════════════ -->
+  <section class="bipv-wrap bipv-section" id="bipv-sec-4">
+    <span class="bipv-eyebrow"><span class="num">04</span> · 각도 시뮬레이션</span>
+    <h2 class="bipv-section-title">루버 음영의 원리 · 인터랙티브 시뮬레이터</h2>
+    <p class="bipv-section-lead"><strong>자기 음영 (Self-shading).</strong> 위 블레이드가 아래 블레이드의 발전면(태양전지 면)에 그림자를 드리울 수 있습니다. 슬라이더로 태양 고도와 루버 각도를 바꿔, V15 선분교차 모델이 그 변화를 어떻게 계산하는지 실시간으로 확인하세요.</p>
+
+    <div class="bipv-sim-orig-grid">
+      <div class="bipv-sim-orig-svg-wrap">
+        <svg id="bipv-sim-svg" class="bipv-sim-orig-svg" viewBox="0 0 240 320" preserveAspectRatio="xMidYMid meet">
+          <!-- 벽 (수직 참조선) -->
+          <line x1="15" y1="20" x2="15" y2="300" stroke="#A8A095" stroke-width="2"/>
+          <!-- Sun ray (JS 갱신) -->
+          <g id="bipv-sim-rays"></g>
+          <!-- Sun marker -->
+          <circle id="bipv-sim-sun" cx="190" cy="35" r="7" fill="#C8580F" opacity="0.95"/>
+          <text x="190" y="20" fill="#8A3F08" font-family="Pretendard,sans-serif" font-size="9" text-anchor="middle">태양</text>
+          <!-- Blades (JS 갱신) — 4 매, 양방향 (벽쪽 + 발전면) -->
+          <g id="bipv-sim-blades"></g>
+          <!-- Legend -->
+          <g font-family="Pretendard,sans-serif" font-size="9" letter-spacing="0.02em">
+            <line x1="160" y1="296" x2="178" y2="296" stroke="#A8A095" stroke-width="2"/>
+            <text x="183" y="300" fill="#6B6359">벽쪽 면</text>
+            <line x1="160" y1="308" x2="178" y2="308" stroke="#C8580F" stroke-width="3"/>
+            <text x="183" y="312" fill="#6B6359">발전면 (PV)</text>
+          </g>
+        </svg>
+      </div>
+      <div class="bipv-sim-orig-readouts">
+        <div class="bipv-sim-orig-card">
+          <div class="bipv-sim-orig-lbl">음영률</div>
+          <div class="bipv-sim-orig-val"><span id="bipv-sim-sf">—</span><span class="unit">%</span></div>
+          <div class="bipv-sim-orig-tag" id="bipv-sim-sf-tag">—</div>
+        </div>
+        <div class="bipv-sim-orig-card">
+          <div class="bipv-sim-orig-lbl">SVF · 하늘 조망</div>
+          <div class="bipv-sim-orig-val"><span id="bipv-sim-svf">—</span></div>
+          <div class="bipv-sim-orig-tag" id="bipv-sim-svf-tag">—</div>
+        </div>
+        <div class="bipv-sim-orig-info">
+          <div class="bipv-sim-orig-info-title">현재 설정값</div>
+          <div class="bipv-sim-orig-info-row">블레이드 DEPTH · <strong><span id="bipv-sim-depth">—</span> mm</strong></div>
+          <div class="bipv-sim-orig-info-row">PITCH · <strong><span id="bipv-sim-pitch">—</span> mm</strong></div>
+          <div class="bipv-sim-orig-info-row">돌출 · <strong><span id="bipv-sim-pr">—</span> mm</strong> &nbsp; | &nbsp; 틈 · <strong><span id="bipv-sim-gp">—</span> mm</strong></div>
+          <div class="bipv-sim-orig-info-divider"></div>
+          <div class="bipv-sim-orig-info-dilemma">
+            <strong>AI 의 딜레마</strong><br/>
+            • 각도를 낮추면 → 직달광 ↑ 하지만 음영 ↑<br/>
+            • 각도를 높이면 → 음영 ↓ 하지만 직달광 ↓<br/>
+            AI 는 매 시각 이 균형점에서 <strong>순발전량이 최대인 각도</strong>를 선택합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bipv-sim-orig-sliders">
+      <div class="bipv-sim-orig-slider-block">
+        <div class="bipv-sim-orig-slider-head">
+          <span class="lbl">☀️ 태양 고도각 (°) — 높을수록 태양이 높이 떠 있음</span>
+          <span class="val"><span id="bipv-sim-sun-val">45</span>°</span>
+        </div>
+        <input type="range" min="5" max="80" step="5" value="45" id="bipv-sim-sun-slider" class="bipv-sim-orig-range" aria-label="태양 고도각" />
+      </div>
+      <div class="bipv-sim-orig-slider-block">
+        <div class="bipv-sim-orig-slider-head">
+          <span class="lbl">📐 루버 각도 (°) — 낮을수록 루버가 눕혀짐</span>
+          <span class="val"><span id="bipv-sim-slider-val">30</span>°</span>
+        </div>
+        <input type="range" min="15" max="90" step="5" value="30" id="bipv-sim-slider" class="bipv-sim-orig-range" aria-label="루버 각도" />
+      </div>
+    </div>
+
+    <p class="bipv-sim-foot">
+      <strong>V15 선분교차 (Ray–Blade Intersection).</strong> 이전 버전(V13~V14)이 음영을 코사인 근사로 추정하던 것과 달리, V15 는 실제 태양 광선의 경로를 추적해 발전면 위의 정확한 그림자 위치를 계산합니다. 발전면 = 블레이드의 <strong>바깥쪽 면</strong> (피봇 → 바깥끝, 태양전지 부착면). 그림자는 피봇(안쪽)에서 바깥 방향으로 채워지며, 90° 수직이면 블레이드가 나란히 서서 서로의 발전면을 가리지 않아 <strong>SF = 0%</strong>.
+    </p>
+  </section>
+
+  <!-- ═════════════════ SECTION 04B — 하루 3D 시뮬레이션 (실제 태양 궤적 + 자기음영) ═════════════════ -->
+  <style>
+    #bipv-sec-4b .bipv-3d-stage{position:relative;width:100%;height:480px;border-radius:14px;overflow:hidden;border:0.5px solid #E8E5DD;background:#cfe0ec}
+    #bipv-sec-4b .bipv-3d-canvas{display:block;width:100%;height:100%}
+    #bipv-sec-4b .bipv-3d-hud{position:absolute;top:14px;left:14px;background:rgba(252,251,247,0.86);backdrop-filter:blur(6px);border:0.5px solid #E8E5DD;border-radius:10px;padding:12px 14px;font-size:12px;color:#1C1A17;min-width:188px;pointer-events:none}
+    #bipv-sec-4b .bipv-3d-hud .hr{display:flex;justify-content:space-between;gap:14px;line-height:1.85}
+    #bipv-sec-4b .bipv-3d-hud .hr .k{color:#6B6359}
+    #bipv-sec-4b .bipv-3d-hud .hr .v{font-weight:600;font-variant-numeric:tabular-nums}
+    #bipv-sec-4b .bipv-3d-hud .div{height:0.5px;background:#E8E5DD;margin:7px 0}
+    #bipv-sec-4b .bipv-3d-hud .big{font-size:15px}
+    #bipv-sec-4b .bipv-3d-clock{position:absolute;top:14px;right:14px;background:rgba(252,251,247,0.86);backdrop-filter:blur(6px);border:0.5px solid #E8E5DD;border-radius:10px;padding:8px 14px;font-size:22px;font-weight:600;color:#1C1A17;font-variant-numeric:tabular-nums}
+    #bipv-sec-4b .bipv-3d-nogl{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#6B6359;font-size:13px;text-align:center;padding:20px}
+    #bipv-sec-4b .bipv-3d-controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:16px}
+    #bipv-sec-4b .bipv-3d-play{flex:none;width:42px;height:42px;border-radius:50%;border:0.5px solid #E8E5DD;background:#C8580F;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s}
+    #bipv-sec-4b .bipv-3d-play:hover{transform:scale(1.06)}
+    #bipv-sec-4b .bipv-3d-scrub{flex:1;min-width:220px;accent-color:#C8580F}
+    #bipv-sec-4b .bipv-3d-toggles{display:flex;flex-wrap:wrap;gap:18px;margin-top:10px;font-size:12.5px}
+    #bipv-sec-4b .bipv-3d-tg{display:flex;align-items:center;gap:8px}
+    #bipv-sec-4b .bipv-3d-tg .tlbl{color:#6B6359}
+    #bipv-sec-4b .bipv-3d-seg{display:inline-flex;border:0.5px solid #E8E5DD;border-radius:8px;overflow:hidden}
+    #bipv-sec-4b .bipv-3d-seg button{border:none;background:#FAFAF7;color:#6B6359;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+    #bipv-sec-4b .bipv-3d-seg button.on{background:#1C1A17;color:#FAFAF7}
+    #bipv-sec-4b .bipv-3d-note{font-size:11.5px;color:#8A857C;margin-top:8px;line-height:1.6}
+  </style>
+  <section class="bipv-wrap bipv-section" id="bipv-sec-4b">
+    <span class="bipv-eyebrow"><span class="num">04</span> · 하루 3D 시뮬레이션</span>
+    <h2 class="bipv-section-title">선택한 날의 실제 태양이 움직입니다</h2>
+    <p class="bipv-section-lead">서울의 <strong>실제 태양 고도·방위</strong>가 하루 동안 하늘을 지나고, 루버는 매 시각 <strong>모델이 결정한 AI 각도</strong>로 회전합니다. 블레이드끼리 드리우는 <strong>자기 음영</strong>을 실제 그림자로 확인하세요. 재생을 누르거나 슬라이더로 시간을 옮겨 보세요.</p>
+
+    <div class="bipv-3d-stage">
+      <canvas id="bipv-3d-canvas" class="bipv-3d-canvas" role="img" aria-label="하루 동안 태양 궤적과 루버 자기음영 3D 시뮬레이션"></canvas>
+      <div class="bipv-3d-clock"><span id="bipv-3d-clock">12:00</span></div>
+      <div class="bipv-3d-hud">
+        <div class="hr"><span class="k">태양 고도</span><span class="v"><span id="bipv-3d-elev">—</span>°</span></div>
+        <div class="hr"><span class="k">태양 방위</span><span class="v"><span id="bipv-3d-azim">—</span>°</span></div>
+        <div class="div"></div>
+        <div class="hr"><span class="k">GHI</span><span class="v"><span id="bipv-3d-ghi">—</span> W/㎡</span></div>
+        <div class="hr"><span class="k">DNI</span><span class="v"><span id="bipv-3d-dni">—</span></span></div>
+        <div class="hr"><span class="k">DHI</span><span class="v"><span id="bipv-3d-dhi">—</span></span></div>
+        <div class="div"></div>
+        <div class="hr"><span class="k">루버 각도</span><span class="v"><span id="bipv-3d-angle">—</span>°</span></div>
+        <div class="hr"><span class="k">음영률 SF</span><span class="v"><span id="bipv-3d-sf">—</span>%</span></div>
+        <div class="hr big"><span class="k">유효 일사</span><span class="v"><span id="bipv-3d-poa">—</span> W/㎡</span></div>
+      </div>
+      <div class="bipv-3d-nogl" id="bipv-3d-nogl">이 브라우저는 WebGL 3D를 표시할 수 없습니다.<br/>위 2D 시뮬레이터로 동일한 물리를 확인하실 수 있습니다.</div>
+    </div>
+
+    <div class="bipv-3d-controls">
+      <button class="bipv-3d-play" id="bipv-3d-play" aria-label="재생/일시정지">▶</button>
+      <input type="range" class="bipv-3d-scrub" id="bipv-3d-scrub" min="0" max="1380" step="10" value="720" aria-label="시각" />
+    </div>
+    <div class="bipv-3d-toggles">
+      <div class="bipv-3d-tg">
+        <span class="tlbl">그림자</span>
+        <span class="bipv-3d-seg" id="bipv-3d-seg-shadow">
+          <button data-v="real" class="on">진짜 GPU 물리</button>
+          <button data-v="model">모델 SF</button>
+          <button data-v="power">발전손실 (비선형)</button>
+        </span>
+      </div>
+      <div class="bipv-3d-tg">
+        <span class="tlbl">루버 각도</span>
+        <span class="bipv-3d-seg" id="bipv-3d-seg-angle">
+          <button data-v="ai" class="on">AI 제어</button>
+          <button data-v="f60">고정 60°</button>
+        </span>
+      </div>
+    </div>
+    <p class="bipv-3d-note"><strong>그림자 모드.</strong> ‘진짜 GPU 물리’는 GPU가 블레이드 형상으로 계산한 기하학적 그림자(실제 자기음영). ‘모델 SF’는 시스템이 학습에 쓴 V15 음영률(panel_sf)만큼을 발전면에 칠합니다. ‘발전손실(비선형)’은 음영→발전이 <strong>선형이 아니라 절벽</strong>임을 보여줍니다 — 실제 PV는 직렬 셀+바이패스 다이오드 때문에 일부만 그늘져도 substring 전체가 끊깁니다(파랑=정상→주황=손실). 블레이드별 독립 MPPT(마이크로인버터)를 반영해 블레이드마다 따로 계산됩니다.</p>
+  </section>
+
+  <!-- ═════════════════ SECTION 05 — 어떻게 학습했나 ═════════════════ -->
+  <section class="bipv-wrap bipv-section" id="bipv-sec-5">
+    <span class="bipv-eyebrow"><span class="num">05</span> · 어떻게 학습했나</span>
+    <h2 class="bipv-section-title">10년의 기상 데이터에서, 발전소 한 동까지</h2>
+    <p class="bipv-section-lead">기상청 10년 시계열로 1차 학습 → 5-fold 교차검증으로 정밀도 확인 → 향후 실제 발전소 데이터로 사이트 맞춤 fine-tune. 단계별 서사입니다.</p>
+
+    <div class="bipv-story-grid">
+      <div class="bipv-story-card">
+        <div class="bipv-story-step">STEP 1</div>
+        <h3 class="bipv-story-title">1차 학습</h3>
+        <p class="bipv-story-body">
+          서울 종로 관측소 <span class="b">기상청 ASOS 10년 (2014–2023)</span>, 시간 단위 <span class="b">44,225 행</span>.
+          입력 피처는 시간(sin/cos) · 일자(sin/cos) · GHI · 운량 · 기온 <span class="b">총 7개</span>.
+          출력은 물리 모델로 산출한 시간별 최적 루버 각도. 모델은 <span class="b">XGBoost 회귀</span>.
+        </p>
+      </div>
+      <div class="bipv-story-card">
+        <div class="bipv-story-step">STEP 2</div>
+        <h3 class="bipv-story-title">검증</h3>
+        <p class="bipv-story-body">
+          <span class="b">5-fold 교차검증</span>으로 모델 안정성 확인.
+          <span class="b">R² = 0.9966</span> (분산의 99.66 % 설명),
+          <span class="b">MAE = 0.70°</span> (평균 0.7° 이내).
+          제어 모터 정밀도 <span class="b">±2°</span> 대비 충분히 정밀합니다.
+        </p>
+      </div>
+      <div class="bipv-story-card">
+        <div class="bipv-story-step">STEP 3</div>
+        <h3 class="bipv-story-title">향후 · 사이트 맞춤</h3>
+        <p class="bipv-story-body">
+          실제 설치 발전소에서 패널별 발전량 데이터 수집,
+          주변 건물 · 나무가 만드는 <span class="b">사이트별 음영 패턴</span> 학습,
+          모델 <span class="b">fine-tune</span>으로 발전소 한 동마다 최적 모델로.
+        </p>
+      </div>
+    </div>
+
+    <div class="bipv-perf-row">
+      <div class="bipv-perf-r2">
+        <div class="bipv-perf-r2-lbl"><span class="bipv-term" data-tip="—" id="bipv-tip-r2">R² Score</span> · 5-fold CV</div>
+        <div class="bipv-perf-r2-val" id="bipv-perf-r2">—</div>
+        <div class="bipv-perf-r2-note">분산의 99 % 이상을 모델이 설명합니다. 1에 가까울수록 좋은 회귀 모델입니다.</div>
+        <div class="bipv-perf-r2-divider"></div>
+        <div class="bipv-perf-r2-mae">
+          <span><span class="bipv-term" data-tip="—" id="bipv-tip-mae">MAE</span> · 각도 평균 오차</span>
+          <strong><span id="bipv-perf-mae">—</span>°</strong>
+        </div>
+      </div>
+      <div class="bipv-perf-data">
+        <div class="bipv-perf-data-cell head" style="grid-column:1/3; border-bottom:0.5px solid var(--bipv-border); padding-bottom:18px;">
+          <div class="bipv-perf-data-lbl">학습 데이터셋</div>
+          <div style="font-family:var(--bipv-serif); font-size:13px; color:var(--bipv-ink-2); margin-top:4px;">기상청 ASOS · 서울 종로 관측소</div>
+        </div>
+        <div class="bipv-perf-data-cell">
+          <div class="bipv-perf-data-lbl">학습 행 수</div>
+          <div class="bipv-perf-data-val" id="bipv-perf-rows">—</div>
+        </div>
+        <div class="bipv-perf-data-cell">
+          <div class="bipv-perf-data-lbl">기간</div>
+          <div class="bipv-perf-data-val" id="bipv-perf-years">—</div>
+        </div>
+        <div class="bipv-perf-data-cell">
+          <div class="bipv-perf-data-lbl">입력 피처</div>
+          <div class="bipv-perf-data-val"><span id="bipv-perf-feat">—</span><span class="unit">개</span></div>
+        </div>
+        <div class="bipv-perf-data-cell">
+          <div class="bipv-perf-data-lbl">검증 방식</div>
+          <div class="bipv-perf-data-val">5-fold</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bipv-feat-block">
+      <div class="bipv-feat-title">피처 중요도 · 상위 6개</div>
+      <div id="bipv-feat-list"></div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ SECTION 06 — 운영 진단 ═════════════════ -->
+  <section class="bipv-wrap bipv-section" id="bipv-sec-6">
+    <span class="bipv-eyebrow"><span class="num">06</span> · 운영 진단</span>
+    <h2 class="bipv-section-title">시스템 상태 · 월별 AI 우위 · 블레이드 사양</h2>
+    <p class="bipv-section-lead">시스템 가동 상태, 1년간 AI 제어가 고정 60° 대비 매월 얼마나 더 발전했는지, 그리고 현재 적용된 블레이드 사양입니다.</p>
+
+    <div class="bipv-ops-grid">
+      <div class="bipv-ops-card">
+        <div class="bipv-feat-title" style="margin-bottom:4px;">시스템 헬스</div>
+        <p class="bipv-card-foot">데이터·모델·기상 연동이 정상 동작 중인지 매 세션 점검합니다.</p>
+        <div class="bipv-ops-row">
+          <span class="bipv-ops-dot" id="bipv-ops-dot-model"></span>
+          <div class="bipv-ops-name">XGBoost V15 모델<span class="sub">메모리에 로드되었는지</span></div>
+          <span class="bipv-ops-val" id="bipv-ops-model">—</span>
+        </div>
+        <div class="bipv-ops-row">
+          <span class="bipv-ops-dot" id="bipv-ops-dot-csv"></span>
+          <div class="bipv-ops-name">학습 CSV<span class="sub">10년 실측 시계열 (2014–2023)</span></div>
+          <span class="bipv-ops-val" id="bipv-ops-csv">—</span>
+        </div>
+        <div class="bipv-ops-row">
+          <span class="bipv-ops-dot" id="bipv-ops-dot-kma"></span>
+          <div class="bipv-ops-name">기상청 API<span class="sub">단기예보 / 초단기실황 동기화</span></div>
+          <span class="bipv-ops-val" id="bipv-ops-kma">—</span>
+        </div>
+        <div class="bipv-ops-row">
+          <span class="bipv-ops-dot idle"></span>
+          <div class="bipv-ops-name">제어 모터 캘리브레이션<span class="sub">정밀도 ±2° · 센서 연동은 특허 청구항 4 대상</span></div>
+          <span class="bipv-ops-val">정밀도 확보</span>
+        </div>
+      </div>
+
+      <div class="bipv-ops-card">
+        <div class="bipv-feat-title" style="margin-bottom:4px;">현재 블레이드 사양</div>
+        <p class="bipv-card-foot">사이드바 <em>고급 설정</em>에서 변경 가능. Pitch : Depth 1 : 1 가 V15 기본 권장 비율입니다.</p>
+        <div class="bipv-spec-grid">
+          <div class="bipv-spec-cell">
+            <div class="bipv-spec-lbl">DEPTH</div>
+            <div class="bipv-spec-val"><span id="bipv-spec-depth">—</span><span class="unit">mm</span></div>
+          </div>
+          <div class="bipv-spec-cell">
+            <div class="bipv-spec-lbl">PITCH</div>
+            <div class="bipv-spec-val"><span id="bipv-spec-pitch">—</span><span class="unit">mm</span></div>
+          </div>
+          <div class="bipv-spec-cell">
+            <div class="bipv-spec-lbl">PITCH / DEPTH</div>
+            <div class="bipv-spec-val"><span id="bipv-spec-ratio">—</span></div>
+          </div>
+          <div class="bipv-spec-cell">
+            <div class="bipv-spec-lbl">블레이드 가로</div>
+            <div class="bipv-spec-val"><span id="bipv-spec-width">—</span><span class="unit">mm</span></div>
+          </div>
+          <div class="bipv-spec-cell">
+            <div class="bipv-spec-lbl">블레이드 수</div>
+            <div class="bipv-spec-val"><span id="bipv-spec-count">—</span></div>
+          </div>
+          <div class="bipv-spec-cell">
+            <div class="bipv-spec-lbl">패널 용량</div>
+            <div class="bipv-spec-val"><span id="bipv-spec-cap">—</span><span class="unit">W</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bipv-ops-card" style="margin-top:22px;">
+      <div class="bipv-feat-title" style="margin-bottom:4px;">월별 AI 우위 · 고정 60° 대비 추가 kWh</div>
+      <p class="bipv-card-foot">봄·가을엔 태양 고도 변화 폭이 커서 각도 추적 효과가 가장 크고, 한여름엔 어떤 각도든 비슷해져 차이가 줄어듭니다.</p>
+      <div class="bipv-depth-canvas-wrap" style="height:240px;">
+        <canvas id="bipv-chart-monthly" role="img" aria-label="월별 AI 추가 발전량 (kWh)"></canvas>
+      </div>
+      <div class="bipv-card-meta">
+        <span>연 추가 <strong id="bipv-monthly-total">—</strong> kWh</span>
+        <span>최대 <strong id="bipv-monthly-peak">—</strong> 월 · <strong id="bipv-monthly-peak-kwh">—</strong> kWh</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════ FOOTER ═════════════════ -->
+  <footer class="bipv-wrap bipv-footer">
+    <div>
+      <strong>BIPV · AI 통합 관제 대시보드</strong> &nbsp;·&nbsp; v<span id="bipv-footer-version">—</span>
+    </div>
+    <div class="right">
+      <span id="bipv-footer-source">데이터 출처: 기상청 ASOS · 한전 산업용 요금</span> &nbsp;·&nbsp;
+      <strong>© 2026 마곡동 1호기</strong>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const data = {{BIPV_DATA}};
+
+  const $ = (id) => document.getElementById(id);
+  const fmtInt = (n) => (n == null || isNaN(n)) ? '—' : Math.round(n).toLocaleString('ko-KR');
+  const fmt1   = (n) => (n == null || isNaN(n)) ? '—' : (Math.round(n*10)/10).toLocaleString('ko-KR', {minimumFractionDigits:1, maximumFractionDigits:1});
+  const fmt2   = (n) => (n == null || isNaN(n)) ? '—' : (Math.round(n*100)/100).toLocaleString('ko-KR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmt3   = (n) => (n == null || isNaN(n)) ? '—' : (Math.round(n*1000)/1000).toLocaleString('ko-KR', {minimumFractionDigits:3, maximumFractionDigits:3});
+  const getCSS = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#000';
+
+  // ─────────────── Glossary tooltips ───────────────
+  const glossary = data.glossary || {};
+  document.querySelectorAll('.bipv-chart-foot .bipv-term').forEach(el => {
+    if (el.textContent.trim() === 'GHI') el.setAttribute('data-tip', glossary.GHI || 'Global Horizontal Irradiance');
+  });
+  if ($('bipv-tip-sf'))  $('bipv-tip-sf').setAttribute('data-tip',  glossary.SF  || 'Shading Fraction');
+  if ($('bipv-tip-sf2')) $('bipv-tip-sf2').setAttribute('data-tip', glossary.SF  || 'Shading Fraction');
+  if ($('bipv-tip-svf')) $('bipv-tip-svf').setAttribute('data-tip', glossary.SVF || 'Sky View Factor');
+  if ($('bipv-tip-r2'))  $('bipv-tip-r2').setAttribute('data-tip',  glossary['R²'] || 'Coefficient of Determination');
+  if ($('bipv-tip-mae')) $('bipv-tip-mae').setAttribute('data-tip', glossary.MAE || 'Mean Absolute Error');
+
+  // ─────────────── Header ───────────────
+  $('bipv-header-meta').textContent = `${data.date} · ${data.address} · ${data.system_version}`;
+  const wmText = data.weather_mode || '—';
+  const isLive = wmText.indexOf('연동') >= 0 || wmText.indexOf('실시간') >= 0;
+  $('bipv-status-dot').className = 'bipv-status-dot' + (isLive ? '' : ' idle');
+  $('bipv-status-mode').textContent = wmText;
+  $('bipv-status-model').textContent = data.system_version;
+
+  // ─────────────── Thesis head ───────────────
+  $('bipv-thesis-head').textContent = data.thesis?.headline || '음영을 피하면서 최대 발전. AI가 매 시간 결정하는 루버 각도.';
+  $('bipv-thesis-sub').textContent  = data.thesis?.subhead  || `${data.address}에서 5분마다 자동 제어 중.`;
+
+  // ─────────────── Section 01 — Hero ───────────────
+  const tm = data.this_month || {};
+  $('bipv-hero-month-kwh').textContent  = `${fmt1(tm.kwh_extra)} kWh`;
+  $('bipv-hero-annual-kwh').textContent = `+${fmt1(tm.annual_kwh_extra)} kWh`;
+  $('bipv-hero-annual-rev').textContent = `+${fmtInt(tm.annual_revenue_extra)} 원`;
+  const td = data.today || {};
+  $('bipv-today-kwh').textContent   = fmt2(td.ai_kwh);
+  $('bipv-today-rev').textContent   = fmtInt(td.ai_revenue);
+  $('bipv-today-delta').textContent = fmt2(td.uplift_vs_f60_kwh);
+
+  const heroEl = $('bipv-hero-num');
+  const target = Number(tm.uplift_pct) || 0;
+  const sign = target >= 0 ? '+' : '−';
+  const absT = Math.abs(target);
+  const renderHero = (v) => {
+    heroEl.textContent = `${sign}${(Math.round(v*10)/10).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1})}%`;
+  };
+  renderHero(0);
+  const startAt = performance.now() + 200;
+  const dur = 1200;
+  (function tick(now){
+    const t = (now - startAt) / dur;
+    if (t < 0) { requestAnimationFrame(tick); return; }
+    if (t >= 1) { renderHero(absT); return; }
+    renderHero(absT * (1 - Math.pow(1 - t, 3)));
+    requestAnimationFrame(tick);
+  })(performance.now());
+
+  // ─────────────── Chart.js shared defaults ───────────────
+  const ink = getCSS('--bipv-ink');
+  const ink2 = getCSS('--bipv-ink-2');
+  const ink3 = getCSS('--bipv-ink-3');
+  const accent = getCSS('--bipv-accent');
+  const accentSoft = getCSS('--bipv-accent-soft');
+  const borderSoft = getCSS('--bipv-border-soft');
+  Chart.defaults.font.family = "'Pretendard','Inter',-apple-system,system-ui,sans-serif";
+  Chart.defaults.color = ink2;
+  Chart.defaults.borderColor = borderSoft;
+
+  // ─────────────── Section 02 — 24h chart (GHI bars amber-soft, angle line ink, y1 0-95) ───────────────
+  const sched = data.schedule_24h || { hours: [], ghi: [], ai_angle: [] };
+  new Chart($('bipv-chart-24h'), {
+    type: 'bar',
+    data: {
+      labels: sched.hours.map(h => h + '시'),
+      datasets: [
+        {
+          type: 'bar',
+          label: 'GHI',
+          data: sched.ghi,
+          backgroundColor: accentSoft,
+          borderColor: accentSoft,
+          borderWidth: 0,
+          borderRadius: 1,
+          yAxisID: 'y',
+          order: 2,
+          barPercentage: 0.7,
+          categoryPercentage: 0.86,
+        },
+        {
+          type: 'line',
+          label: 'AI 각도',
+          data: sched.ai_angle,
+          borderColor: ink,
+          backgroundColor: ink,
+          borderWidth: 1.5,
+          tension: 0.32,
+          pointRadius: 3,
+          pointBorderWidth: 0,
+          pointBackgroundColor: ink,
+          yAxisID: 'y1',
+          order: 1,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 1200, easing: 'easeOutCubic' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#FFFFFF', borderColor: getCSS('--bipv-border'), borderWidth: 0.5,
+          titleColor: ink, bodyColor: ink2, padding: 10,
+          callbacks: {
+            label: (ctx) => {
+              if (ctx.dataset.label === 'GHI')   return `일사량 ${Math.round(ctx.parsed.y)} W/m²`;
+              if (ctx.dataset.label === 'AI 각도') return `각도 ${Math.round(ctx.parsed.y)}°`;
+              return `${ctx.dataset.label}: ${ctx.parsed.y}`;
+            }
+          }
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: ink3, font: { size: 10 } }, border: { color: borderSoft } },
+        y: {
+          position: 'left', beginAtZero: true,
+          grid: { color: borderSoft, drawBorder: false }, border: { display: false },
+          ticks: { color: ink3, font: { size: 10 }, padding: 6 },
+          title: { display: true, text: '일사량 · W/m²', color: ink3, font: { size: 10, weight: 500 } },
+        },
+        y1: {
+          position: 'right', min: 0, max: 95,
+          grid: { display: false }, border: { display: false },
+          ticks: { color: ink3, font: { size: 10 }, callback: (v) => v + '°', padding: 6, stepSize: 15 },
+          title: { display: true, text: '각도 · °', color: ink3, font: { size: 10, weight: 500 } },
+        }
+      }
+    }
+  });
+
+  // ─────────────── Section 03 — Compare bars ───────────────
+  const cmp = data.compare || { AI:0, F60:0, F90:0 };
+  const cmpMax = Math.max(cmp.AI, cmp.F60, cmp.F90, 0.001);
+  $('bipv-cmp-ai').style.setProperty('--w',  (cmp.AI  / cmpMax * 100).toFixed(1) + '%');
+  $('bipv-cmp-f60').style.setProperty('--w', (cmp.F60 / cmpMax * 100).toFixed(1) + '%');
+  $('bipv-cmp-f90').style.setProperty('--w', (cmp.F90 / cmpMax * 100).toFixed(1) + '%');
+  $('bipv-cmp-ai-val').textContent  = fmt3(cmp.AI);
+  $('bipv-cmp-f60-val').textContent = fmt3(cmp.F60);
+  $('bipv-cmp-f90-val').textContent = fmt3(cmp.F90);
+  const upliftCmp = cmp.F60 > 0 ? ((cmp.AI / cmp.F60 - 1) * 100) : 0;
+  $('bipv-cmp-uplift-pct').textContent = fmt1(upliftCmp);
+
+  // ─────────────── Section 04 — Angle simulator (4월 원본 app.py inline Plotly 로직 그대로 포팅) ───────────────
+  const geom = data.geom || { hd: 57.0, p: 114.0 };
+  const HD = Number(geom.hd) || 57.0;   // 반깊이 (mm)
+  const PP = Number(geom.p)  || 114.0;  // 피치 (mm)
+  const BDM = HD * 2;                    // 전체 깊이
+
+  // 진짜 V15 panel_sf — app.py 그대로 포팅
+  function panelSF(tiltDeg, elevDeg, azDeg = 180, sa = 180) {
+    const tr = tiltDeg * Math.PI / 180;
+    const er = Math.max(0.1, Math.min(89.9, elevDeg)) * Math.PI / 180;
+    const ct = Math.cos(tr), st = Math.sin(tr);
+    const rx = HD*ct,  ry = PP - HD*st;
+    const fx = HD*ct,  fy = -HD*st;
+    const adr = (azDeg - sa) * Math.PI / 180;
+    const rdx = -Math.cos(er) * Math.cos(adr);
+    const rdy = -Math.sin(er);
+    let dn = fx*rdy - fy*rdx;
+    if (Math.abs(dn) < 1e-12) dn = 1e-12;
+    const tb = (rx*rdy - ry*rdx) / dn;
+    const ta = (rx*fy  - ry*fx)  / dn;
+    let sf = 0;
+    if (ta > 0 && tb > 1) sf = 1.0;
+    else if (ta > 0 && tb > 0 && tb <= 1) sf = tb;
+    if (elevDeg <= 0) sf = 0;
+    return Math.max(0, Math.min(1, sf));
+  }
+  function svfCalc(tiltDeg) {
+    const t = tiltDeg * Math.PI / 180;
+    return Math.max(0.05, Math.min(1, 1 - HD*Math.cos(t)/PP));
+  }
+
+  // SVG viewBox 240 × 320. 4 블레이드, 양방향 (벽쪽 + 발전면)
+  // 피봇 x = 50, y = 70 / 130 / 190 / 250 (top → bottom on screen)
+  // 단, 원본 Plotly 컨벤션 (블레이드 0 이 아래, blade 3 이 위) 그대로:
+  //   blade i 의 SVG y = TOP_Y + (NB-1-i) * SIM_PP  →  i=0: 아래, i=3: 위
+  const NB = 4;
+  const SIM_PP = 60;             // SVG pitch
+  const PIVOT_X = 50;
+  const TOP_Y = 60;              // blade 3 (top) y_svg
+  const HP = (HD / PP) * SIM_PP; // scaled half-depth in SVG units
+  // blade i (i=0 bottom, i=3 top) → y_svg
+  const bladeY = (i) => TOP_Y + (NB - 1 - i) * SIM_PP;
+
+  const slider1 = $('bipv-sim-slider');        // 루버 각도 15-90
+  const slider2 = $('bipv-sim-sun-slider');    // 태양 고도 5-80
+  const gBlades = document.getElementById('bipv-sim-blades');
+  const gRays   = document.getElementById('bipv-sim-rays');
+  const sunEl   = document.getElementById('bipv-sim-sun');
+
+  function renderOrig(angle, sunElev) {
+    gBlades.innerHTML = '';
+    gRays.innerHTML   = '';
+    const t = angle * Math.PI / 180;
+    const ct = Math.cos(t), st = Math.sin(t);
+    const dx = HP * ct;
+    const dy = HP * st;
+    // 원본 회전 컨벤션 (Plotly y-up):
+    //   벽쪽 endpoint = (-dx, yc + dy)     → SVG y-down: (-dx, -dy) relative to pivot
+    //   발전면 endpoint = (+dx, yc - dy)   → SVG y-down: (+dx, +dy) relative to pivot
+    // ∴ tilt ↑ → 발전면 팁이 아래-오른쪽으로 내려감 (4월 원본 동작 그대로)
+
+    const sf  = panelSF(angle, sunElev, 180, 180);
+    const svf = svfCalc(angle);
+
+    // 4 블레이드 (i=0 bottom → i=3 top)
+    for (let i = 0; i < NB; i++) {
+      const py = bladeY(i);
+      // 벽쪽 (회색)
+      const wallEnd_x = PIVOT_X - dx, wallEnd_y = py - dy;
+      const wallSide = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      wallSide.setAttribute('x1', wallEnd_x); wallSide.setAttribute('y1', wallEnd_y);
+      wallSide.setAttribute('x2', PIVOT_X);   wallSide.setAttribute('y2', py);
+      wallSide.setAttribute('stroke', '#A8A095');
+      wallSide.setAttribute('stroke-width', '3');
+      wallSide.setAttribute('stroke-linecap', 'round');
+      gBlades.appendChild(wallSide);
+      // 발전면 (앰버 굵게)
+      const faceEnd_x = PIVOT_X + dx, faceEnd_y = py + dy;
+      const face = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      face.setAttribute('x1', PIVOT_X);    face.setAttribute('y1', py);
+      face.setAttribute('x2', faceEnd_x);  face.setAttribute('y2', faceEnd_y);
+      face.setAttribute('stroke', '#C8580F');
+      face.setAttribute('stroke-width', '5.5');
+      face.setAttribute('stroke-linecap', 'round');
+      gBlades.appendChild(face);
+      // 피봇 마커
+      const pv = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      pv.setAttribute('cx', PIVOT_X); pv.setAttribute('cy', py); pv.setAttribute('r', '2.4');
+      pv.setAttribute('fill', '#8A3F08');
+      gBlades.appendChild(pv);
+
+      // 음영 시각화 — 원본 Plotly: `if i>0 and sfx>0` 에서 (i-1)*pp 에 그림
+      // 원본의 i 는 bottom→top (yc=i*pp). i>0 means "not bottom". Shadow drawn at (i-1)*pp = blade ONE BELOW current i.
+      // ∴ 위 블레이드(i=현재) 가 아래 블레이드(i-1) 의 발전면에 그림자를 드리움
+      // 단순화: 모든 인접 페어에서 동일한 SF 가 나오므로 i ≥ 1 일 때 아래 블레이드 i-1 의 발전면에 그림
+      // 우리 SVG 에서 "아래" = bladeY(i-1) (blade 인덱스 작은 게 화면 아래)
+      if (i > 0 && sf > 0) {
+        const below_y = bladeY(i - 1);
+        // 발전면 방향 (+dx, +dy) 단위로 sf 만큼 길이
+        const shEnd_x = PIVOT_X + sf * dx;
+        const shEnd_y = below_y + sf * dy;
+        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        shadow.setAttribute('x1', PIVOT_X);  shadow.setAttribute('y1', below_y);
+        shadow.setAttribute('x2', shEnd_x);  shadow.setAttribute('y2', shEnd_y);
+        shadow.setAttribute('stroke', '#D14A1F');
+        shadow.setAttribute('stroke-width', '6');
+        shadow.setAttribute('stroke-linecap', 'round');
+        shadow.setAttribute('opacity', '0.55');
+        gBlades.appendChild(shadow);
+      }
+    }
+
+    // 태양 위치 — 원본 그대로 우상단 고정 (고도 슬라이더에 따라 살짝 위/아래)
+    const sunX = 200;
+    const sunY = 80 - Math.max(0, sunElev - 5) * 0.6;  // 5°→y=80, 80°→y=35
+    sunEl.setAttribute('cx', sunX);
+    sunEl.setAttribute('cy', sunY);
+
+    // 태양 광선 화살표 — 각 블레이드(i≥1) 의 발전면 팁을 향함 (원본 동일)
+    if (sunElev > 0) {
+      const er = sunElev * Math.PI / 180;
+      const rdx = -Math.cos(er) * 30;   // 광선 방향 (태양 → 표면)
+      const rdy =  Math.sin(er) * 30;   // SVG y-down 이므로 sin 양수 = 아래로 내려옴
+      for (let i = 1; i < NB; i++) {
+        const py = bladeY(i);
+        const ox = PIVOT_X + dx;       // 발전면 팁 x
+        const oy = py + dy;            // 발전면 팁 y (SVG)
+        // 화살 꼬리 (태양 쪽) → 머리 (블레이드 위)
+        const tailX = ox - rdx * 1.2, tailY = oy - rdy * 1.2;
+        const headX = ox + rdx * 0.4, headY = oy + rdy * 0.4;
+        const arr = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        arr.setAttribute('x1', tailX); arr.setAttribute('y1', tailY);
+        arr.setAttribute('x2', headX); arr.setAttribute('y2', headY);
+        arr.setAttribute('stroke', '#C8580F');
+        arr.setAttribute('stroke-width', '1.2');
+        arr.setAttribute('opacity', '0.7');
+        arr.setAttribute('stroke-linecap', 'round');
+        gRays.appendChild(arr);
+      }
+    }
+
+    // 메트릭 + info card 업데이트
+    $('bipv-sim-sf').textContent  = (sf * 100).toFixed(1);
+    $('bipv-sim-svf').textContent = svf.toFixed(2);
+    const sfTag = $('bipv-sim-sf-tag');
+    if (sf < 0.1)      { sfTag.textContent = '양호'; sfTag.className = 'bipv-sim-orig-tag good'; }
+    else if (sf < 0.3) { sfTag.textContent = '경미'; sfTag.className = 'bipv-sim-orig-tag mid'; }
+    else               { sfTag.textContent = '주의'; sfTag.className = 'bipv-sim-orig-tag bad'; }
+    const svfTag = $('bipv-sim-svf-tag');
+    if (svf > 0.5) { svfTag.textContent = '높음'; svfTag.className = 'bipv-sim-orig-tag good'; }
+    else           { svfTag.textContent = '낮음'; svfTag.className = 'bipv-sim-orig-tag bad'; }
+
+    // info card: 현재 설정값
+    $('bipv-sim-depth').textContent = BDM.toFixed(0);
+    $('bipv-sim-pitch').textContent = PP.toFixed(0);
+    // blade_geo: 돌출 = hd*cos(t), 틈 = max(p - bd*sin(t), 0)  (app.py 원본)
+    $('bipv-sim-pr').textContent = (HD * ct).toFixed(1);
+    $('bipv-sim-gp').textContent = Math.max(0, PP - BDM * st).toFixed(1);
+  }
+
+  // 태양 ↔ 루버 커플링:
+  // 태양 슬라이더 움직이면 루버가 자동으로 (90 − elev) 로 스냅 (수직 추종)
+  // 루버 슬라이더는 수동 오버라이드 — 다음 태양 변경 전까지 유지
+  function couplePivotFromSun(sun) {
+    const ideal = 90 - sun;
+    const clipped = Math.max(15, Math.min(90, ideal));
+    const stepped = Math.round(clipped / 5) * 5;  // step=5 매칭
+    slider1.value = stepped;
+  }
+  function simUpdate(opts) {
+    opts = opts || {};
+    const sun = +slider2.value;
+    if (opts.couple) couplePivotFromSun(sun);
+    const angle = +slider1.value;
+    $('bipv-sim-slider-val').textContent = angle;
+    $('bipv-sim-sun-val').textContent    = sun;
+    renderOrig(angle, sun);
+  }
+  slider1.addEventListener('input', () => simUpdate({ couple: false }));
+  slider2.addEventListener('input', () => simUpdate({ couple: true  }));
+  // 초기 렌더: 태양 슬라이더 기본값에 맞춰 루버를 수직 각도로 세팅
+  simUpdate({ couple: true });
+
+  // ─────────────── Section 05 — Performance ───────────────
+  const m = data.model || {};
+  $('bipv-perf-r2').textContent  = (m.r2 != null) ? Number(m.r2).toFixed(4) : '—';
+  $('bipv-perf-mae').textContent = (m.mae_deg != null) ? Number(m.mae_deg).toFixed(2) : ((m.mae != null) ? Number(m.mae).toFixed(2) : '—');
+  $('bipv-perf-rows').textContent  = fmtInt(m.training_rows);
+  $('bipv-perf-years').textContent = m.year_range || '—';
+  $('bipv-perf-feat').textContent  = m.n_features ?? '—';
+
+  const featRaw = m.importance && m.importance.length ? m.importance.slice(0,6) : [
+    {f:'doy_cos',     gain:0.324, ko:'계절 위치 (cos)', meaning:'1년 주기에서 현재가 겨울인지 여름인지 — 가장 중요한 신호'},
+    {f:'ghi_w_m2',    gain:0.194, ko:'GHI 일사량',     meaning:'단위 면적당 들어오는 태양 에너지 — 현재 발전 잠재력'},
+    {f:'hour_cos',    gain:0.139, ko:'시간 (cos)',     meaning:'24시간 주기 중 오전인지 오후인지'},
+    {f:'hour_sin',    gain:0.133, ko:'시간 (sin)',     meaning:'24시간 주기 중 정오 부근인지 새벽인지 (cos 보완)'},
+    {f:'temp_actual', gain:0.120, ko:'외기 온도',       meaning:'패널 효율과 운영 환경 — 고온일수록 효율 살짝 감소'},
+    {f:'doy_sin',     gain:0.078, ko:'계절 (sin)',     meaning:'춘분 · 추분 지점 식별 (doy_cos 보완)'},
+  ];
+  const featNamesKr = m.feature_names_korean || {};
+  const featMax = Math.max(...featRaw.map(x => x.gain || 0), 0.001);
+  $('bipv-feat-list').innerHTML = featRaw.map((row, idx) => {
+    const kr = row.ko || (typeof featNamesKr === 'object' && featNamesKr[row.f]) || row.f;
+    const meaning = row.meaning || '';
+    return `
+      <div class="bipv-feat-row">
+        <div class="bipv-feat-name">${kr}<span class="raw">${row.f}</span></div>
+        <div class="bipv-feat-track"><div class="bipv-feat-fill ${idx===0?'lead':''}" style="--w: ${(row.gain/featMax*100).toFixed(1)}%;"></div></div>
+        <div class="bipv-feat-val">${(row.gain*100).toFixed(1)}<span class="pct">%</span></div>
+        ${meaning ? `<div class="bipv-feat-meaning">${meaning}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  // ─────────────── Section 06 — Operations ───────────────
+  const ops = data.ops || {};
+  function setOpsRow(key, ok, valText) {
+    const dot = $(`bipv-ops-dot-${key}`);
+    const val = $(`bipv-ops-${key}`);
+    if (dot) dot.className = 'bipv-ops-dot' + (ok ? '' : ' idle');
+    if (val) val.textContent = valText;
+  }
+  setOpsRow('model', !!ops.model_loaded, ops.model_loaded ? 'V15 Loaded' : '규칙 기반 폴백');
+  setOpsRow('csv',   !!ops.csv_loaded,   ops.csv_loaded ? (m.year_range || 'Loaded') : 'Unavailable');
+  const kmaOk = !!(ops.weather_api_ok ?? ops.weather_api);
+  setOpsRow('kma',   kmaOk, kmaOk ? '실시간 연동' : '맑음 추정 폴백');
+
+  // Blade spec card (DEPTH 민감도 카드는 제거됨)
+  const blade = data.blade || {};
+  $('bipv-spec-depth').textContent = (blade.depth != null) ? blade.depth : '—';
+  $('bipv-spec-pitch').textContent = (blade.pitch != null) ? blade.pitch : '—';
+  $('bipv-spec-ratio').textContent = (blade.pitch && blade.depth) ? (blade.pitch / blade.depth).toFixed(2) : '—';
+  $('bipv-spec-width').textContent = (blade.width != null) ? blade.width : '—';
+  $('bipv-spec-count').textContent = (blade.count != null) ? blade.count : '—';
+  $('bipv-spec-cap').textContent   = (blade.capacity != null) ? blade.capacity : '—';
+
+  // Monthly extra-kWh bar chart (Section 6)
+  const me = data.monthly_extra || {};
+  const meMonths = me.months || [];
+  const meExtra  = me.extra  || [];
+  const meTotal  = meExtra.reduce((a,b)=>a+b, 0);
+  let peakIdx = 0, peakV = -Infinity;
+  meExtra.forEach((v,i) => { if (v > peakV) { peakV = v; peakIdx = i; } });
+  $('bipv-monthly-total').textContent    = fmt1(meTotal);
+  $('bipv-monthly-peak').textContent     = meMonths[peakIdx] != null ? `${meMonths[peakIdx]}` : '—';
+  $('bipv-monthly-peak-kwh').textContent = fmt1(peakV);
+
+  new Chart($('bipv-chart-monthly'), {
+    type: 'bar',
+    data: {
+      labels: meMonths.map(m => `${m}월`),
+      datasets: [{
+        label: '추가 발전량',
+        data: meExtra,
+        backgroundColor: meExtra.map((_, i) => i === peakIdx ? accent : accentSoft),
+        borderColor: meExtra.map((_, i) => i === peakIdx ? accent : accentSoft),
+        borderWidth: 0,
+        borderRadius: 2,
+        barPercentage: 0.78,
+        categoryPercentage: 0.86,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 900, easing: 'easeOutCubic' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#FFFFFF', borderColor: getCSS('--bipv-border'), borderWidth: 0.5,
+          titleColor: ink, bodyColor: ink2, padding: 10,
+          callbacks: {
+            title: (ctx) => `${meMonths[ctx[0].dataIndex]}월`,
+            label: (ctx) => `+${fmt1(ctx.parsed.y)} kWh${ctx.dataIndex === peakIdx ? ' · 최대' : ''}`,
+          }
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: ink3, font: { size: 10 } }, border: { color: borderSoft } },
+        y: { beginAtZero: true, grid: { color: borderSoft, drawBorder: false }, border: { display: false }, ticks: { color: ink3, font: { size: 10 }, padding: 6, callback: (v) => `+${v}` } }
+      }
+    }
+  });
+
+  // DEPTH 민감도 차트는 제거됨 (사용자 요청)
+
+  // ─────────────── Footer ───────────────
+  $('bipv-footer-version').textContent = data.app_version || '9.3';
+  $('bipv-footer-source').textContent = '데이터 출처: 기상청 ASOS · 한전 산업용 요금 · ' + (data.system_version || 'XGBoost V15') + ' (R² ' + ((m.r2 != null) ? Number(m.r2).toFixed(4) : '—') + ')';
+
+  // ─────────────── Intersection observer ───────────────
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('is-visible');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.bipv-section').forEach(el => io.observe(el));
+  setTimeout(() => $('bipv-sec-1').classList.add('is-visible'), 60);
+
+  // ═══════════════ SECTION 04B — 3D 하루 시뮬레이터 ═══════════════
+  (function init3D(){
+    const THREE = window.THREE;
+    const canvas = $('bipv-3d-canvas');
+    const sim = data.sim_day;
+    const nogl = $('bipv-3d-nogl');
+    if (!THREE || !canvas || !sim || !sim.hour || !sim.hour.length) {
+      if (nogl) nogl.style.display = 'flex';
+      return;
+    }
+    const EL=sim.elevation, AZ=sim.azimuth, GHI=sim.ghi, DNI=sim.dni, DHI=sim.dhi, AIA=sim.ai_angle;
+    const N = sim.hour.length;
+    const lerp=(a,b,t)=>a+(b-a)*t;
+    function sampleAt(minute){
+      const hf = minute/60;
+      let i = Math.min(N-1, Math.floor(hf)); const i1=Math.min(N-1,i+1);
+      const t = Math.max(0, Math.min(1, hf - i));
+      return {
+        elev: lerp(EL[i],EL[i1],t), azim: lerp(AZ[i],AZ[i1],t),
+        ghi: Math.max(0,lerp(GHI[i],GHI[i1],t)), dni: Math.max(0,lerp(DNI[i],DNI[i1],t)),
+        dhi: Math.max(0,lerp(DHI[i],DHI[i1],t)), ai: lerp(AIA[i],AIA[i1],t)
+      };
+    }
+
+    // ── renderer (webgl2 우선 명시 — three r128 기본 webgl1 회피, 실패 시 폴백) ──
+    let renderer;
+    const glAttrs = {alpha:false, antialias:true, depth:true, stencil:false, preserveDrawingBuffer:true};
+    const gl = canvas.getContext('webgl2', glAttrs) || canvas.getContext('webgl', glAttrs) || canvas.getContext('experimental-webgl', glAttrs);
+    if (!gl) { if(nogl) nogl.style.display='flex'; return; }
+    try {
+      renderer = new THREE.WebGLRenderer({canvas, context: gl});
+    } catch(e) { if(nogl) nogl.style.display='flex'; return; }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#bcd8ef');
+
+    // ── 기하: 루버 배열 ──
+    const NB3=7, pitchU=1.0, depthU=(BDM/PP)*pitchU, widthU=4.4, thick=0.07, y0=1.3;
+    const center = new THREE.Vector3(0, y0+(NB3-1)*pitchU/2, 0);
+
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+    camera.position.set(6.4, center.y+2.0, 9.2);
+    camera.lookAt(0, center.y, 0.4);
+
+    // 벽 (건물 외벽)
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(widthU+3, NB3*pitchU+3.5),
+      new THREE.MeshStandardMaterial({color:'#d8d3c8', roughness:0.96}));
+    wall.position.set(0, center.y, -0.08); wall.receiveShadow=true; scene.add(wall);
+    // 지면
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(60,60),
+      new THREE.MeshStandardMaterial({color:'#b9ac95', roughness:1}));
+    ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+
+    // 블레이드 (피봇 그룹: rotation.x = +tilt → 발전면 팁이 아래로, 4월 원본 컨벤션)
+    const bladeMat = new THREE.MeshStandardMaterial({color:'#9a948a', roughness:0.6, metalness:0.1});
+    const pvMat    = new THREE.MeshStandardMaterial({color:'#21406e', roughness:0.32, metalness:0.25});
+    const NAVY = new THREE.Color('#21406e'), LOSS = new THREE.Color('#c8401f');
+    const blades=[];
+    for (let i=0;i<NB3;i++){
+      const pivot = new THREE.Group(); pivot.position.set(0, y0+i*pitchU, 0);
+      const box = new THREE.Mesh(new THREE.BoxGeometry(widthU, thick, depthU), bladeMat);
+      box.position.set(0,0,depthU/2); box.castShadow=true; box.receiveShadow=true; pivot.add(box);
+      const pv = new THREE.Mesh(new THREE.PlaneGeometry(widthU*0.96, depthU*0.94), pvMat.clone());
+      pv.rotation.x=-Math.PI/2; pv.position.set(0, thick/2+0.003, depthU/2); pv.receiveShadow=true; pivot.add(pv);
+      const shade = new THREE.Mesh(new THREE.PlaneGeometry(widthU*0.96, depthU*0.94),
+        new THREE.MeshBasicMaterial({color:'#0a1a2e', transparent:true, opacity:0.6}));
+      shade.rotation.x=-Math.PI/2; shade.position.set(0, thick/2+0.006, depthU/2); shade.visible=false; pivot.add(shade);
+      scene.add(pivot); blades.push({pivot, shade, pv});
+    }
+    const innerEdge = depthU/2 - depthU*0.94/2;
+
+    // ── 조명 ──
+    const sun = new THREE.DirectionalLight('#fff3da', 2.0);
+    sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+    const sc=sun.shadow.camera; sc.near=1; sc.far=70; sc.left=-7; sc.right=7; sc.top=9; sc.bottom=-3;
+    sun.shadow.bias=-0.0008;
+    scene.add(sun); scene.add(sun.target);
+    const hemi = new THREE.HemisphereLight('#dcebf7','#9a8d72',0.6); scene.add(hemi);
+    scene.add(new THREE.AmbientLight('#ffffff',0.16));
+
+    const R3=34;
+    function sunDir(elevDeg, azimDeg){ // X=동, Y=상, Z=남(+); azimuth 北=0 東=90
+      const e=elevDeg*Math.PI/180, a=azimDeg*Math.PI/180;
+      return new THREE.Vector3(Math.cos(e)*Math.sin(a), Math.sin(e), -Math.cos(e)*Math.cos(a));
+    }
+    function panelNormal(tiltDeg){ const a=tiltDeg*Math.PI/180; return new THREE.Vector3(0,Math.cos(a),Math.sin(a)); }
+    function skyColor(elev){
+      const day=new THREE.Color('#bcd8ef'), low=new THREE.Color('#e8c79a'), night=new THREE.Color('#2b3654');
+      if (elev<=0) return night;
+      const t=Math.max(0,Math.min(1,elev/52)); return low.clone().lerp(day,t);
+    }
+    function physics(s, tilt){
+      const sf=panelSF(tilt, s.elev, s.azim, 180), sv=svfCalc(tilt);
+      const cosInc=Math.max(0, panelNormal(tilt).dot(sunDir(s.elev,s.azim)));
+      const beam=(s.elev>0? s.dni*cosInc*(1-sf*0.7):0);
+      const diff=s.dhi*(1+Math.cos(tilt*Math.PI/180))/2*sv;
+      return {sf, poa:Math.max(0,beam+diff)};
+    }
+
+    // ── 상태 ──
+    let angleMode='ai', shadowMode='real', playing=false, curMin=720;
+    function frame(){
+      const s=sampleAt(curMin);
+      const tilt = angleMode==='ai' ? s.ai : 60;
+      blades.forEach(b=>{ b.pivot.rotation.x = tilt*Math.PI/180; });
+      const dir=sunDir(s.elev,s.azim);
+      sun.position.copy(center).add(dir.clone().multiplyScalar(R3));
+      sun.target.position.copy(center);
+      const up=Math.max(0,Math.min(1,s.elev/50));
+      sun.intensity=(s.elev>0?0.5+1.9*up:0)*Math.max(0.12,Math.min(1,s.ghi/600));
+      sun.visible=s.elev>0; sun.castShadow=(shadowMode==='real' && s.elev>0);
+      scene.background = skyColor(s.elev);
+      const ph=physics(s,tilt);
+      blades.forEach((b,idx)=>{
+        const sfBlade = (idx===NB3-1) ? 0 : ph.sf;   // 맨 위 블레이드는 위에서 가릴 게 없음
+        if (shadowMode==='model' && sfBlade>0.001){
+          b.shade.visible=true; b.shade.scale.y=Math.max(0.001,sfBlade);
+          b.shade.position.z = innerEdge + sfBlade*depthU*0.94/2;
+        } else b.shade.visible=false;
+        // 발전손실(비선형): 블레이드별 독립 MPPT + 3-substring 바이패스 절벽 → 색 변조
+        if (shadowMode==='power'){
+          const retain = 1 - Math.ceil(sfBlade*3 - 1e-9)/3;
+          b.pv.material.color.copy(NAVY).lerp(LOSS, 1-retain);
+        } else b.pv.material.color.copy(NAVY);
+      });
+      const hh=Math.floor(curMin/60), mm=Math.floor((curMin%60)/10)*10;
+      $('bipv-3d-clock').textContent=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+      $('bipv-3d-elev').textContent=s.elev.toFixed(1);
+      $('bipv-3d-azim').textContent=s.azim.toFixed(0);
+      $('bipv-3d-ghi').textContent=s.ghi.toFixed(0);
+      $('bipv-3d-dni').textContent=s.dni.toFixed(0);
+      $('bipv-3d-dhi').textContent=s.dhi.toFixed(0);
+      $('bipv-3d-angle').textContent=tilt.toFixed(0);
+      $('bipv-3d-sf').textContent=(ph.sf*100).toFixed(0);
+      $('bipv-3d-poa').textContent=ph.poa.toFixed(0);
+      renderer.render(scene,camera);
+    }
+    function resize(){ const w=canvas.clientWidth,h=canvas.clientHeight; if(!w||!h)return;
+      renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+
+    // ── 재생 루프 (단일 rAF·오프스크린/숨김 정지·reduced-motion) ──
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let raf=0,last=0,visible=true,onscreen=true;
+    function loop(ts){ raf=0;
+      if(playing&&visible&&onscreen){ if(!last)last=ts; const dt=ts-last; last=ts;
+        curMin+=dt*0.22; if(curMin>=1439)curMin=0; $('bipv-3d-scrub').value=Math.round(curMin);
+        frame(); raf=requestAnimationFrame(loop); } }
+    function play(){ if(reduce)return; playing=true; last=0; $('bipv-3d-play').textContent='❚❚'; if(!raf)raf=requestAnimationFrame(loop); }
+    function pause(){ playing=false; $('bipv-3d-play').textContent='▶'; }
+    $('bipv-3d-play').addEventListener('click',()=>{ playing?pause():play(); });
+    $('bipv-3d-scrub').addEventListener('input',e=>{ curMin=Number(e.target.value); frame(); });
+    function segWire(id, set){ const seg=$(id); seg.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click',()=>{ seg.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+        btn.classList.add('on'); set(btn.dataset.v); frame(); }); }); }
+    segWire('bipv-3d-seg-shadow', v=>shadowMode=v);
+    segWire('bipv-3d-seg-angle',  v=>angleMode=v);
+
+    document.addEventListener('visibilitychange',()=>{ visible=!document.hidden;
+      if(playing&&visible&&onscreen&&!raf){last=0;raf=requestAnimationFrame(loop);} });
+    new IntersectionObserver(es=>{ es.forEach(e=>{ onscreen=e.isIntersecting;
+      if(playing&&onscreen&&!raf){last=0;raf=requestAnimationFrame(loop);} }); },{threshold:0.05}).observe(canvas);
+    new ResizeObserver(()=>{ resize(); frame(); }).observe(canvas);
+
+    resize(); frame();
+  })();
+
+})();
+</script>

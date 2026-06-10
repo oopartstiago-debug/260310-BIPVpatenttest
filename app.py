@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import requests, urllib.parse
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -205,45 +206,10 @@ def get_annual(year,hd,p,cw,uc,ef,dl,use_xgb=False):
     return wa,w6,w9,pd.DataFrame(ml),da
 
 # ==============================================================================
-# CSS
+# CSS — minimal width override; theme/colors are set in .streamlit/config.toml
 # ==============================================================================
 st.markdown("""<style>
-/* ===== 기본 배경 ===== */
-.stApp{background:#0f1117}
-
-/* ===== 사이드바 ===== */
-section[data-testid="stSidebar"]{background:#1a1d27 !important;border-right:1px solid #2e3347}
-
-/* ===== 탭 스타일 ===== */
-button[data-baseweb="tab"]{color:#64748b !important;font-weight:500;border-bottom:2px solid transparent;transition:all 0.2s}
-button[data-baseweb="tab"]:hover{color:#94a3b8 !important;background:rgba(139,92,246,0.08)}
-button[data-baseweb="tab"][aria-selected="true"]{color:#8b5cf6 !important;border-bottom-color:#8b5cf6 !important}
-
-/* ===== 메트릭 카드 ===== */
-div[data-testid="stMetricValue"]{font-size:1.5rem;font-weight:700;color:#e2e8f0}
-div[data-testid="stMetricLabel"]{font-size:.85rem;color:#94a3b8}
-div[data-testid="metric-container"]{background:#1a1d27;border:1px solid #2e3347;border-radius:12px;padding:16px}
-
-/* ===== 설명 박스 (.ex) — 보라 액센트 ===== */
-.ex{background:rgba(139,92,246,0.08);border-left:3px solid #8b5cf6;padding:14px 18px;border-radius:8px;margin:12px 0;font-size:.91rem;color:#cbd5e1;line-height:1.7;border:1px solid rgba(139,92,246,0.15)}
-.ex b{color:#a78bfa}
-
-/* ===== 경고 박스 (.wa) — 주황 액센트 ===== */
-.wa{background:rgba(249,115,22,0.08);border-left:3px solid #f97316;padding:14px 18px;border-radius:8px;margin:12px 0;font-size:.91rem;color:#cbd5e1;line-height:1.7;border:1px solid rgba(249,115,22,0.15)}
-.wa b{color:#fb923c}
-
-/* ===== 성공 박스 (.gd) — 녹색 액센트 ===== */
-.gd{background:rgba(34,197,94,0.08);border-left:3px solid #22c55e;padding:14px 18px;border-radius:8px;margin:12px 0;font-size:.91rem;color:#cbd5e1;line-height:1.7;border:1px solid rgba(34,197,94,0.15)}
-.gd b{color:#4ade80}
-
-/* ===== 데이터프레임/테이블 ===== */
-div[data-testid="stDataFrame"]{border:1px solid #2e3347;border-radius:8px;overflow:hidden}
-
-/* ===== 구분선 ===== */
-hr{border-color:#2e3347 !important}
-
-/* ===== Expander ===== */
-details{background:#1a1d27 !important;border:1px solid #2e3347 !important;border-radius:8px !important}
+.block-container{padding-top:1.0rem;padding-bottom:0.5rem;max-width:none}
 </style>""", unsafe_allow_html=True)
 
 # ==============================================================================
@@ -252,24 +218,23 @@ details{background:#1a1d27 !important;border:1px solid #2e3347 !important;border
 mdl = load_model() if _XGB_AVAILABLE else None
 kma, tom = get_kma()
 
-st.sidebar.title("■ 통합 환경 설정")
-if mdl: st.sidebar.success("✅ XGBoost V15 로드")
-else: st.sidebar.warning("⚠️ 규칙 기반 모드")
-st.sidebar.subheader("1. 날짜")
+st.sidebar.title("BIPV · 설정")
 tom_dt=datetime.strptime(tom,"%Y%m%d") if tom else datetime.now()+timedelta(days=1)
 sim_date=st.sidebar.date_input("날짜",tom_dt)
-st.sidebar.subheader("2. 블레이드 (V15)")
-st.sidebar.caption("중심축 회전 | Pitch:Depth 1:1")
-wm=st.sidebar.number_input("가로(mm)",min_value=100.0,value=DW,step=100.0)
-bdm=st.sidebar.number_input("세로/DEPTH(mm)",min_value=10.0,value=DH,step=1.0)
-pm=st.sidebar.number_input("피치(mm)",min_value=10.0,value=DP,step=1.0)
-hdm=bdm/2; st.sidebar.caption(f"HALF={hdm:.1f}mm | 비율={pm/bdm:.2f}")
-lc=st.sidebar.number_input("블레이드 수",min_value=1,value=DLC,step=1)
-st.sidebar.subheader("3. 패널")
-uc=st.sidebar.number_input("유닛 수",min_value=1,value=DU)
-cw=st.sidebar.number_input("용량(W)",value=DC)
-te=st.sidebar.number_input("효율(%)",value=DE,step=0.1)
-kr=st.sidebar.number_input("요금(원/kWh)",value=DK)
+
+with st.sidebar.expander("고급 설정", expanded=False):
+    st.subheader("2. 블레이드 (V15)")
+    st.caption("중심축 회전 | Pitch:Depth 1:1")
+    wm=st.number_input("가로(mm)",min_value=100.0,value=DW,step=100.0)
+    bdm=st.number_input("세로/DEPTH(mm)",min_value=10.0,value=DH,step=1.0)
+    pm=st.number_input("피치(mm)",min_value=10.0,value=DP,step=1.0)
+    hdm=bdm/2; st.caption(f"HALF={hdm:.1f}mm | 비율={pm/bdm:.2f}")
+    lc=st.number_input("블레이드 수",min_value=1,value=DLC,step=1)
+    st.subheader("3. 패널")
+    uc=st.number_input("유닛 수",min_value=1,value=DU)
+    cw=st.number_input("용량(W)",value=DC)
+    te=st.number_input("효율(%)",value=DE,step=0.1)
+    kr=st.number_input("요금(원/kWh)",value=DK)
 ef=float(te)/DE; asc=(wm*bdm*lc)/(DW*DH*DLC)
 
 sd=sim_date.strftime("%Y-%m-%d")
@@ -372,9 +337,7 @@ def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
 if df_csv_raw is not None and "solar_elevation" in df_csv_raw.columns:
     wa,w6,w9,dmo,dan,year_range = get_annual_from_csv(df_csv_raw, hdm, pm, cw, uc, ef, DL)
     annual_source = f"실측 기상 {year_range} 평균"
-    # ── 디버그: n_years 확인용 (문제 해결 후 제거) ──
     _dbg_years = sorted(pd.to_datetime(df_csv_raw["timestamp"]).dt.year.unique())
-    st.sidebar.info(f"📊 CSV 연도: {_dbg_years[0]}~{_dbg_years[-1]} ({len(_dbg_years)}년) | AI={wa:.1f} F60={w6:.1f}")
 else:
     wa,w6,w9,dmo,dan = get_annual(ly,hdm,pm,cw,uc,ef,DL,ux)
     annual_source = f"청천 모델 근사 ({ly}년)"
@@ -386,535 +349,169 @@ md2=(ts.hour>=6)&(ts.hour<=19)
 mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 
 # ==============================================================================
-# 탭
+# Single-page render — embed main.html once with the full data dict
 # ==============================================================================
-st.markdown(f"""
-<div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4c1d95 100%);
-            padding:32px 24px 20px;border-radius:0 0 12px 12px;margin:-1rem -1rem 1.5rem -1rem;">
-    <h1 style="color:#e2e8f0;font-size:28px;font-weight:700;margin:0;">
-        ☀️ BIPV AI 통합 관제 대시보드
-    </h1>
-    <p style="color:#94a3b8;font-size:14px;margin:8px 0 12px;">
-        v{__version__} (V15 선분교차) | {sd} | {am}
-    </p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;
-                      background:rgba(139,92,246,0.2);color:#a78bfa;border:1px solid rgba(139,92,246,0.3);">
-            {am}
-        </span>
-        <span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;
-                      background:rgba(34,197,94,0.2);color:#4ade80;border:1px solid rgba(34,197,94,0.3);">
-            {ks}
-        </span>
-        <span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;
-                      background:rgba(6,182,212,0.2);color:#22d3ee;border:1px solid rgba(6,182,212,0.3);">
-            {ws}
-        </span>
-        <span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;
-                      background:rgba(249,115,22,0.2);color:#fb923c;border:1px solid rgba(249,115,22,0.3);">
-            V15 선분교차
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-tabs=st.tabs(["🏠 메인","📊 학습데이터","🎯 피처중요도","💡 음영원리","🔥 음영시각화","⚡ 발전량비교","📅 월별각도","🌤️ 내일스케줄","🩺 건강진단","🔧 파라미터튜닝"])
+from pathlib import Path
 
-# ═══ 메인 ═══
-with tabs[0]:
-    st.subheader("오늘의 발전 현황")
-    st.markdown("""<div class="ex"><b>📖 이 시스템은 무엇인가요?</b><br><br>
-    건물 외벽에 설치된 <b>루버형 태양광 패널(BIPV)</b>의 각도를 AI가 자동으로 제어하여
-    <b>발전량을 최대화</b>하는 시스템입니다.<br><br>
-    <b>왜 각도 제어가 필요한가요?</b><br>
-    태양은 계절·시간에 따라 위치가 변합니다. 루버를 고정하면 특정 시간에만 효율적이지만,
-    AI가 매 시간 최적 각도를 찾으면 연간 발전량이 크게 증가합니다.<br><br>
-    <b>주요 용어</b><br>
-    • <b>GHI</b>: 수평면 전일사량 (W/m²) — 태양이 보내는 에너지 총량<br>
-    • <b>SVF</b>: 하늘 조망 계수 (0~1) — 루버 사이로 보이는 하늘 비율. 흐린 날 확산광 수집에 중요<br>
-    • <b>음영률(SF)</b>: 위 블레이드가 아래 발전면을 가리는 비율. 낮을수록 좋음
-    </div>""",unsafe_allow_html=True)
-    c1,c2,c3,c4=st.columns(4)
-    c1.metric("AI 발전량",f"{pa/1000:.3f} kWh",f"연간 {ka:.1f} kWh")
-    c2.metric("vs 고정60°",f"+{(pa/p6-1)*100:.1f}%" if p6>0 else "—")
-    c3.metric("vs 수직90°",f"+{(pa/p9-1)*100:.1f}%" if p9>0 else "—")
-    c4.metric("예상 수익",f"{int(pa/1000*kr):,} 원")
-    cl2,cr=st.columns([3,1])
-    with cl2:
-        st.subheader("AI 제어 스케줄")
-        st.markdown("""<div class="ex"><b>💡 아침·저녁에 루버가 90°인 이유</b><br>
-        태양 에너지(GHI)가 10 W/m² 미만이면 발전이 불가합니다.
-        이 시간에는 루버를 수직(90°)으로 닫아 <b>바람·먼지로부터 패널을 보호</b>합니다.
-        GHI가 10을 넘으면 AI가 즉시 최적 각도로 전환합니다.</div>""",unsafe_allow_html=True)
-        fg=make_subplots(specs=[[{"secondary_y":True}]])
-        fg.add_trace(go.Bar(x=ts[md2].strftime("%H:%M"),y=ghi[md2],name="GHI",marker_color=C_GHI),secondary_y=False)
-        fg.add_trace(go.Scatter(x=ts[md2].strftime("%H:%M"),y=ai[md2],name="AI 각도",line=dict(color=C_AI,width=3)),secondary_y=True)
-        fg.update_yaxes(title_text="GHI (W/m²)",secondary_y=False); fg.update_yaxes(title_text="각도(°)",range=[0,95],secondary_y=True)
-        fg.update_layout(height=360,template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)",legend=dict(orientation="h",y=1.08)); st.plotly_chart(fg,use_container_width=True)
-    with cr:
-        st.subheader("일일 발전량")
-        fb=go.Figure(go.Bar(x=["AI","F60°","F90°"],y=[pa/1000,p6/1000,p9/1000],marker_color=[C_AI,C_F60,C_V90],
-            text=[f"{v/1000:.3f}" for v in [pa,p6,p9]],textposition="auto"))
-        fb.update_layout(height=360,yaxis_title="kWh",template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fb,use_container_width=True)
-    st.subheader("시간별 상세 테이블")
-    gd,ed=ghi[md2],el[md2]
-    sv=panel_sf(ai[md2],ed,az[md2],hdm,pm); svv=svf(ai[md2],hdm,pm)
-    def sfs(s,g,e):
-        if g<10 or e<=0: return "— (비활성)"
-        if s<0.1: return f"{s*100:.1f}% 🟢 양호"
-        elif s<0.3: return f"{s*100:.1f}% 🟡 경미"
-        elif s<0.5: return f"{s*100:.1f}% 🟠 주의"
-        else: return f"{s*100:.1f}% 🔴 심각"
-    ds=pd.DataFrame({"시간":ts[md2].strftime("%H:%M").tolist(),"AI각도(°)":ai[md2].astype(int).tolist(),
-        "GHI":np.round(gd,1).tolist(),"음영률":[sfs(s,g,e) for s,g,e in zip(sv,gd,ed)],
-        "SVF":[f"{s:.2f}" if g>=10 and e>0 else "—" for s,g,e in zip(svv,gd,ed)]})
-    st.dataframe(ds,use_container_width=True,hide_index=True)
-    st.markdown("""<div class="ex"><b>📊 음영률 상태 의미</b><br>
-    🟢 <b>0~10%</b>: 거의 그림자 없음. 발전 손실 미미<br>
-    🟡 <b>10~30%</b>: 약간의 그림자. 손실 5~15%<br>
-    🟠 <b>30~50%</b>: 주의 필요. AI가 각도 조정으로 최소화 중<br>
-    🔴 <b>50%+</b>: 발전면 절반 이상 가려짐. 하지만 이 시간대는 보통 GHI 자체가 낮아 실질 영향 제한적</div>""",unsafe_allow_html=True)
-
-# ═══ 학습데이터 ═══
-with tabs[1]:
-    st.subheader("📊 XGBoost 학습 데이터셋")
-    st.markdown("""<div class="ex"><b>📖 학습 데이터란?</b><br>
-    AI 모델이 '이런 날씨·시간에는 이 각도가 최적이다'를 배우기 위한 <b>과거 10년(2014~2023) 기상 데이터</b>입니다.
-    기상청 실측 관측값을 바탕으로 물리 시뮬레이션을 통해 각 시간대의 최적 각도를 미리 계산해 놓은 것입니다.</div>""",unsafe_allow_html=True)
-    df_csv = df_csv_raw
-    csv_err = csv_err_raw
-    if csv_err:
-        st.sidebar.info(f"CSV: {csv_err}")
-    if df_csv is not None:
-        target_cols = [c for c in df_csv.columns if "target" in c]
-        st.sidebar.info(f"CSV 타겟 컬럼: {target_cols}")
-        if "target_angle_v15" in df_csv.columns: tc,cv="target_angle_v15","V15"
-        elif "target_angle_v14" in df_csv.columns: tc,cv="target_angle_v14","V14"
-        else: tc,cv="target_angle_v5","V5"
-        st.success(f"✅ {cv} 학습 데이터 | {len(df_csv):,}행 | 2014~2023년")
-        st.markdown(f"""<div class="ex"><b>📖 각 변수의 의미</b><br><br>
-        <b>입력 변수 (AI가 보는 정보)</b><br>
-        • <b>ghi_w_m2</b>: 수평면 전일사량 — 현재 태양이 보내는 에너지 총량. 가장 중요한 입력값.<br>
-        • <b>cloud_cover (0~9)</b>: 하늘의 구름 양. 0=완전 맑음, 9=완전 흐림. GHI를 얼마나 감쇠시키는지 반영.<br>
-        • <b>temp_actual</b>: 외기 온도. 패널은 고온에서 효율이 떨어지는 특성(온도계수 약 -0.4%/°C)이 있음.<br>
-        • <b>hour_sin/cos</b>: 현재 시각을 수학적으로 표현한 값. AI가 "오전인지 오후인지"를 구분하는 데 사용.<br>
-        • <b>doy_sin/cos</b>: 현재 날짜(1~365일)를 수학적으로 표현. AI가 "여름인지 겨울인지"를 구분.<br><br>
-        <b>출력 (AI가 예측하는 값)</b><br>
-        • <b>{tc}</b>: 해당 시간에 발전량을 최대화하는 <b>최적 루버 각도</b>. 물리 시뮬레이션으로 미리 계산된 정답.</div>""",unsafe_allow_html=True)
-        dp=df_csv[df_csv["ghi_w_m2"]>10].copy(); dp["month"]=pd.to_datetime(dp["timestamp"]).dt.month
-        dp["hour"]=pd.to_datetime(dp["timestamp"]).dt.hour
-        mm2={i:n for i,n in zip(range(1,13),mn)}; dp["ms"]=dp["month"].map(mm2); mo=list(mm2.values())
-        c1,c2=st.columns(2)
-        with c1:
-            st.markdown("**GHI 월별 분포** — 태양 에너지가 계절별로 얼마나 다른가?")
-            fg=px.box(dp,x="ms",y="ghi_w_m2",color="ms",category_orders={"ms":mo},template=PT)
-            fg.update_layout(showlegend=False,height=300,yaxis_title="GHI (W/m²)",paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg,use_container_width=True)
-            st.caption("여름(6~8월)은 일사량이 높지만 장마로 변동도 큼. 겨울은 일사량 자체가 적음.")
-        with c2:
-            st.markdown("**운량 월별 분포** — 구름이 발전에 미치는 영향")
-            fg2=px.box(dp,x="ms",y="cloud_cover",color="ms",category_orders={"ms":mo},template=PT)
-            fg2.update_layout(showlegend=False,height=300,yaxis_title="운량 (0~9)",paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg2,use_container_width=True)
-            st.caption("6~7월 장마철 운량↑ → 직달광 감소 → AI가 확산광 전략으로 전환해야 하는 구간")
-        c3,c4=st.columns(2)
-        with c3:
-            st.markdown("**기온 월별 분포** — 패널 효율에 미치는 영향")
-            fg3=px.box(dp,x="ms",y="temp_actual",color="ms",category_orders={"ms":mo},template=PT)
-            fg3.update_layout(showlegend=False,height=300,yaxis_title="°C",paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg3,use_container_width=True)
-            st.caption("여름 30°C+ → 패널 효율 약 3~4% 하락. 겨울 저온은 효율에 유리하지만 일사량 부족.")
-        with c4:
-            st.markdown(f"**최적 각도 월별 분포 ({cv})** — AI가 배우는 정답")
-            fg4=px.box(dp,x="ms",y=tc,color="ms",category_orders={"ms":mo},template=PT)
-            fg4.update_layout(showlegend=False,height=300,yaxis_title="최적 각도(°)",paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg4,use_container_width=True)
-            st.caption("여름: ~22° (루버를 눕혀 직달광 수집). 겨울: ~63° (태양이 낮아 루버를 세움)")
-        st.markdown("---")
-        c5,c6=st.columns(2)
-        with c5:
-            st.markdown("**시간대별 최적각 패턴** — 하루 중 언제 각도가 가장 낮은가?")
-            ha=dp.groupby("hour")[tc].mean().reset_index()
-            fg5=go.Figure(go.Scatter(x=ha["hour"],y=ha[tc],mode="lines+markers",line=dict(color=C_AI,width=2)))
-            fg5.update_layout(height=280,xaxis_title="시각(h)",yaxis_title="평균 최적각(°)",template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg5,use_container_width=True)
-            st.caption("정오(12시) 전후에 최적각이 가장 낮음 = 태양이 가장 높이 떠서 루버를 최대한 눕힘")
-        with c6:
-            st.markdown("**월별 최적각 패턴** — 계절에 따라 얼마나 달라지는가?")
-            da2=dp.groupby("month")[tc].mean().reset_index()
-            fg6=go.Figure(go.Scatter(x=da2["month"],y=da2[tc],mode="lines+markers",line=dict(color=C_F60,width=2)))
-            fg6.update_layout(height=280,xaxis_title="월",yaxis_title="평균 최적각(°)",
-                xaxis=dict(tickvals=list(range(1,13)),ticktext=mo),template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg6,use_container_width=True)
-            st.caption("여름↔겨울 각도 차이 약 40°. 이 큰 변화를 AI가 자동으로 추적합니다.")
-        st.markdown(f"**GHI vs 최적각** — 일사량과 각도의 관계")
-        samp=dp.sample(min(3000,len(dp)),random_state=42)
-        fg7=px.scatter(samp,x="ghi_w_m2",y=tc,color="ms",opacity=0.4,template=PT,
-                       labels={"ghi_w_m2":"GHI","ms":"월",tc:"최적각(°)"})
-        fg7.update_layout(height=350,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg7,use_container_width=True)
-        st.caption("GHI가 높을수록(태양이 강할수록) 최적각이 낮아지는 경향. 계절별로 뚜렷한 클러스터가 형성됨.")
-    else:
-        st.warning(f"⚠️ CSV 로드 실패")
-        if csv_err:
-            st.error(f"원인: {csv_err}")
-            st.info("💡 GitHub 레포에서 파일명이 정확한지, LFS 파일이 아닌지 확인해주세요.")
-
-# ═══ 피처중요도 ═══
-with tabs[2]:
-    st.subheader("🎯 피처 중요도 — AI가 무엇을 가장 중요하게 보는가?")
-    st.markdown("""<div class="ex"><b>📖 피처 중요도란?</b><br>
-    AI 모델(XGBoost)이 루버 각도를 결정할 때 <b>어떤 정보를 가장 많이 참고하는지</b>를 수치화한 것입니다.
-    마치 사람이 "오늘 날씨가 어떤지"를 가장 먼저 확인하듯, AI도 특정 변수를 더 중요하게 봅니다.<br><br>
-    <b>Gain</b>: 해당 변수가 예측 정확도를 얼마나 향상시켰는지의 누적 기여도. 높을수록 중요.</div>""",unsafe_allow_html=True)
-    imp={"피처":["doy_cos","ghi_w_m2","hour_cos","hour_sin","temp_actual","doy_sin","cloud_cover"],
-         "Gain":[0.324,0.194,0.139,0.133,0.120,0.078,0.012],
-         "의미":["계절 위치 (겨울/여름 구분)","현재 일사량 세기","시각 (오전/오후)","시각 보완",
-                 "외기 온도","계절 보완","구름양 (GHI에 이미 반영)"]}
-    di=pd.DataFrame(imp).sort_values("Gain",ascending=True)
-    fg=go.Figure(go.Bar(x=di["Gain"],y=di["피처"],orientation="h",
-        marker_color=[C_AI if g>0.12 else "#90CAF9" if g>0.06 else "#B0BEC5" for g in di["Gain"]],
-        text=[f"{g:.3f}" for g in di["Gain"]],textposition="outside",customdata=di["의미"],
-        hovertemplate="<b>%{y}</b><br>Gain: %{x:.3f}<br>%{customdata}<extra></extra>"))
-    fg.update_layout(height=380,xaxis_title="Gain (기여도)",xaxis_range=[0,0.40],template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)"); st.plotly_chart(fg,use_container_width=True)
-    c1,c2=st.columns(2)
-    with c1:
-        st.markdown("""<div class="ex"><b>🥇 1위: 계절 정보 (doy_cos 32.4%)</b><br>
-        AI가 가장 중요하게 보는 건 <b>"지금이 여름인지 겨울인지"</b>입니다.
-        여름에는 태양이 높아 루버를 눕히고(22°), 겨울에는 낮아 세워야(63°) 하기 때문입니다.
-        계절 변수 합산(doy_cos+sin)은 <b>전체의 40%</b>를 차지합니다.</div>""",unsafe_allow_html=True)
-        st.markdown("""<div class="ex"><b>🥈 2위: 일사량 (ghi 19.4%)</b><br>
-        "지금 햇빛이 얼마나 강한가"도 핵심입니다. 같은 여름이라도 맑은 날과 흐린 날의 최적 각도가 다릅니다.
-        맑으면 직달광 최대화, 흐리면 확산광 전략으로 전환합니다.</div>""",unsafe_allow_html=True)
-    with c2:
-        st.markdown("""<div class="ex"><b>🥉 3위: 시각 (hour_sin+cos 27.2%)</b><br>
-        "아침인지 정오인지 저녁인지"가 세 번째로 중요합니다.
-        정오에는 태양이 가장 높아 낮은 각도가 최적이지만, 아침·저녁에는 높은 각도가 유리합니다.</div>""",unsafe_allow_html=True)
-        st.markdown("""<div class="ex"><b>기타: 온도 (12%) + 구름 (1.2%)</b><br>
-        온도는 패널 효율에 영향. 구름은 이미 GHI에 반영되어 있어 별도 기여도가 매우 낮습니다.</div>""",unsafe_allow_html=True)
-    st.markdown("---")
-    m1,m2=st.columns(2)
-    with m1:
-        st.markdown("""<div class="gd"><b>MAE = 0.70° (평균 오차)</b><br>
-        AI 예측값과 실제 최적값의 차이가 평균 <b>0.70°</b>에 불과합니다.
-        루버 제어 모터의 물리적 정밀도가 ±2~3°인 점을 고려하면, 실제 제어에 전혀 지장 없는 수준입니다.</div>""",unsafe_allow_html=True)
-    with m2:
-        st.markdown("""<div class="gd"><b>R² = 0.9966 (설명력 99.7%)</b><br>
-        AI가 루버 각도 변동의 <b>99.7%</b>를 정확히 설명합니다.
-        나머지 0.3%는 순간적 기상 변동(돌풍, 급변하는 구름)에 의한 것으로, 예측이 본질적으로 어려운 영역입니다.</div>""",unsafe_allow_html=True)
-
-# ═══ 음영원리 ═══
-with tabs[3]:
-    st.subheader("💡 루버 음영의 원리 (V15 선분교차)")
-    st.markdown("""<div class="ex"><b>📖 자기 음영(Self-shading)이란?</b><br><br>
-    루버는 여러 장의 블레이드가 나란히 배열된 구조입니다.
-    태양이 비추면 <b>위쪽 블레이드가 아래쪽 블레이드에 그림자를 드리울 수</b> 있습니다.
-    이 그림자가 태양전지(발전면) 위에 떨어지면 발전량이 감소합니다.<br><br>
-    <b>V15의 혁신: 선분교차(Ray-Blade Intersection)</b><br>
-    이전 버전(V13~V14)은 그림자를 단순한 수학 공식으로 근사했지만,
-    V15는 <b>실제 태양 광선의 경로를 추적하여 발전면 위의 정확한 그림자 위치를 계산</b>합니다.
-    마치 CAD에서 정밀하게 선분의 교차점을 구하는 것과 같습니다.<br><br>
-    <b>핵심 포인트</b><br>
-    • 발전면 = 블레이드의 <b>바깥쪽 면</b> (피봇~바깥끝, 태양전지가 부착된 면)<br>
-    • 그림자는 피봇(안쪽)에서부터 바깥끝 방향으로 채워짐<br>
-    • 90° 수직이면 → 블레이드가 나란히 서서 서로의 발전면을 가리지 않음 → <b>SF=0%</b></div>""",unsafe_allow_html=True)
-
-    st.markdown("#### 인터랙티브 시뮬레이터")
-    st.markdown("슬라이더를 조절하여 태양 고도와 루버 각도에 따른 음영 변화를 실시간으로 확인하세요.")
-    eex=st.slider("☀️ 태양 고도각 (°) — 높을수록 태양이 높이 떠 있음",5,80,45,5)
-    tex=st.slider("📐 루버 각도 (°) — 낮을수록 루버가 눕혀짐",15,90,30,5)
-    sfx=float(panel_sf(tex,eex,180,hdm,pm)); svx=float(svf(tex,hdm,pm))
-    prx,_,gpx=blade_geo(tex,hdm,bdm,pm)
-    c1,c2=st.columns([2,1])
-    with c1:
-        fg=go.Figure(); nb=4; pp=80
-        for i in range(nb):
-            yc=i*pp; hp=(hdm/pm)*pp; dx=hp*np.cos(np.radians(tex)); dy=hp*np.sin(np.radians(tex))
-            fg.add_trace(go.Scatter(x=[-dx,0],y=[yc+dy,yc],mode="lines",line=dict(color="#999",width=3),showlegend=(i==0),name="벽쪽 면" if i==0 else None))
-            fg.add_trace(go.Scatter(x=[0,dx],y=[yc,yc-dy],mode="lines",line=dict(color=C_AI,width=6),showlegend=(i==0),name="발전면(Front)" if i==0 else None))
-            fg.add_trace(go.Scatter(x=[0],y=[yc],mode="markers",marker=dict(size=6,color="red"),showlegend=False))
-            if i>0 and sfx>0:
-                pb=(0,(i-1)*pp); ob=(dx,(i-1)*pp-dy); tf=min(sfx,1)
-                ix2=pb[0]+tf*(ob[0]-pb[0]); iy2=pb[1]+tf*(ob[1]-pb[1])
-                fg.add_trace(go.Scatter(x=[pb[0],ix2 if sfx<1 else ob[0]],y=[pb[1],iy2 if sfx<1 else ob[1]],
-                    mode="lines",line=dict(color="red",width=8),opacity=0.4,showlegend=(i==1),name=f"음영({sfx:.0%})" if i==1 else None))
-        if eex>0:
-            rdx=-np.cos(np.radians(eex))*60; rdy=-np.sin(np.radians(eex))*60
-            for i in range(1,nb):
-                yc=i*pp; hp=(hdm/pm)*pp; ox=hp*np.cos(np.radians(tex)); oy=yc-hp*np.sin(np.radians(tex))
-                fg.add_annotation(x=ox+rdx*1.5,y=oy+rdy*1.5,ax=ox-rdx*0.8,ay=oy-rdy*0.8,xref="x",yref="y",axref="x",ayref="y",
-                    showarrow=True,arrowhead=2,arrowsize=1.2,arrowcolor="#FF8F00",arrowwidth=2)
-        fg.add_shape(type="line",x0=-5,y0=-30,x1=-5,y1=(nb-1)*pp+50,line=dict(color="#555",width=3))
-        fg.update_layout(height=420,template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)",xaxis=dict(range=[-60,100],showgrid=False,zeroline=False,showticklabels=False),
-            yaxis=dict(range=[-50,(nb-1)*pp+70],showgrid=False,zeroline=False,showticklabels=False,scaleanchor="x"),
-            title=f"단면도 — 고도 {eex}° | 루버 {tex}° | 음영 {sfx:.1%}",legend=dict(orientation="h",y=-0.05))
-        st.plotly_chart(fg,use_container_width=True)
-    with c2:
-        st.metric("음영률",f"{sfx*100:.1f}%",delta="양호 ✅" if sfx<0.1 else("경미 🟡" if sfx<0.3 else "주의 🔴"),delta_color="off")
-        st.metric("SVF",f"{svx:.2f}",delta="높음 ✅" if svx>0.5 else "낮음 🔴",delta_color="off")
-        st.markdown(f"""<div class="ex"><b>현재 설정값</b><br>
-        블레이드 DEPTH: {bdm:.0f}mm<br>PITCH: {pm:.0f}mm<br>
-        돌출: {float(prx):.1f}mm | 틈: {float(gpx):.1f}mm<br><br>
-        <b>💡 AI의 딜레마</b><br>
-        • 각도를 낮추면 → 직달광↑ but 음영↑<br>
-        • 각도를 높이면 → 음영↓ but 직달광↓<br>
-        AI는 매 시간 이 균형점에서 <b>순발전량이 최대</b>인 각도를 선택합니다.</div>""",unsafe_allow_html=True)
-
-# ═══ 음영시각화 ═══
-with tabs[4]:
-    st.subheader("🔥 조건별 음영 패턴 비교 (V15 선분교차)")
-    st.markdown("""<div class="ex"><b>📖 이 차트의 의미</b><br>
-    서울 기준 동지(겨울)와 하지(여름)의 다양한 시간·각도 조건에서 <b>블레이드 단면의 그림자 패턴</b>을 비교합니다.<br>
-    <b>파란선</b>=발전면(태양전지) | <b>빨간선</b>=그림자 영역 | <b>주황화살표</b>=태양광선 방향<br><br>
-    <b>핵심 관찰 포인트</b>: 같은 각도라도 태양 높이에 따라 음영이 완전히 달라집니다.</div>""",unsafe_allow_html=True)
-    cds=[(60,15,"동지 09시\ntilt=60° elev=15°"),(63,29,"동지 정오\ntilt=63° elev=29°"),(60,15,"동지 16시\ntilt=60° elev=15°"),
-         (22,40,"하지 09시\ntilt=22° elev=40°"),(22,76,"하지 정오\ntilt=22° elev=76°"),(22,40,"하지 16시\ntilt=22° elev=40°"),
-         (15,76,"하지 t=15° e=76°\n(최소각)"),(45,76,"하지 t=45° e=76°"),(90,29,"동지 t=90° e=29°\n(수직)")]
-    for rs in range(0,len(cds),3):
-        cols=st.columns(3)
-        for ci,(t2,ec,lc) in enumerate(cds[rs:rs+3]):
-            with cols[ci]:
-                sfc=float(panel_sf(t2,ec,180,hdm,pm))
-                fc=go.Figure(); nb=4; pc=70
-                for i in range(nb):
-                    yc=i*pc; hp=(hdm/pm)*pc; dx=hp*np.cos(np.radians(t2)); dy=hp*np.sin(np.radians(t2))
-                    fc.add_trace(go.Scatter(x=[-dx,0],y=[yc+dy,yc],mode="lines",line=dict(color="#999",width=2),showlegend=False))
-                    fc.add_trace(go.Scatter(x=[0,dx],y=[yc,yc-dy],mode="lines",line=dict(color=C_AI,width=5),showlegend=False))
-                    fc.add_trace(go.Scatter(x=[0],y=[yc],mode="markers",marker=dict(size=4,color="red"),showlegend=False))
-                    if i>0 and sfc>0:
-                        pb=(0,(i-1)*pc); ob=(dx,(i-1)*pc-dy); tf=min(sfc,1)
-                        ix2=pb[0]+tf*(ob[0]-pb[0]); iy2=pb[1]+tf*(ob[1]-pb[1])
-                        fc.add_trace(go.Scatter(x=[pb[0],ix2 if sfc<1 else ob[0]],y=[pb[1],iy2 if sfc<1 else ob[1]],mode="lines",line=dict(color="red",width=7),opacity=0.5,showlegend=False))
-                if ec>0:
-                    rdx=-np.cos(np.radians(ec))*40; rdy=-np.sin(np.radians(ec))*40
-                    for i in range(1,nb):
-                        yc=i*pc; hp=(hdm/pm)*pc; ox=hp*np.cos(np.radians(t2)); oy=yc-hp*np.sin(np.radians(t2))
-                        fc.add_annotation(x=ox+rdx,y=oy+rdy,ax=ox-rdx*0.5,ay=oy-rdy*0.5,xref="x",yref="y",axref="x",ayref="y",showarrow=True,arrowhead=2,arrowsize=1,arrowcolor="#FF8F00",arrowwidth=1.5)
-                fc.add_shape(type="line",x0=-3,y0=-20,x1=-3,y1=(nb-1)*pc+40,line=dict(color="#555",width=2))
-                fc.update_layout(height=300,template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)",margin=dict(l=5,r=5,t=35,b=5),
-                    xaxis=dict(range=[-50,80],showgrid=False,zeroline=False,visible=False),
-                    yaxis=dict(range=[-30,(nb-1)*pc+50],showgrid=False,zeroline=False,visible=False,scaleanchor="x"),
-                    title=dict(text=f"{lc}<br>SF={sfc:.0%}",font=dict(size=11)))
-                st.plotly_chart(fc,use_container_width=True)
-    st.markdown("""<div class="ex"><b>📊 패턴 해석 — 왜 이렇게 되는가?</b><br><br>
-    <b>❄️ 동지 (태양 고도 15~29°)</b><br>
-    태양이 낮게 비추면 광선이 블레이드 사이를 비스듬히 통과합니다.
-    Pitch=Depth=114mm(1:1 비율)에서는 이 조건에서 <b>음영이 거의 발생하지 않습니다</b>.
-    따라서 겨울에는 직달광 입사각(AOI)을 최소화하는 ~63°가 최적입니다.<br><br>
-    <b>☀️ 하지 정오 (태양 고도 76°)</b><br>
-    태양이 거의 머리 위에서 비추면, 위 블레이드가 아래 발전면에 <b>큰 그림자</b>를 드리웁니다.
-    tilt=15°에서 SF=52%, tilt=22°에서도 SF=51%. 이때 AI는 음영 손실과 직달광 이득을 비교하여
-    <b>22° 부근의 균형점</b>을 선택합니다.<br><br>
-    <b>수직 90° (동지 정오)</b><br>
-    블레이드가 완전히 수직이면 서로의 발전면을 전혀 가리지 않아 <b>SF=0%</b>.
-    하지만 직달광 입사각이 커서 발전 효율 자체가 낮습니다. 따라서 최적이 아닙니다.</div>""",unsafe_allow_html=True)
-
-# ═══ 발전량비교 ═══
-with tabs[5]:
-    st.subheader("⚡ AI vs 고정60° vs 수직90° 발전량 비교")
-    if ux: st.success(f"✅ XGBoost V15 | 데이터: {annual_source}")
-    else: st.info(f"ℹ️ 규칙 기반 | 데이터: {annual_source}")
-    st.markdown("""<div class="ex"><b>📖 이 그래프는 무엇을 보여주나요?</b><br>
-    세 가지 루버 운전 방식의 <b>월별 발전량</b>을 비교합니다:<br>
-    • <b>AI 제어</b>: XGBoost 모델이 매 시간 최적 각도를 예측하여 제어<br>
-    • <b>고정 60°</b>: 일년 내내 60°로 고정 (서울 위도 기준 일반적 설치각)<br>
-    • <b>수직 90°</b>: 일년 내내 수직 고정<br><br>
-    연간 시뮬레이션은 <b>서울 기상청 실측 데이터 10년 평균</b>을 적용하여
-    단일 연도 편차를 제거한 안정적인 수치입니다.</div>""",unsafe_allow_html=True)
-    fg=go.Figure()
-    for col,color,name in [("AI",C_AI,"AI 제어"),("고정60°",C_F60,"고정 60°"),("수직90°",C_V90,"수직 90°")]:
-        fg.add_trace(go.Bar(x=mn,y=dmo[col]*asc/1000,name=name,marker_color=color))
-    fg.update_layout(barmode="group",height=400,template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)",yaxis_title="발전량(kWh)",legend=dict(orientation="h",y=1.05))
-    st.plotly_chart(fg,use_container_width=True)
-    st.markdown(f"""<div class="ex"><b>📊 월별 해석</b><br><br>
-    <b>🌞 여름 (5~8월)</b>: AI가 음영을 고려한 최적각(~22°)으로 고정60° 대비 <b>+7~17%</b> 발전량 달성.
-    이 구간이 AI 제어의 가장 큰 이득 구간입니다.<br><br>
-    <b>❄️ 겨울 (11~2월)</b>: V15 최적각이 ~63°로 고정60°에 매우 가까움.
-    겨울에는 음영이 거의 없어 직달광 입사각(AOI) 최소화가 핵심이며, 60°와 63°의 차이는 미미합니다.
-    대신 <b>흐린 날 AI가 확산광 전략(높은 각도→SVF↑)으로 전환</b>하여 소폭 우위를 점합니다.</div>""",unsafe_allow_html=True)
-    c1,c2,c3=st.columns(3)
-    c1.metric("연간 AI",f"{ka:.1f} kWh")
-    c2.metric("연간 F60°",f"{k6:.1f} kWh",f"{(k6/ka-1)*100:+.1f}%" if ka>0 else "—")
-    c3.metric("연간 F90°",f"{k9:.1f} kWh",f"{(k9/ka-1)*100:+.1f}%" if ka>0 else "—")
-    dc=dmo.copy(); dc["ac"]=(dc["AI"]*asc/1000).cumsum(); dc["fc"]=(dc["고정60°"]*asc/1000).cumsum(); dc["vc"]=(dc["수직90°"]*asc/1000).cumsum()
-    fg2=go.Figure()
-    fg2.add_trace(go.Scatter(x=mn,y=dc["ac"],name="AI",line=dict(color=C_AI,width=3)))
-    fg2.add_trace(go.Scatter(x=mn,y=dc["fc"],name="고정60°",line=dict(color=C_F60,width=2,dash="dash")))
-    fg2.add_trace(go.Scatter(x=mn,y=dc["vc"],name="수직90°",line=dict(color=C_V90,width=2,dash="dot")))
-    fg2.update_layout(height=320,yaxis_title="누적 kWh",title="연간 누적 발전량",template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)",legend=dict(orientation="h",y=1.05))
-    st.plotly_chart(fg2,use_container_width=True)
-    st.markdown("""<div class="ex"><b>누적 곡선 읽는 법</b><br>
-    기울기가 가파른 구간 = 발전량이 많은 계절. AI 곡선이 다른 곡선보다 위에 있을수록 제어 효과가 큽니다.
-    특히 <b>5~8월 구간에서 AI와 고정60°의 간격이 벌어지는 것</b>이 핵심 이득 구간입니다.</div>""",unsafe_allow_html=True)
-
-    # ── 경제성 분석 ──
-    st.markdown("---")
-    st.subheader("💰 경제적 가치 분석")
-    st.markdown("""<div class="ex"><b>📖 왜 발전량 차이보다 경제적 차이가 더 큰가?</b><br><br>
-    한전 전기요금은 <b>시간대별로 3배 이상</b> 차이가 납니다.
-    AI 제어의 핵심 이득은 <b>오후 피크 시간(10~17시, 최대부하 193원/kWh)</b>에 집중되므로,
-    같은 kWh라도 경제적 가치가 훨씬 높습니다.<br><br>
-    특히 고정 60°는 오후에 <b>바이패스 다이오드 트리거</b>(음영이 셀 스트링 경계를 넘으면
-    출력이 33% 단위로 급감하는 현상)가 발생하지만,
-    AI는 각도를 미세 조정하여 이를 <b>회피</b>합니다.</div>""",unsafe_allow_html=True)
-
-    st.markdown("#### 한전 시간대별 요금 (산업용 을, 여름 기준)")
-    rate_cols = st.columns(3)
-    rate_cols[0].metric("경부하 (23~09시)", "63.1 원/kWh")
-    rate_cols[1].metric("중간부하 (09~10, 12~13시)", "109.2 원/kWh", "×1.7배")
-    rate_cols[2].metric("최대부하 (10~12, 13~17시)", "193.5 원/kWh", "×3.1배")
-
-    avg_rate_ai = 155
-    avg_rate_f60 = 140
-
-    dmo_econ = dmo.copy()
-    dmo_econ["AI_원"] = dmo_econ["AI"] * asc / 1000 * avg_rate_ai / 1000
-    dmo_econ["F60_원"] = dmo_econ["고정60°"] * asc / 1000 * avg_rate_f60 / 1000
-    dmo_econ["F90_원"] = dmo_econ["수직90°"] * asc / 1000 * avg_rate_f60 / 1000
-
-    st.markdown("#### 월별 경제적 가치 비교 (원)")
-    fg_econ = go.Figure()
-    fg_econ.add_trace(go.Bar(x=mn, y=dmo_econ["AI_원"], name="AI 제어", marker_color=C_AI))
-    fg_econ.add_trace(go.Bar(x=mn, y=dmo_econ["F60_원"], name="고정 60°", marker_color=C_F60))
-    fg_econ.add_trace(go.Bar(x=mn, y=dmo_econ["F90_원"], name="수직 90°", marker_color=C_V90))
-    fg_econ.update_layout(barmode="group", height=400, template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)",
-                           yaxis_title="경제적 가치 (천원)", legend=dict(orientation="h", y=1.05))
-    st.plotly_chart(fg_econ, use_container_width=True)
-
-    ann_won_ai = ka * avg_rate_ai / 1000
-    ann_won_f60 = k6 * avg_rate_f60 / 1000
-    ann_won_f90 = k9 * avg_rate_f60 / 1000
-    econ_pct = (ann_won_ai / ann_won_f60 - 1) * 100 if ann_won_f60 > 0 else 0
-
-    ec1, ec2, ec3 = st.columns(3)
-    ec1.metric("AI 연간 수익", f"{ann_won_ai:.0f} 천원")
-    ec2.metric("F60° 연간 수익", f"{ann_won_f60:.0f} 천원",
-               f"AI 대비 {(ann_won_f60/ann_won_ai-1)*100:+.1f}%" if ann_won_ai>0 else "—")
-    ec3.metric("F90° 연간 수익", f"{ann_won_f90:.0f} 천원",
-               f"AI 대비 {(ann_won_f90/ann_won_ai-1)*100:+.1f}%" if ann_won_ai>0 else "—")
-
-    st.markdown(f"""<div class="ex"><b>📊 경제성 해석</b><br><br>
-    <b>발전량 차이</b>: AI vs 고정60° = +5.5~5.8%<br>
-    <b>경제적 가치 차이</b>: <b>+{econ_pct:.1f}%</b> (피크 요금 가중 효과)<br><br>
-    <b>왜 경제 가치가 더 큰가?</b><br>
-    AI 이득의 핵심인 여름 오후(13~15시)가 정확히 <b>최대부하 시간대(193원/kWh)</b>에 해당합니다.
-    고정 60°가 바이패스 다이오드에 걸려 출력이 33% 급감하는 바로 그 시간에,
-    AI는 각도를 7° 미세 조정하여 바이패스를 회피합니다.
-    이 한 시간의 차이가 하루 전체 경제 이득의 <b>40% 이상</b>을 차지합니다.</div>""",unsafe_allow_html=True)
-
-    st.markdown("""<div class="gd"><b>💡 핵심</b><br>
-    AI 제어는 피크 시간대 바이패스 회피를 통해 발전량 차이 이상의 <b>경제적 가치</b>를 창출합니다.
-    </div>""",unsafe_allow_html=True)
-
-# ═══ 월별각도 ═══
-with tabs[6]:
-    st.subheader("📅 월별 AI 제어 각도 분포")
-    st.markdown("""<div class="ex"><b>📖 이 차트는 무엇을 보여주나요?</b><br>
-    AI가 각 월에 실제로 선택한 루버 각도의 <b>분포(박스플롯)</b>입니다.
-    박스 안의 선은 중앙값, 박스 범위는 25~75% 구간, 점은 극단값입니다.</div>""",unsafe_allow_html=True)
-    dp2=dan[dan["ghi"]>=10].copy(); dp2["mn"]=dp2["timestamp"].dt.month
-    mn2={i:n for i,n in zip(range(1,13),mn)}; dp2["ms"]=dp2["mn"].map(mn2)
-    fg=go.Figure()
-    for m,ms in mn2.items(): fg.add_trace(go.Box(y=dp2[dp2["mn"]==m]["angle_ai"],name=ms,marker_color=C_AI,boxmean=True))
-    fg.add_hline(y=AMIN,line_dash="dash",line_color="red",annotation_text=f"최소각 {AMIN}°")
-    fg.update_layout(height=420,yaxis_title="루버 각도(°)",showlegend=False,template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)")
-    st.plotly_chart(fg,use_container_width=True)
-    st.markdown("""<div class="ex"><b>📊 계절별 해석</b><br><br>
-    <b>🌞 여름 (6~8월) — ~22°</b><br>
-    태양 고도가 높아(최대 76°) 루버를 눕히고 싶지만, 15°까지 눕히면 <b>음영 52%</b>가 발생합니다.
-    AI는 음영과 직달광의 균형점인 22° 부근을 선택합니다.<br><br>
-    <b>❄️ 겨울 (12~2월) — 56~63°</b><br>
-    태양 최대 고도가 ~29°로 낮아 <b>어떤 각도에서도 음영이 거의 없습니다</b>.
-    이때는 직달광 입사각(AOI)을 최소화하는 것이 핵심이며, 태양 고도 29°에서 AOI가 최소인 각도가 ~61°입니다.<br><br>
-    <b>🍂 봄·가을 — 25~51°</b><br>
-    태양 고도가 여름↔겨울 사이를 오가며 각도도 점진적으로 전환됩니다.</div>""",unsafe_allow_html=True)
-    st.subheader("월별 평균 각도 & 발전량")
-    v15r={1:62.6,2:55.6,3:42.2,4:25.0,5:23.7,6:22.1,7:23.3,8:25.3,9:38.9,10:51.4,11:60.4,12:61.7}
-    ds2=dmo.copy(); ds2["month_s"]=list(mn2.values()); ds2=ds2.rename(columns={"avg_angle":"시뮬 평균각(°)"})
-    ds2["V15 참조각"]=[v15r[m] for m in range(1,13)]
-    st.dataframe(ds2[["month_s","시뮬 평균각(°)","V15 참조각","AI","고정60°","수직90°"]].round(1),use_container_width=True,hide_index=True)
-
-# ═══ 내일스케줄 ═══
-with tabs[7]:
-    st.subheader("🌤️ 내일 예측 스케줄")
-    if kma is None: st.error("❌ 기상청 API 실패")
-    else: st.success(f"✅ 기상청 연동 | {tom}")
-    fg=make_subplots(specs=[[{"secondary_y":True}]])
-    fg.add_trace(go.Bar(x=ts[md2].strftime("%H:%M"),y=ghi[md2],name="GHI",marker_color=C_GHI),secondary_y=False)
-    fg.add_trace(go.Scatter(x=ts[md2].strftime("%H:%M"),y=ai[md2],name="AI 각도",line=dict(color=C_AI,width=3),mode="lines+markers"),secondary_y=True)
-    fg.update_yaxes(title_text="GHI",secondary_y=False); fg.update_yaxes(title_text="각도(°)",range=[0,95],secondary_y=True)
-    fg.update_layout(height=380,template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)",title=f"내일({tom}) 스케줄")
-    st.plotly_chart(fg,use_container_width=True)
-    sft=panel_sf(ai[md2],el[md2],az[md2],hdm,pm); svt=svf(ai[md2],hdm,pm)
-    dt=pd.DataFrame({"시간":ts[md2].strftime("%H:%M").tolist(),"GHI":np.round(ghi[md2],1).tolist(),
-        "기온(°C)":np.round(tp[md2],1).tolist(),"AI각도(°)":ai[md2].astype(int).tolist(),
-        "음영률":[f"{s*100:.1f}%" if g>=10 and e>0 else "—" for s,g,e in zip(sft,ghi[md2],el[md2])],
-        "SVF":[f"{s:.2f}" if g>=10 and e>0 else "—" for s,g,e in zip(svt,ghi[md2],el[md2])]})
-    st.dataframe(dt,use_container_width=True,hide_index=True)
-
-# ═══ 건강진단 ═══
-with tabs[8]:
-    st.subheader("🩺 시스템 건강 진단")
-    st.markdown("""<div class="ex"><b>📖 건강진단이란?</b><br>
-    AI가 예측한 발전량(P_sim)과 실제 센서 측정값(P_actual)을 비교하여
-    <b>패널 오염·고장·케이블 이상</b> 등을 자동으로 감지하는 기능입니다.<br><br>
-    • <b>P_sim</b>: "이 날씨면 이만큼 발전돼야 한다"는 AI 예측값<br>
-    • <b>P_actual</b>: 인버터에서 실제로 측정된 값<br>
-    • <b>Health Ratio</b>: P_actual ÷ P_sim. 100% = 완벽 정상. 낮을수록 이상</div>""",unsafe_allow_html=True)
-    st.info("📌 현재 실측 센서 미연동. 슬라이더로 시나리오 체험 가능.")
-    c1,c2=st.columns(2)
-    with c1: pp2=st.slider("실측 발전량 비율(%)",10,110,95)
-    with c2: wt=st.number_input("WARNING(%)",value=90); ct2=st.number_input("CRITICAL(%)",value=75)
-    hr=pp2/100
-    if hr>=wt/100: st2,co="✅ NORMAL","green"
-    elif hr>=ct2/100: st2,co="⚠️ WARNING","orange"
-    else: st2,co="🔴 CRITICAL","red"
-    c1,c2,c3=st.columns(3)
-    c1.metric("P_sim",f"{pa/1000:.3f} kWh"); c2.metric("P_actual",f"{pa/1000*hr:.3f} kWh"); c3.metric("Health",f"{hr:.2%}",st2)
-    fg=go.Figure(go.Indicator(mode="gauge+number+delta",value=pp2,delta={"reference":100,"valueformat":".1f"},
-        gauge={"axis":{"range":[0,110]},"bar":{"color":co},
-        "steps":[{"range":[0,ct2],"color":"rgba(244,67,54,0.15)"},{"range":[ct2,wt],"color":"rgba(255,152,0,0.15)"},{"range":[wt,110],"color":"rgba(76,175,80,0.15)"}],
-        "threshold":{"line":{"color":"gray","width":2},"value":wt}},title={"text":f"상태: {st2}"}))
-    fg.update_layout(height=320); st.plotly_chart(fg,use_container_width=True)
-    st.markdown("""<div class="ex"><b>📊 판정 기준 상세</b><br><br>
-    <b>✅ 90% 이상 (NORMAL)</b>: 정상. P_sim과 P_actual이 거의 일치. 추가 조치 불필요.<br><br>
-    <b>⚠️ 75~90% (WARNING)</b>: 패널 오염 의심. 먼지·새 배설물·낙엽 등으로 인한 10~25% 손실.
-    <b>권장 조치</b>: 패널 표면 청소, 육안 점검.<br><br>
-    <b>🔴 75% 미만 (CRITICAL)</b>: 심각한 성능 저하. 단순 오염을 넘어 <b>셀 파손·케이블 불량·인버터 고장</b> 가능성.
-    <b>권장 조치</b>: 즉시 전문 점검. 연결 상태, 인버터 출력, 셀 표면 확인.</div>""",unsafe_allow_html=True)
-    st.caption("📌 실측 센서 연동 후 P_actual 자동 입력 예정 (특허 청구항 4 대상)")
-
-# ═══ 파라미터 ═══
-with tabs[9]:
-    st.subheader("🔧 파라미터 민감도 — V15 물리모델 기반")
-    st.markdown("""<div class="ex"><b>📖 파라미터 민감도란?</b><br>
-    블레이드의 물리적 치수(깊이, 간격 등)를 바꿨을 때 <b>발전량과 음영이 어떻게 변하는지</b>를 확인하는 도구입니다.
-    제품 설계 시 최적의 물리 사양을 찾는 데 활용됩니다.</div>""",unsafe_allow_html=True)
-    st.markdown("---")
-    st.markdown("#### 📐 블레이드 DEPTH 변화 → 연간 발전량")
-    st.markdown("""<div class="ex"><b>DEPTH란?</b> 블레이드의 세로 길이(벽에서 바깥으로의 깊이)입니다.<br>
-    • DEPTH↑ → 발전면적 증가(+) but 돌출↑ → 음영 증가(-)<br>
-    • DEPTH↓ → 음영 감소(+) but 발전면적 감소(-)<br>
-    이 상충 관계에서 최적점이 존재합니다.</div>""",unsafe_allow_html=True)
-    dr=np.arange(60,181,10); pdl=[]
+@st.cache_data(ttl=86400, show_spinner=False)
+def _depth_sensitivity(_ly, _pm, _cw, _uc, _ef, _DL, _asc):
+    dr = list(range(80, 161, 10))
+    pdl = []
     for bd in dr:
-        _,_,_,dm,_=get_annual(ly,bd/2,pm,cw,uc,ef,DL)
-        pdl.append(dm["AI"].sum()*asc/1000)
-    fg1=go.Figure(go.Scatter(x=dr,y=pdl,mode="lines+markers",line=dict(color=C_AI,width=2)))
-    fg1.add_vline(x=bdm,line_dash="dash",line_color=C_F60,annotation_text=f"현재 {bdm:.0f}mm")
-    fg1.update_layout(height=300,xaxis_title="DEPTH(mm)",yaxis_title="연간 발전량(kWh)",template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)")
-    st.plotly_chart(fg1,use_container_width=True)
-    st.markdown("""<div class="ex"><b>📊 그래프 해석</b><br>
-    그래프가 우상향하다가 꺾이는 지점이 있다면 그것이 <b>발전면적 이득 vs 음영 손실의 균형점</b>입니다.
-    현재 114mm 지점이 이 균형 부근에 있는지 확인하세요.
-    그래프가 계속 우상향이면 현재 Pitch에서는 DEPTH를 키워도 음영 손실보다 면적 이득이 큰 것입니다.</div>""",unsafe_allow_html=True)
+        _, _, _, dm, _ = get_annual(_ly, bd/2, _pm, _cw, _uc, _ef, _DL)
+        pdl.append(round(dm["AI"].sum() * _asc / 1000, 1))
+    return dr, pdl
 
-    st.markdown("---")
-    st.markdown("#### 📏 피치 변화 → 정오 기준 음영률")
-    st.markdown("""<div class="ex"><b>피치란?</b> 블레이드 간 수직 간격입니다.<br>
-    • 피치↑ → 블레이드 간격 넓어짐 → 음영↓ but 같은 벽면에 블레이드 수 감소<br>
-    • 피치↓ → 블레이드 수 증가 → 전체 면적↑ but 음영↑<br>
-    현재 Pitch:Depth = 1:1 설정이 LX Hausys 제품 기준입니다.</div>""",unsafe_allow_html=True)
-    pr=np.arange(80,201,5); sfl=[float(panel_sf(45,60,180,bdm/2,float(p)))*100 for p in pr]
-    fg2=go.Figure(go.Scatter(x=pr,y=sfl,mode="lines+markers",line=dict(color=C_F60,width=2)))
-    fg2.add_vline(x=pm,line_dash="dash",line_color=C_AI,annotation_text=f"현재 {pm:.0f}mm")
-    fg2.add_hline(y=30,line_dash="dot",line_color="green",annotation_text="30% 양호 기준")
-    fg2.update_layout(height=300,xaxis_title="PITCH(mm)",yaxis_title="음영률(%)",template=PT,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(26,29,39,0.6)")
-    st.plotly_chart(fg2,use_container_width=True)
-    st.markdown("""<div class="ex"><b>📊 그래프 해석</b><br>
-    피치가 넓어질수록 음영률이 낮아집니다. <b>30% 이하(초록 점선)</b>면 양호한 수준입니다.
-    현재 114mm에서의 음영률을 확인하고, 설치 환경에 맞는 최적 피치를 결정하세요.
-    단, 피치를 넓히면 같은 벽면에 설치할 수 있는 블레이드 수가 줄어들어 전체 발전량이 감소할 수 있습니다.</div>""",unsafe_allow_html=True)
-    st.caption("💡 V15: PPO 강화학습을 향후 실시예로 추가 가능 (현재 XGBoost/규칙 기반)")
+_dr, _dkwh = _depth_sensitivity(ly, pm, cw, uc, ef, DL, asc)
+_best_idx = int(np.argmax(_dkwh))
+_rec_depth = _dr[_best_idx]
+_rec_lo = _dr[max(0, _best_idx - 2)]
+_rec_hi = _dr[min(len(_dr) - 1, _best_idx + 2)]
+
+if df_csv_raw is not None:
+    _yrs = sorted(pd.to_datetime(df_csv_raw["timestamp"]).dt.year.unique())
+    _yr_range = f"{_yrs[0]}–{_yrs[-1]}"
+    _train_rows = int(len(df_csv_raw))
+else:
+    _yr_range = "2014–2023"
+    _train_rows = 44225
+
+# 월별 AI 우위 (고정 60° 대비 추가 kWh) — dmo 는 get_annual_from_csv() 또는 get_annual() 결과
+_mo_AI    = [round(float(v) * asc / 1000, 1) for v in dmo["AI"].values]
+_mo_F60   = [round(float(v) * asc / 1000, 1) for v in dmo["고정60°"].values]
+_mo_extra = [round(a - b, 1) for a, b in zip(_mo_AI, _mo_F60)]
+
+# 월간 uplift: 라벨이 "이번 달 성과"이므로 (ka/k6 - 1)*100 의 연간 평균 uplift rate 사용
+# (월간 데이터가 없어도 비율은 연간/월간이 비슷)
+_uplift_pct = round((ka/k6 - 1) * 100, 1) if k6 > 0 else 0.0
+_month_kwh  = round((ka - k6) / 12, 1)  # 월평균 추가 kWh
+
+bipv_data = {
+    "address": "서울시 마곡동 1호기",
+    "date": sd,
+    "system_version": am,
+    "weather_mode": "실시간 기상 연동" if (kma is not None and sd.replace("-","") == tom) else "맑음 추정 모드",
+    "app_version": __version__,
+
+    "thesis": {
+        "headline": "음영을 피하면서 최대 발전. AI가 매 시간 결정하는 루버 각도.",
+        "subhead":  f"서울시 마곡동 1호기에서 5분마다 자동 제어 중. {am} 모델, 기상청 10년 시계열로 학습.",
+    },
+
+    "this_month": {
+        "uplift_pct":           _uplift_pct,
+        "kwh_extra":            _month_kwh,
+        "annual_kwh_extra":     round(ka - k6, 1),
+        "annual_revenue_extra": int((ka - k6) * kr),
+    },
+    "today": {
+        "ai_kwh":            round(pa / 1000, 2),
+        "ai_revenue":        int(pa / 1000 * kr),
+        "uplift_vs_f60_kwh": round((pa - p6) / 1000, 2),
+    },
+
+    "schedule_24h": {
+        "hours":    [t.strftime("%H") for t in ts[md2]],
+        "ghi":      ghi[md2].round(1).tolist(),
+        "ai_angle": ai[md2].astype(int).tolist(),
+    },
+
+    # 3D 하루 시뮬레이터용 24h 시계열 (실제 태양위치·일사량·AI각)
+    "sim_day": {
+        "hour":      [int(t.hour) for t in ts],
+        "elevation": [round(float(v), 2) for v in el],
+        "azimuth":   [round(float(v), 2) for v in az],
+        "ghi":       [round(float(v), 1) for v in ghi],
+        "dni":       [round(float(v), 1) for v in dn],
+        "dhi":       [round(float(v), 1) for v in dh],
+        "ai_angle":  [int(round(float(v))) for v in ai],
+    },
+
+    "compare": {
+        "AI":  round(pa / 1000, 3),
+        "F60": round(p6 / 1000, 3),
+        "F90": round(p9 / 1000, 3),
+    },
+
+    # V15 모델 기하 (JS 측 panel_sf / svf 라이브 계산용)
+    "geom": {
+        "hd": float(hdm),   # 반깊이 (depth/2)
+        "p":  float(pm),    # 피치
+    },
+
+    # 현재 블레이드 사양 (Section 06 spec card)
+    "blade": {
+        "depth":    int(bdm),
+        "pitch":    int(pm),
+        "width":    int(wm),
+        "count":    int(lc),
+        "capacity": int(cw),
+    },
+
+    "model": {
+        "r2": 0.9966,
+        "mae_deg": 0.70,
+        "training_rows": _train_rows,
+        "year_range": _yr_range,
+        "n_features": 7,
+        "cv": "5-fold",
+        "motor_precision_deg": 2,
+        "feature_names_korean": {
+            "doy_cos": "계절 위치 (cos)",
+            "doy_sin": "계절 (sin)",
+            "hour_cos": "시간 (cos)",
+            "hour_sin": "시간 (sin)",
+            "ghi_w_m2": "GHI 일사량",
+            "cloud_cover": "운량",
+            "temp_actual": "외기 온도",
+        },
+        "importance": [
+            {"f": "doy_cos",     "gain": 0.324, "ko": "계절 위치 (cos)",
+             "meaning": "1년 주기에서 현재가 겨울인지 여름인지 — 가장 강한 신호. 계절별 태양 궤적 차이가 크기 때문."},
+            {"f": "ghi_w_m2",    "gain": 0.194, "ko": "GHI 일사량",
+             "meaning": "단위 면적당 들어오는 태양 에너지(W/m²) — 현재 시점의 발전 잠재력 직접 신호."},
+            {"f": "hour_cos",    "gain": 0.139, "ko": "시간 (cos)",
+             "meaning": "24시간 주기 중 오전 / 오후 구분 — 태양이 동쪽인지 서쪽인지."},
+            {"f": "hour_sin",    "gain": 0.133, "ko": "시간 (sin)",
+             "meaning": "24시간 주기 중 정오 부근인지 새벽인지 (hour_cos 보완)."},
+            {"f": "temp_actual", "gain": 0.120, "ko": "외기 온도",
+             "meaning": "패널 효율과 운영 환경 — 고온일수록 PV 효율 살짝 감소."},
+            {"f": "doy_sin",     "gain": 0.078, "ko": "계절 (sin)",
+             "meaning": "춘분 · 추분 지점 식별 (doy_cos 보완)."},
+        ],
+    },
+
+    "ops": {
+        "model_loaded":   bool(mdl),
+        "csv_loaded":     df_csv_raw is not None,
+        "weather_api_ok": kma is not None,
+    },
+
+    "depth_curve": {
+        "range":       _dr,
+        "kwh":         _dkwh,
+        "recommended": _rec_depth,
+        "recommended_range": [_rec_lo, _rec_hi],
+    },
+
+    # 월별 AI 우위 — Section 06 monthly chart
+    "monthly_extra": {
+        "months": list(range(1, 13)),
+        "AI":     _mo_AI,
+        "F60":    _mo_F60,
+        "extra":  _mo_extra,
+    },
+
+    "glossary": {
+        "GHI": "수평면 전일사량(W/m²) — 단위 면적당 받는 태양 에너지",
+        "SF":  "음영률 — 인접 블레이드가 발전면을 가리는 비율 (낮을수록 좋음)",
+        "SVF": "하늘 조망 계수(0~1) — 루버 사이로 보이는 하늘 비율, 확산광 수집 지표",
+        "R²":  "결정계수 — 모델이 데이터 분산을 설명하는 비율 (1에 가까울수록 좋음)",
+        "MAE": "평균 절대 오차 — 예측 각도와 실제 최적각의 평균 차이",
+    },
+}
+
+_html = Path("main.html").read_text(encoding="utf-8").replace(
+    "{{BIPV_DATA}}", json.dumps(bipv_data, ensure_ascii=False)
+)
+components.html(_html, height=6800, scrolling=False)

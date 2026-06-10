@@ -1,0 +1,396 @@
+<!--
+  BIPV Dashboard — 운영 진단 (Operations) tab
+  Inherits design tokens from main_screen.html.
+  Data injection: replace the BIPV_DATA placeholder with json.dumps(payload).
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.17.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<style>
+  .bipv-root {
+    --bg:#0A0A0C; --surface:#111114; --surface-hi:#16161A;
+    --border:#1F1F23; --border-hi:#2A2A2E;
+    --text-1:#E8E8EC; --text-2:#9A9AA3; --text-3:#5C5C64;
+    --accent:#7F77DD; --accent-strong:#9A93EA;
+    --accent-soft:rgba(127,119,221,0.18); --accent-line:rgba(127,119,221,0.42);
+    --cmp-1:#4A4A52; --cmp-2:#2E2E34;
+    --status:#6FD49C; --warn:#E0B85B; --bad:#E07A6F;
+
+    background:var(--bg); color:var(--text-1);
+    font-family:'Pretendard Variable','Pretendard','Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    font-size:14px; line-height:1.5; letter-spacing:-0.005em;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    padding:28px 32px 36px; min-height:100vh; box-sizing:border-box;
+  }
+  .bipv-root *, .bipv-root *::before, .bipv-root *::after { box-sizing:border-box; }
+  .bipv-root .num { font-family:'Inter',sans-serif; font-feature-settings:'tnum','ss01'; font-variant-numeric:tabular-nums; }
+
+  .bp-header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding-bottom:22px; border-bottom:1px solid var(--border); }
+  .bp-brand { display:flex; align-items:center; gap:14px; }
+  .bp-mark { width:34px; height:34px; display:grid; place-items:center; border:1px solid var(--border-hi); border-radius:7px; background:var(--surface); }
+  .bp-title { font-size:13px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; }
+  .bp-meta { margin-top:5px; font-size:12px; color:var(--text-3); font-variant-numeric:tabular-nums; }
+  .bp-meta span + span::before { content:""; display:inline-block; width:3px; height:3px; border-radius:50%; background:var(--border-hi); margin:0 9px 2px; vertical-align:middle; }
+  .bp-status { display:inline-flex; align-items:center; gap:8px; padding:7px 13px; border:1px solid var(--border); border-radius:999px; background:var(--surface); font-size:12px; color:var(--text-2); }
+  .bp-status .dot { width:6px; height:6px; border-radius:50%; box-shadow:0 0 0 3px rgba(111,212,156,0.12); }
+  .bp-status .dot.ok { background:var(--status); }
+  .bp-status .dot.warn { background:var(--warn); box-shadow:0 0 0 3px rgba(224,184,91,0.12); }
+  .bp-status .dot.bad { background:var(--bad); box-shadow:0 0 0 3px rgba(224,122,111,0.12); }
+  .bp-status strong { color:var(--text-1); font-weight:500; }
+
+  /* Hero */
+  .bp-hero { display:flex; align-items:flex-end; justify-content:space-between; gap:32px; padding:32px 0 28px; border-bottom:1px solid var(--border); }
+  .bp-hero-left { max-width:620px; }
+  .bp-hero-eyebrow { font-size:11px; color:var(--text-3); letter-spacing:0.14em; text-transform:uppercase; margin-bottom:14px; display:inline-flex; align-items:center; gap:8px; }
+  .bp-hero-eyebrow .ti { font-size:13px; }
+  .bp-hero-h1 { font-size:28px; font-weight:600; letter-spacing:-0.022em; line-height:1.2; }
+  .bp-hero-sub { margin-top:12px; font-size:13px; color:var(--text-2); max-width:520px; }
+  .bp-hero-overall { text-align:right; }
+  .bp-hero-overall-label { font-size:11px; color:var(--text-3); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:10px; }
+  .bp-hero-overall-val { display:inline-flex; align-items:center; gap:10px; padding:8px 14px; border:1px solid var(--border-hi); border-radius:999px; background:var(--surface); }
+  .bp-hero-overall-val .pip { width:8px; height:8px; border-radius:50%; }
+  .bp-hero-overall-val .label { font-size:13px; color:var(--text-1); font-weight:500; }
+
+  /* Health cards */
+  .bp-health { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; padding-top:24px; }
+  .bp-h-card { padding:18px; border:1px solid var(--border); border-radius:10px; background:var(--surface); position:relative; }
+  .bp-h-card.ok { border-color: rgba(111,212,156,0.22); }
+  .bp-h-card.warn { border-color: rgba(224,184,91,0.22); }
+  .bp-h-card.bad { border-color: rgba(224,122,111,0.22); }
+  .bp-h-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .bp-h-icon { width:30px; height:30px; border-radius:6px; display:grid; place-items:center; }
+  .bp-h-icon.ok { background:rgba(111,212,156,0.10); color:var(--status); border:1px solid rgba(111,212,156,0.22); }
+  .bp-h-icon.warn { background:rgba(224,184,91,0.10); color:var(--warn); border:1px solid rgba(224,184,91,0.22); }
+  .bp-h-icon.bad { background:rgba(224,122,111,0.10); color:var(--bad); border:1px solid rgba(224,122,111,0.22); }
+  .bp-h-icon .ti { font-size:15px; }
+  .bp-h-pip { font-size:10.5px; padding:3px 8px; border-radius:4px; letter-spacing:0.05em; font-weight:500; }
+  .bp-h-pip.ok { background:rgba(111,212,156,0.10); color:var(--status); border:1px solid rgba(111,212,156,0.22); }
+  .bp-h-pip.warn { background:rgba(224,184,91,0.10); color:var(--warn); border:1px solid rgba(224,184,91,0.22); }
+  .bp-h-pip.bad { background:rgba(224,122,111,0.10); color:var(--bad); border:1px solid rgba(224,122,111,0.22); }
+  .bp-h-label { font-size:11px; color:var(--text-3); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:6px; }
+  .bp-h-value { font-size:18px; font-weight:500; letter-spacing:-0.015em; color:var(--text-1); line-height:1.18; }
+  .bp-h-value .unit { font-size:12px; color:var(--text-3); margin-left:4px; font-weight:400; }
+  .bp-h-note { font-size:11.5px; color:var(--text-3); margin-top:10px; line-height:1.5; }
+
+  /* Sensitivity section */
+  .bp-section-title { font-size:14px; font-weight:500; color:var(--text-1); }
+  .bp-section-sub { font-size:11.5px; color:var(--text-3); margin-top:3px; }
+  .bp-sens-row { display:grid; grid-template-columns:minmax(0, 1.7fr) minmax(0, 1fr); gap:18px; padding-top:28px; }
+  .bp-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:22px 24px 20px; }
+  .bp-chart-wrap { margin-top:18px; height:300px; position:relative; }
+
+  /* Params right panel */
+  .bp-params { display:flex; flex-direction:column; gap:0; }
+  .bp-params-row { display:flex; align-items:flex-end; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
+  .bp-params-row:last-child { border-bottom:none; }
+  .bp-params-key { font-size:12px; color:var(--text-3); }
+  .bp-params-val { font-size:18px; font-weight:500; letter-spacing:-0.02em; color:var(--text-1); line-height:1; }
+  .bp-params-val .unit { font-size:11px; color:var(--text-3); margin-left:3px; font-weight:400; }
+  .bp-params-tag { display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:4px 9px; border:1px solid var(--accent-line); background:var(--accent-soft); color:var(--accent-strong); border-radius:4px; margin-left:8px; }
+
+  .bp-recommend { margin-top:14px; padding:12px 14px; border:1px solid var(--accent-line); background:var(--accent-soft); border-radius:8px; font-size:12px; color:var(--text-1); display:flex; align-items:center; gap:9px; }
+  .bp-recommend .ti { color:var(--accent-strong); font-size:14px; }
+
+  .bp-foot { margin-top:18px; font-size:11.5px; color:var(--text-3); display:inline-flex; align-items:center; gap:7px; }
+  .bp-foot .ti { font-size:13px; }
+
+  @media (max-width: 1080px) {
+    .bp-health { grid-template-columns: repeat(2, 1fr); }
+    .bp-sens-row { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="bipv-root" id="bipv-root">
+
+  <header class="bp-header">
+    <div class="bp-brand">
+      <div class="bp-mark">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <line x1="3.5" y1="4.5" x2="14.5" y2="3.2" />
+          <line x1="3.5" y1="9" x2="14.5" y2="9" stroke="#7F77DD" stroke-width="1.6" />
+          <line x1="3.5" y1="13.5" x2="14.5" y2="14.8" />
+        </svg>
+      </div>
+      <div>
+        <div class="bp-title">BIPV Control — 운영 진단</div>
+        <div class="bp-meta">
+          <span id="bp-loc">서울</span>
+          <span id="bp-date" class="num">2026.05.14</span>
+          <span id="bp-version">v9.3</span>
+        </div>
+      </div>
+    </div>
+    <div class="bp-status" id="bp-overall-chip">
+      <span class="dot ok"></span>
+      <span>전체 상태</span>
+      <span style="color:var(--border-hi); margin:0 1px;">·</span>
+      <strong id="bp-overall-label">정상</strong>
+    </div>
+  </header>
+
+  <section class="bp-hero">
+    <div class="bp-hero-left">
+      <div class="bp-hero-eyebrow"><i class="ti ti-activity"></i> 시스템 운영 상태</div>
+      <div class="bp-hero-h1">현재 운영에 영향을 주는 4개 시스템 의존성이 점검됩니다.</div>
+      <div class="bp-hero-sub">하나라도 비정상이면 예측 정확도 또는 데이터 신선도가 떨어집니다. 아래 카드의 상태를 매 세션 시작 시 한 번 확인하세요.</div>
+    </div>
+    <div class="bp-hero-overall">
+      <div class="bp-hero-overall-label">서비스 가용성</div>
+      <div class="bp-hero-overall-val">
+        <span class="pip" id="bp-overall-pip" style="background:var(--status);"></span>
+        <span class="label" id="bp-overall-summary">3/4 정상 · 1 주의</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 health cards -->
+  <div class="bp-health" id="bp-health"></div>
+
+  <!-- Sensitivity + params -->
+  <div class="bp-sens-row">
+
+    <div class="bp-card">
+      <div>
+        <div class="bp-section-title">DEPTH 민감도 — 연간 발전량</div>
+        <div class="bp-section-sub">블레이드 깊이 80–160mm 변화에 따른 시뮬레이션 발전량. 현재 설정과 권장 구간을 함께 표시.</div>
+      </div>
+      <div class="bp-chart-wrap">
+        <canvas id="bp-depth-curve"></canvas>
+      </div>
+    </div>
+
+    <div class="bp-card">
+      <div>
+        <div class="bp-section-title">현재 블레이드 사양</div>
+        <div class="bp-section-sub">사이드바에서 조정한 물리 파라미터</div>
+      </div>
+      <div class="bp-params" style="margin-top:12px;">
+        <div class="bp-params-row">
+          <span class="bp-params-key">DEPTH</span>
+          <span class="bp-params-val num"><span id="bp-cur-depth">114</span><span class="unit">mm</span></span>
+        </div>
+        <div class="bp-params-row">
+          <span class="bp-params-key">PITCH</span>
+          <span class="bp-params-val num"><span id="bp-cur-pitch">114</span><span class="unit">mm</span></span>
+        </div>
+        <div class="bp-params-row">
+          <span class="bp-params-key">Pitch / Depth</span>
+          <span class="bp-params-val num"><span id="bp-cur-ratio">1.00</span></span>
+        </div>
+        <div class="bp-params-row">
+          <span class="bp-params-key">블레이드 가로</span>
+          <span class="bp-params-val num"><span id="bp-cur-width">900</span><span class="unit">mm</span></span>
+        </div>
+        <div class="bp-params-row">
+          <span class="bp-params-key">블레이드 수</span>
+          <span class="bp-params-val num"><span id="bp-cur-count">20</span></span>
+        </div>
+      </div>
+      <div class="bp-recommend">
+        <i class="ti ti-bulb"></i>
+        <span>권장 DEPTH 범위: <strong class="num" id="bp-rec-range">100–130 mm</strong> · 권장값 <strong class="num" id="bp-rec-best">114 mm</strong></span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bp-foot">
+    <i class="ti ti-info-circle"></i>
+    민감도 곡선은 현재 Pitch 고정, 시뮬레이션 시간 단위(시간별 기상 평균) 기준입니다.
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const FALLBACK = {
+    location: "서울", date: "2026.05.14", version: "v9.3",
+    health: [
+      { key:"model", label:"XGBoost 모델", value:"V15 로드 완료", note:"파일 크기 1.3 MB · 캐시 사용", status:"ok", icon:"cpu" },
+      { key:"csv",   label:"학습 CSV",     value:"2014–2023 (10년)", note:"44,225행 · 마지막 갱신 24h 이내", status:"ok", icon:"database" },
+      { key:"kma",   label:"기상청 API",   value:"연동 정상",        note:"단기예보 / 초단기실황 동기화", status:"ok", icon:"cloud" },
+      { key:"motor", label:"제어 모터",    value:"실측 미연동",       note:"센서 연동은 특허 청구항 4 대상", status:"warn", icon:"settings" }
+    ],
+    blade: { depth:114, pitch:114, width:900, count:20 },
+    depth_range: [80,90,100,110,120,130,140,150,160],
+    depth_kwh:   [538.0,572.0,599.0,617.0,621.6,615.0,599.0,575.0,548.0],
+    recommended_depth: 114,
+    recommended_range: [100, 130]
+  };
+  let data = {{BIPV_DATA}};
+  if (!data || typeof data !== "object") data = FALLBACK;
+
+  const $ = (id) => document.getElementById(id);
+  $("bp-loc").textContent = data.location ?? "—";
+  $("bp-date").textContent = data.date ?? "—";
+  $("bp-version").textContent = data.version ?? "—";
+
+  const blade = data.blade ?? FALLBACK.blade;
+  $("bp-cur-depth").textContent = blade.depth;
+  $("bp-cur-pitch").textContent = blade.pitch;
+  $("bp-cur-ratio").textContent = (blade.pitch / blade.depth).toFixed(2);
+  $("bp-cur-width").textContent = blade.width;
+  $("bp-cur-count").textContent = blade.count;
+
+  const recBest = data.recommended_depth ?? 114;
+  const recRange = data.recommended_range ?? [100, 130];
+  $("bp-rec-best").textContent = `${recBest} mm`;
+  $("bp-rec-range").textContent = `${recRange[0]}–${recRange[1]} mm`;
+
+  // ----- Health cards -----
+  const health = data.health ?? FALLBACK.health;
+  const okCount = health.filter(h => h.status === "ok").length;
+  const warnCount = health.filter(h => h.status === "warn").length;
+  const badCount = health.filter(h => h.status === "bad").length;
+
+  // Overall chip
+  const chip = $("bp-overall-chip");
+  const chipDot = chip.querySelector(".dot");
+  const overallLabel = $("bp-overall-label");
+  const overallPip = $("bp-overall-pip");
+  const overallSummary = $("bp-overall-summary");
+  let overallStatus = "ok", overallText = "정상";
+  if (badCount > 0) { overallStatus = "bad"; overallText = "이상 감지"; }
+  else if (warnCount > 0) { overallStatus = "warn"; overallText = "주의"; }
+  chipDot.className = "dot " + overallStatus;
+  overallLabel.textContent = overallText;
+  const palette = { ok:"#6FD49C", warn:"#E0B85B", bad:"#E07A6F" };
+  overallPip.style.background = palette[overallStatus];
+  const parts = [];
+  if (okCount) parts.push(`${okCount} 정상`);
+  if (warnCount) parts.push(`${warnCount} 주의`);
+  if (badCount) parts.push(`${badCount} 이상`);
+  overallSummary.textContent = `${okCount + warnCount + badCount}/4 · ${parts.join(" · ")}`;
+
+  const STATUS_LABEL = { ok: "OK", warn: "주의", bad: "이상" };
+  const healthGrid = $("bp-health");
+  health.forEach(h => {
+    const card = document.createElement("div");
+    card.className = "bp-h-card " + h.status;
+    card.innerHTML = `
+      <div class="bp-h-top">
+        <div class="bp-h-icon ${h.status}"><i class="ti ti-${h.icon || 'check'}"></i></div>
+        <span class="bp-h-pip ${h.status}">${STATUS_LABEL[h.status] || h.status}</span>
+      </div>
+      <div class="bp-h-label">${h.label}</div>
+      <div class="bp-h-value">${h.value}</div>
+      <div class="bp-h-note">${h.note}</div>
+    `;
+    healthGrid.appendChild(card);
+  });
+
+  // ----- Chart.js defaults -----
+  const css = getComputedStyle(document.getElementById("bipv-root"));
+  const T1 = css.getPropertyValue("--text-1").trim();
+  const T2 = css.getPropertyValue("--text-2").trim();
+  const T3 = css.getPropertyValue("--text-3").trim();
+  const BORDER = css.getPropertyValue("--border").trim();
+  const BORDER_HI = css.getPropertyValue("--border-hi").trim();
+  const ACC = css.getPropertyValue("--accent").trim();
+  const ACC_STRONG = css.getPropertyValue("--accent-strong").trim();
+  const ACC_SOFT = "rgba(127, 119, 221, 0.18)";
+  const ACC_LINE = "rgba(127, 119, 221, 0.36)";
+  const SURFACE_HI = css.getPropertyValue("--surface-hi").trim();
+
+  Chart.defaults.font.family = "'Pretendard Variable', 'Pretendard', 'Inter', sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = T3;
+  Chart.defaults.animation.duration = 380;
+
+  const tooltipBase = {
+    backgroundColor: SURFACE_HI, borderColor: BORDER_HI, borderWidth: 1,
+    titleColor: T1, bodyColor: T2,
+    titleFont:{size:11,weight:"500"}, bodyFont:{size:11.5,weight:"500"},
+    padding:{top:9,right:12,bottom:9,left:12}, cornerRadius:6, caretSize:0, displayColors:false
+  };
+
+  // ----- DEPTH sensitivity curve -----
+  const dRange = data.depth_range ?? [];
+  const dKwh = data.depth_kwh ?? [];
+  const curDepth = blade.depth;
+  const curIdx = dRange.indexOf(Math.round(curDepth / 10) * 10);
+  const yMax = Math.max(...dKwh) * 1.04;
+  const yMin = Math.min(...dKwh) * 0.96;
+
+  new Chart(document.getElementById("bp-depth-curve").getContext("2d"), {
+    type: "line",
+    data: {
+      labels: dRange,
+      datasets: [{
+        data: dKwh,
+        borderColor: ACC,
+        backgroundColor: (ctx) => {
+          const c = ctx.chart.ctx; if (!c) return ACC_SOFT;
+          const g = c.createLinearGradient(0,0,0,300);
+          g.addColorStop(0, "rgba(127,119,221,0.22)");
+          g.addColorStop(1, "rgba(127,119,221,0.02)");
+          return g;
+        },
+        borderWidth: 1.75,
+        pointRadius: (ctx) => ctx.dataIndex === curIdx ? 4 : 2,
+        pointBackgroundColor: (ctx) => ctx.dataIndex === curIdx ? ACC_STRONG : ACC,
+        pointBorderColor: "#0A0A0C",
+        pointBorderWidth: 1.5,
+        pointHoverRadius: 5,
+        tension: 0.35,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode:"index", intersect:false },
+      plugins: {
+        legend:{display:false},
+        tooltip:{ ...tooltipBase,
+          callbacks: {
+            title: (items) => `DEPTH ${items[0].label} mm`,
+            label: (item) => `연간 ${item.parsed.y.toFixed(1)} kWh`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid:{display:false}, border:{color:BORDER},
+          ticks:{ color:T3, font:{size:10.5}, padding:6, callback: function(val) { return `${this.getLabelForValue(val)}` } },
+          title: { display:true, text:"DEPTH (mm)", color: T3, font:{size:10.5, weight:"400"}, padding:{top:8} }
+        },
+        y: {
+          min: yMin, max: yMax,
+          grid:{color:BORDER, drawTicks:false}, border:{display:false},
+          ticks:{ color:T3, font:{size:10.5}, padding:8, maxTicksLimit:5,
+            callback:(v) => `${v.toFixed(0)} kWh` }
+        }
+      },
+      layout: { padding:{ top:10, right:18 } }
+    },
+    plugins: [{
+      id: "bp-rec-band",
+      beforeDatasetsDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        if (!recRange || recRange.length !== 2) return;
+        const x0 = scales.x.getPixelForValue(recRange[0]);
+        const x1 = scales.x.getPixelForValue(recRange[1]);
+        ctx.save();
+        ctx.fillStyle = "rgba(127,119,221,0.05)";
+        ctx.fillRect(x0, chartArea.top, x1 - x0, chartArea.bottom - chartArea.top);
+        // vertical dashed line at recommended best
+        const xb = scales.x.getPixelForValue(recBest);
+        ctx.strokeStyle = "rgba(154,147,234,0.45)";
+        ctx.setLineDash([3,4]);
+        ctx.beginPath(); ctx.moveTo(xb, chartArea.top); ctx.lineTo(xb, chartArea.bottom); ctx.stroke();
+        // label
+        ctx.setLineDash([]);
+        ctx.font = "500 10.5px Inter, sans-serif";
+        ctx.fillStyle = ACC_STRONG;
+        ctx.fillText(`권장 ${recBest}mm`, xb + 6, chartArea.top + 14);
+        ctx.restore();
+      }
+    }]
+  });
+})();
+</script>

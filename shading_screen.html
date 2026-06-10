@@ -1,0 +1,563 @@
+<!--
+  BIPV Dashboard — 작동 원리 (Shading principle) tab
+  Inherits design tokens from main_screen.html.
+  Data injection: replace the BIPV_DATA placeholder with json.dumps(payload).
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.17.0/dist/tabler-icons.min.css">
+
+<style>
+  .bipv-root {
+    --bg: #0A0A0C;
+    --surface: #111114;
+    --surface-hi: #16161A;
+    --border: #1F1F23;
+    --border-hi: #2A2A2E;
+    --text-1: #E8E8EC;
+    --text-2: #9A9AA3;
+    --text-3: #5C5C64;
+    --accent: #7F77DD;
+    --accent-strong: #9A93EA;
+    --accent-soft: rgba(127, 119, 221, 0.18);
+    --accent-line: rgba(127, 119, 221, 0.42);
+    --cmp-1: #4A4A52;
+    --cmp-2: #2E2E34;
+    --status: #6FD49C;
+    --warn: #E0B85B;
+
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: 'Pretendard Variable', 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 14px; line-height: 1.5; letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    padding: 28px 32px 36px; min-height: 100vh; box-sizing: border-box;
+  }
+  .bipv-root *, .bipv-root *::before, .bipv-root *::after { box-sizing: border-box; }
+  .bipv-root .num { font-family: 'Inter', sans-serif; font-feature-settings: 'tnum', 'ss01'; font-variant-numeric: tabular-nums; }
+
+  /* Header */
+  .bp-header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding-bottom:22px; border-bottom:1px solid var(--border); }
+  .bp-brand { display:flex; align-items:center; gap:14px; }
+  .bp-mark { width:34px; height:34px; display:grid; place-items:center; border:1px solid var(--border-hi); border-radius:7px; background:var(--surface); }
+  .bp-title { font-size:13px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; }
+  .bp-meta { margin-top:5px; font-size:12px; color:var(--text-3); font-variant-numeric:tabular-nums; }
+  .bp-meta span + span::before { content:""; display:inline-block; width:3px; height:3px; border-radius:50%; background:var(--border-hi); margin:0 9px 2px; vertical-align:middle; }
+  .bp-status { display:inline-flex; align-items:center; gap:8px; padding:7px 13px; border:1px solid var(--border); border-radius:999px; background:var(--surface); font-size:12px; color:var(--text-2); }
+  .bp-status .dot { width:6px; height:6px; border-radius:50%; background:var(--status); box-shadow:0 0 0 3px rgba(111,212,156,0.12); }
+  .bp-status strong { color:var(--text-1); font-weight:500; }
+
+  /* Hero */
+  .bp-hero { display:flex; align-items:flex-end; justify-content:space-between; gap:32px; padding:32px 0 28px; border-bottom:1px solid var(--border); }
+  .bp-hero-left { max-width:620px; }
+  .bp-hero-eyebrow { font-size:11px; color:var(--text-3); letter-spacing:0.14em; text-transform:uppercase; margin-bottom:14px; display:inline-flex; align-items:center; gap:8px; }
+  .bp-hero-eyebrow .ti { font-size:13px; }
+  .bp-hero-h1 { font-size:30px; font-weight:600; letter-spacing:-0.022em; line-height:1.18; color:var(--text-1); }
+  .bp-hero-h1 .accent { color:var(--accent-strong); }
+  .bp-hero-sub { margin-top:12px; font-size:13.5px; color:var(--text-2); }
+  .bp-hero-tag { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:11.5px; color:var(--text-2); background:var(--surface); }
+  .bp-hero-tag .ti { font-size:13px; color:var(--accent-strong); }
+
+  /* Layout */
+  .bp-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; padding-top:24px; }
+  .bp-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:22px 24px 20px; }
+  .bp-card-title { font-size:13.5px; font-weight:500; color:var(--text-1); }
+  .bp-card-sub { font-size:11.5px; color:var(--text-3); margin-top:3px; }
+
+  /* Interactive slider */
+  .bp-int-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:center; margin-top:18px; }
+  .bp-readouts { display:flex; flex-direction:column; gap:18px; }
+  .bp-readout { padding:12px 0; }
+  .bp-readout-label { font-size:11px; color:var(--text-3); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:6px; }
+  .bp-readout-val { font-size:28px; font-weight:500; letter-spacing:-0.025em; color:var(--text-1); line-height:1; }
+  .bp-readout-val .unit { font-size:13px; color:var(--text-3); margin-left:4px; font-weight:400; }
+  .bp-readout-val .pct-accent { color:var(--accent-strong); }
+  .bp-readout-bar { margin-top:10px; height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+  .bp-readout-bar > span { display:block; height:100%; background:var(--accent); transition:width 0.18s ease; }
+  .bp-slider-wrap { margin-top:24px; }
+  .bp-slider-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
+  .bp-slider-head .lbl { font-size:11.5px; color:var(--text-3); letter-spacing:0.06em; text-transform:uppercase; }
+  .bp-slider-head .val { font-size:13px; color:var(--text-1); font-variant-numeric:tabular-nums; }
+  .bipv-root input[type="range"] {
+    -webkit-appearance:none; appearance:none; width:100%; height:4px;
+    background:var(--border); border-radius:2px; outline:none; cursor:pointer; margin:0;
+  }
+  .bipv-root input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%;
+    background:var(--accent); border:2px solid var(--surface); box-shadow:0 0 0 1px var(--accent-line);
+    cursor:pointer; transition:transform 0.12s ease;
+  }
+  .bipv-root input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.15); }
+  .bipv-root input[type="range"]::-moz-range-thumb {
+    width:14px; height:14px; border-radius:50%; background:var(--accent); border:2px solid var(--surface); cursor:pointer;
+  }
+  .bp-diagram-wrap { display:flex; align-items:center; justify-content:center; padding:12px 0; }
+  .bp-diagram { width:100%; max-width:280px; height:280px; }
+
+  /* V15 explanation card */
+  .bp-v15 { margin-top:18px; }
+  .bp-v15-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px; }
+  .bp-v15-side { padding:14px; border:1px solid var(--border); border-radius:8px; background:var(--bg); }
+  .bp-v15-side-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .bp-v15-side-tag { font-size:10.5px; padding:2px 8px; border-radius:4px; letter-spacing:0.05em; }
+  .bp-v15-side.legacy .bp-v15-side-tag { background:rgba(94,94,100,0.18); color:var(--text-3); border:1px solid var(--border-hi); }
+  .bp-v15-side.new .bp-v15-side-tag { background:var(--accent-soft); color:var(--accent-strong); border:1px solid var(--accent-line); }
+  .bp-v15-side-name { font-size:12.5px; color:var(--text-1); font-weight:500; }
+  .bp-v15-side-svg { width:100%; height:130px; }
+  .bp-v15-side-meta { display:flex; justify-content:space-between; font-size:11px; color:var(--text-3); margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+  .bp-v15-side-meta b { color:var(--text-1); font-weight:500; }
+  .bp-v15-points { margin-top:16px; padding:14px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg); }
+  .bp-v15-points li { font-size:12.5px; color:var(--text-2); margin:6px 0; padding-left:18px; position:relative; }
+  .bp-v15-points li::before { content:""; position:absolute; left:0; top:8px; width:6px; height:1px; background:var(--accent); }
+  .bp-v15-points ul { list-style:none; padding:0; margin:0; }
+
+  /* Cases */
+  .bp-cases-section { margin-top:18px; }
+  .bp-cases-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; }
+  .bp-cases-title { font-size:14px; font-weight:500; color:var(--text-1); }
+  .bp-cases-sub { font-size:11.5px; color:var(--text-3); }
+  .bp-cases-grid { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; }
+  .bp-case { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:18px; transition:border-color 0.15s ease; }
+  .bp-case:hover { border-color:var(--border-hi); }
+  .bp-case-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .bp-case-name { font-size:12px; color:var(--text-1); font-weight:500; }
+  .bp-case-time { font-size:10.5px; color:var(--text-3); font-variant-numeric:tabular-nums; }
+  .bp-case-svg { width:100%; height:90px; margin:8px 0 12px; }
+  .bp-case-rows { display:flex; flex-direction:column; gap:7px; }
+  .bp-case-row { display:flex; justify-content:space-between; font-size:11px; }
+  .bp-case-row .k { color:var(--text-3); }
+  .bp-case-row .v { color:var(--text-1); font-variant-numeric:tabular-nums; font-weight:500; }
+  .bp-case-verdict { margin-top:12px; padding-top:10px; border-top:1px solid var(--border); display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--text-2); }
+  .bp-case-verdict .dot { width:6px; height:6px; border-radius:50%; }
+  .bp-case-verdict.good .dot { background:var(--status); }
+  .bp-case-verdict.warn .dot { background:var(--warn); }
+  .bp-case-verdict.protect .dot { background:var(--text-3); }
+
+  .bp-foot { margin-top:18px; font-size:11.5px; color:var(--text-3); display:inline-flex; align-items:center; gap:7px; }
+  .bp-foot .ti { font-size:13px; }
+
+  @media (max-width: 1080px) {
+    .bp-row { grid-template-columns: 1fr; }
+    .bp-int-grid { grid-template-columns: 1fr; }
+    .bp-cases-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+
+<div class="bipv-root" id="bipv-root">
+
+  <header class="bp-header">
+    <div class="bp-brand">
+      <div class="bp-mark">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <line x1="3.5" y1="4.5" x2="14.5" y2="3.2" />
+          <line x1="3.5" y1="9" x2="14.5" y2="9" stroke="#7F77DD" stroke-width="1.6" />
+          <line x1="3.5" y1="13.5" x2="14.5" y2="14.8" />
+        </svg>
+      </div>
+      <div>
+        <div class="bp-title">BIPV Control — 작동 원리</div>
+        <div class="bp-meta">
+          <span id="bp-loc">서울</span>
+          <span id="bp-date" class="num">2026.05.14</span>
+          <span>V15 선분교차 물리모델</span>
+        </div>
+      </div>
+    </div>
+    <div class="bp-status">
+      <span class="dot"></span>
+      <span>모델 검증</span>
+      <span style="color:var(--border-hi); margin:0 1px;">·</span>
+      <strong>Ray–Segment Intersection</strong>
+    </div>
+  </header>
+
+  <section class="bp-hero">
+    <div class="bp-hero-left">
+      <div class="bp-hero-eyebrow"><i class="ti ti-bulb"></i> 어떻게 작동하는가</div>
+      <div class="bp-hero-h1">
+        AI는 매 시각, <span class="accent">윗 블레이드의 그림자가 발전면을 덜 가리는</span> 각도를 선택합니다.
+      </div>
+      <div class="bp-hero-sub">
+        V15는 광선과 블레이드 선분의 기하학적 교차를 직접 계산해, 이전 방식의 코사인 근사 대비 음영 오차를 1% 이내로 줄였습니다.
+      </div>
+    </div>
+    <div class="bp-hero-tag">
+      <i class="ti ti-ruler-measure"></i>
+      DEPTH <span class="num" id="bp-depth">114</span> · PITCH <span class="num" id="bp-pitch">114</span> mm
+    </div>
+  </section>
+
+  <!-- ===== Interactive + V15 explainer ===== -->
+  <div class="bp-row">
+
+    <div class="bp-card">
+      <div class="bp-card-title">각도를 조절하면 음영이 어떻게 변하나</div>
+      <div class="bp-card-sub">슬라이더로 루버 각도를 바꿔보세요. 그림자 영역과 음영률이 실시간으로 갱신됩니다.</div>
+
+      <div class="bp-int-grid">
+        <div class="bp-diagram-wrap">
+          <svg id="bp-diagram" class="bp-diagram" viewBox="0 0 240 320">
+            <!-- Wall -->
+            <line x1="38" y1="20" x2="38" y2="300" stroke="#2A2A2E" stroke-width="1.5" />
+            <line x1="38" y1="20" x2="32" y2="14" stroke="#2A2A2E" stroke-width="1" />
+            <line x1="38" y1="300" x2="32" y2="306" stroke="#2A2A2E" stroke-width="1" />
+            <!-- Sun ray indicator (drawn by JS) -->
+            <line id="bp-sunray" x1="0" y1="0" x2="0" y2="0" stroke="rgba(224,184,91,0.65)" stroke-width="1" stroke-dasharray="3 3" />
+            <circle id="bp-sun" cx="0" cy="0" r="6" fill="#E0B85B" opacity="0.85" />
+            <!-- Blades (3) -->
+            <g id="bp-blades"></g>
+          </svg>
+        </div>
+        <div class="bp-readouts">
+          <div class="bp-readout">
+            <div class="bp-readout-label">루버 각도</div>
+            <div class="bp-readout-val num"><span id="bp-rd-angle">30</span><span class="unit">°</span></div>
+            <div class="bp-readout-bar"><span id="bp-rd-angle-bar" style="width:33%"></span></div>
+          </div>
+          <div class="bp-readout">
+            <div class="bp-readout-label">예상 음영률</div>
+            <div class="bp-readout-val num"><span id="bp-rd-shading" class="pct-accent">12.5</span><span class="unit">%</span></div>
+            <div class="bp-readout-bar"><span id="bp-rd-shading-bar" style="width:12.5%"></span></div>
+          </div>
+          <div class="bp-readout">
+            <div class="bp-readout-label">발전면 노출</div>
+            <div class="bp-readout-val num"><span id="bp-rd-expose">87.5</span><span class="unit">%</span></div>
+            <div class="bp-readout-bar"><span id="bp-rd-expose-bar" style="width:87.5%; background:#6FD49C;"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bp-slider-wrap">
+        <div class="bp-slider-head">
+          <span class="lbl">블레이드 각도 (0° 수평 → 90° 수직)</span>
+          <span class="val num"><span id="bp-slider-val">30</span>°</span>
+        </div>
+        <input type="range" min="0" max="90" value="30" id="bp-slider" />
+        <div class="bp-slider-head" style="margin-top:14px;">
+          <span class="lbl">태양 고도</span>
+          <span class="val num"><span id="bp-sun-val">55</span>°</span>
+        </div>
+        <input type="range" min="5" max="85" value="55" id="bp-sun-slider" />
+      </div>
+    </div>
+
+    <div class="bp-card bp-v15">
+      <div class="bp-card-title">V15 선분교차 모델</div>
+      <div class="bp-card-sub">코사인 근사(legacy) vs 광선·선분 교차(V15) — 같은 조건에서 음영을 어떻게 계산하는가</div>
+
+      <div class="bp-v15-grid">
+        <div class="bp-v15-side legacy">
+          <div class="bp-v15-side-head">
+            <span class="bp-v15-side-tag">LEGACY V13–V14</span>
+          </div>
+          <div class="bp-v15-side-name">코사인 근사</div>
+          <svg class="bp-v15-side-svg" viewBox="0 0 160 130" fill="none">
+            <line x1="20" y1="10" x2="20" y2="120" stroke="#2A2A2E" stroke-width="1.2"/>
+            <line x1="20" y1="45" x2="110" y2="22" stroke="#5C5C64" stroke-width="3" stroke-linecap="round"/>
+            <line x1="20" y1="95" x2="110" y2="72" stroke="#5C5C64" stroke-width="3" stroke-linecap="round"/>
+            <!-- approximated shadow as flat rectangle -->
+            <rect x="35" y="93" width="50" height="4" fill="rgba(94,94,100,0.4)" />
+            <text x="92" y="120" fill="#5C5C64" font-size="9" font-family="Inter">approx ±15%</text>
+          </svg>
+          <div class="bp-v15-side-meta">
+            <span>오차 <b>±10~15%</b></span>
+            <span>속도 빠름</span>
+          </div>
+        </div>
+
+        <div class="bp-v15-side new">
+          <div class="bp-v15-side-head">
+            <span class="bp-v15-side-tag">V15</span>
+          </div>
+          <div class="bp-v15-side-name">광선·선분 교차</div>
+          <svg class="bp-v15-side-svg" viewBox="0 0 160 130" fill="none">
+            <line x1="20" y1="10" x2="20" y2="120" stroke="#2A2A2E" stroke-width="1.2"/>
+            <!-- upper blade -->
+            <line x1="20" y1="42" x2="110" y2="20" stroke="#7F77DD" stroke-width="3" stroke-linecap="round"/>
+            <!-- lower blade -->
+            <line x1="20" y1="92" x2="110" y2="70" stroke="#9A9AA3" stroke-width="3" stroke-linecap="round"/>
+            <!-- precise ray from upper tip -->
+            <line x1="135" y1="6" x2="110" y2="20" stroke="rgba(224,184,91,0.7)" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="110" y1="20" x2="60" y2="80" stroke="rgba(224,184,91,0.5)" stroke-width="1" stroke-dasharray="2 2"/>
+            <!-- precise shadow segment on lower blade -->
+            <line x1="20" y1="92" x2="60" y2="82" stroke="#7F77DD" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+            <circle cx="60" cy="82" r="2.5" fill="#7F77DD"/>
+            <text x="62" y="100" fill="#7F77DD" font-size="9" font-family="Inter">exact</text>
+          </svg>
+          <div class="bp-v15-side-meta">
+            <span>오차 <b>±1%</b> 이내</span>
+            <span>R² 0.9966</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bp-v15-points">
+        <ul>
+          <li>각 광선을 단위 벡터로 정의하고, 윗 블레이드 선분과의 교차점을 닫힌형 해(closed-form)로 계산</li>
+          <li>교차점이 발전면 위에 떨어지면 그 위치를 음영 영역으로 누적</li>
+          <li>방위·고도·블레이드 기하 변화에 즉시 반영 — 룩업 테이블 없음</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== 4 cases ===== -->
+  <div class="bp-cases-section">
+    <div class="bp-cases-head">
+      <div>
+        <div class="bp-cases-title">조건별 음영 패턴</div>
+        <div class="bp-cases-sub">대표 4개 조건에서 AI가 선택하는 각도와 결과 음영</div>
+      </div>
+    </div>
+    <div class="bp-cases-grid" id="bp-cases-grid"></div>
+  </div>
+
+  <div class="bp-foot">
+    <i class="ti ti-info-circle"></i>
+    슬라이더 음영률은 발전면이 윗 블레이드 그림자에 가려지는 면적 비율을 단순화한 추정치입니다. 실제 제어는 V15 정밀 모델로 산출됩니다.
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const FALLBACK = {
+    location: "서울", date: "2026.05.14",
+    blade_depth: 114, blade_pitch: 114,
+    sun_elev_today: 55
+  };
+  let data = {{BIPV_DATA}};
+  if (!data || typeof data !== "object") data = FALLBACK;
+
+  const $ = (id) => document.getElementById(id);
+  $("bp-loc").textContent = data.location ?? "서울";
+  $("bp-date").textContent = data.date ?? "—";
+  $("bp-depth").textContent = (data.blade_depth ?? 114).toFixed ? Number(data.blade_depth).toFixed(0) : data.blade_depth;
+  $("bp-pitch").textContent = (data.blade_pitch ?? 114).toFixed ? Number(data.blade_pitch).toFixed(0) : data.blade_pitch;
+
+  // Init sliders with sensible defaults
+  const initSun = Math.max(5, Math.min(85, Math.round(data.sun_elev_today ?? 55)));
+  $("bp-sun-slider").value = initSun;
+  $("bp-sun-val").textContent = initSun;
+
+  // ---------- Diagram math ----------
+  // SVG canvas: 240 x 320
+  // 3 blades hinged at wall (x=38), at y={70, 160, 250}
+  // Each blade length L (scaled depth)
+  const WALL_X = 38, BLADE_L = 84, BLADE_W = 4;
+  const HINGES = [70, 160, 250]; // y positions of blade hinges
+
+  function shadingPercent(angleDeg, sunElevDeg) {
+    // Educational proxy: minimum shadow when blade is complementary to sun.
+    if (angleDeg >= 89) return 0;             // closed: no exposed face
+    if (sunElevDeg < 5) return 0;             // night
+    const optimal = 90 - sunElevDeg;
+    const delta = optimal - angleDeg;
+    if (delta <= 0) {
+      // Blade more closed than optimal — minor self shadow from oblique geometry
+      return Math.min(15, Math.abs(delta) * 0.35);
+    }
+    // Blade more open than optimal — upper blade casts longer shadow on lower face
+    return Math.min(82, delta * 1.35);
+  }
+
+  // ---------- Render blades + sun ray ----------
+  const sunFromLeftAt = (sunElevDeg) => {
+    // place a sun marker outside the SVG-right at angle
+    const rad = sunElevDeg * Math.PI / 180;
+    const cx = 220, cy = 50;
+    return { x: cx, y: cy };
+  };
+
+  function renderDiagram(angle, sunElev) {
+    const gBlades = $("bp-blades");
+    gBlades.innerHTML = "";
+
+    HINGES.forEach((y, idx) => {
+      // Blade tip (rotating ccw from horizontal): tip moves up
+      const a = angle * Math.PI / 180;
+      const tipX = WALL_X + BLADE_L * Math.cos(a);
+      const tipY = y - BLADE_L * Math.sin(a);
+
+      // Solar face vector (perpendicular to blade, pointing up-out)
+      const nx = -Math.sin(a), ny = -Math.cos(a);
+      const offset = BLADE_W * 0.5;
+      const p1x = WALL_X + nx * offset, p1y = y + ny * offset;
+      const p2x = tipX + nx * offset, p2y = tipY + ny * offset;
+      const p3x = tipX - nx * offset, p3y = tipY - ny * offset;
+      const p4x = WALL_X - nx * offset, p4y = y - ny * offset;
+
+      const blade = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      blade.setAttribute("points", `${p1x},${p1y} ${p2x},${p2y} ${p3x},${p3y} ${p4x},${p4y}`);
+      blade.setAttribute("fill", "#3A3A40");
+      blade.setAttribute("stroke", "#5C5C64");
+      blade.setAttribute("stroke-width", "0.5");
+      gBlades.appendChild(blade);
+
+      // Shadow visualization on the middle blade (idx === 1) — show shadow on solar face
+      if (idx === 1) {
+        const sh = shadingPercent(angle, sunElev) / 100;
+        if (sh > 0.005) {
+          const shadeLen = BLADE_L * sh;
+          // shadow region is on solar face, starting from hinge end
+          const sp1x = WALL_X + nx * offset, sp1y = y + ny * offset;
+          const sp2x = WALL_X + Math.cos(a) * shadeLen + nx * offset, sp2y = y - Math.sin(a) * shadeLen + ny * offset;
+          const sp3x = WALL_X + Math.cos(a) * shadeLen - nx * offset * 0.2, sp3y = y - Math.sin(a) * shadeLen - ny * offset * 0.2;
+          const sp4x = WALL_X - nx * offset * 0.2, sp4y = y - ny * offset * 0.2;
+          const shadow = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+          shadow.setAttribute("points", `${sp1x},${sp1y} ${sp2x},${sp2y} ${sp3x},${sp3y} ${sp4x},${sp4y}`);
+          shadow.setAttribute("fill", "rgba(127,119,221,0.55)");
+          gBlades.appendChild(shadow);
+        }
+      }
+    });
+
+    // Sun + sun ray to upper blade's tip
+    const sun = sunFromLeftAt(sunElev);
+    const sunX = WALL_X + 195;
+    const sunY = 200 - sunElev * 1.8;
+    $("bp-sun").setAttribute("cx", sunX);
+    $("bp-sun").setAttribute("cy", sunY);
+
+    const a = angle * Math.PI / 180;
+    const upperTipX = WALL_X + BLADE_L * Math.cos(a);
+    const upperTipY = HINGES[0] - BLADE_L * Math.sin(a);
+    const ray = $("bp-sunray");
+    ray.setAttribute("x1", sunX); ray.setAttribute("y1", sunY);
+    ray.setAttribute("x2", upperTipX); ray.setAttribute("y2", upperTipY);
+
+    // Project ray onto middle blade (visualization continuation)
+    // continue from upperTipX,upperTipY in direction (cos -a from horizontal, downward)
+    // simple: extend ray to next blade y
+    const dx = upperTipX - sunX, dy = upperTipY - sunY;
+    const norm = Math.hypot(dx, dy);
+    const ux = dx / norm, uy = dy / norm;
+    // extend a bit
+    const ext = 80;
+    const extRay = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    extRay.setAttribute("x1", upperTipX);
+    extRay.setAttribute("y1", upperTipY);
+    extRay.setAttribute("x2", upperTipX + ux * ext);
+    extRay.setAttribute("y2", upperTipY + uy * ext);
+    extRay.setAttribute("stroke", "rgba(224,184,91,0.4)");
+    extRay.setAttribute("stroke-width", "1");
+    extRay.setAttribute("stroke-dasharray", "3 3");
+    gBlades.appendChild(extRay);
+  }
+
+  // ---------- Readout updates ----------
+  function update() {
+    const angle = +$("bp-slider").value;
+    const sun = +$("bp-sun-slider").value;
+    $("bp-slider-val").textContent = angle;
+    $("bp-sun-val").textContent = sun;
+    $("bp-rd-angle").textContent = angle;
+    $("bp-rd-angle-bar").style.width = (angle / 90 * 100).toFixed(1) + "%";
+
+    const sh = shadingPercent(angle, sun);
+    $("bp-rd-shading").textContent = sh.toFixed(1);
+    $("bp-rd-shading-bar").style.width = sh.toFixed(1) + "%";
+
+    const expose = Math.max(0, 100 - sh);
+    $("bp-rd-expose").textContent = expose.toFixed(1);
+    $("bp-rd-expose-bar").style.width = expose.toFixed(1) + "%";
+
+    renderDiagram(angle, sun);
+  }
+  $("bp-slider").addEventListener("input", update);
+  $("bp-sun-slider").addEventListener("input", update);
+  update();
+
+  // ---------- 4 cases ----------
+  const CASES = [
+    { name: "정오", time: "12:00 · 5월", sun: 65, ghi: 820, angle: 25, mode: "good", verdict: "발전 최대화" },
+    { name: "아침", time: "08:00 · 5월", sun: 25, ghi: 220, angle: 65, mode: "good", verdict: "저고도 대응" },
+    { name: "흐림", time: "13:00 · 6월", sun: 60, ghi: 80,  angle: 35, mode: "warn", verdict: "확산광 수집" },
+    { name: "야간", time: "20:00",       sun: 0,  ghi: 0,   angle: 90, mode: "protect", verdict: "보호 모드" }
+  ];
+
+  function caseSvg(angle, sun, mode) {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 140 90");
+    svg.setAttribute("class", "bp-case-svg");
+    // Wall
+    const wall = document.createElementNS(ns, "line");
+    wall.setAttribute("x1", "20"); wall.setAttribute("y1", "8"); wall.setAttribute("x2", "20"); wall.setAttribute("y2", "82");
+    wall.setAttribute("stroke", "#2A2A2E"); wall.setAttribute("stroke-width", "1");
+    svg.appendChild(wall);
+    // 3 blades
+    const a = angle * Math.PI / 180;
+    const L = 52;
+    const ys = [22, 50, 78];
+    ys.forEach((y, i) => {
+      const tipX = 20 + L * Math.cos(a);
+      const tipY = y - L * Math.sin(a);
+      const line = document.createElementNS(ns, "line");
+      line.setAttribute("x1", 20); line.setAttribute("y1", y);
+      line.setAttribute("x2", tipX); line.setAttribute("y2", tipY);
+      line.setAttribute("stroke", "#5C5C64"); line.setAttribute("stroke-width", "3"); line.setAttribute("stroke-linecap", "round");
+      svg.appendChild(line);
+      // shadow on middle blade
+      if (i === 1 && sun > 5 && angle < 88) {
+        const sh = shadingPercent(angle, sun) / 100;
+        if (sh > 0.02) {
+          const shLen = L * sh;
+          const sh1 = document.createElementNS(ns, "line");
+          sh1.setAttribute("x1", 20); sh1.setAttribute("y1", y);
+          sh1.setAttribute("x2", 20 + shLen * Math.cos(a)); sh1.setAttribute("y2", y - shLen * Math.sin(a));
+          sh1.setAttribute("stroke", "#7F77DD"); sh1.setAttribute("stroke-width", "3.5"); sh1.setAttribute("stroke-linecap", "round"); sh1.setAttribute("opacity", "0.7");
+          svg.appendChild(sh1);
+        }
+      }
+    });
+    // Sun marker
+    if (sun > 5) {
+      const sunC = document.createElementNS(ns, "circle");
+      const sx = 125, sy = 60 - sun * 0.5;
+      sunC.setAttribute("cx", sx); sunC.setAttribute("cy", sy); sunC.setAttribute("r", "3.5");
+      sunC.setAttribute("fill", "#E0B85B"); sunC.setAttribute("opacity", "0.85");
+      svg.appendChild(sunC);
+    } else {
+      // moon
+      const moon = document.createElementNS(ns, "circle");
+      moon.setAttribute("cx", "125"); moon.setAttribute("cy", "20"); moon.setAttribute("r", "3");
+      moon.setAttribute("fill", "#3A3A40");
+      svg.appendChild(moon);
+    }
+    return svg;
+  }
+
+  const grid = $("bp-cases-grid");
+  CASES.forEach(c => {
+    const card = document.createElement("div");
+    card.className = "bp-case";
+    const sh = shadingPercent(c.angle, c.sun);
+    card.innerHTML = `
+      <div class="bp-case-head">
+        <span class="bp-case-name">${c.name}</span>
+        <span class="bp-case-time">${c.time}</span>
+      </div>
+    `;
+    card.appendChild(caseSvg(c.angle, c.sun, c.mode));
+    const rows = document.createElement("div");
+    rows.className = "bp-case-rows";
+    rows.innerHTML = `
+      <div class="bp-case-row"><span class="k">태양 고도</span><span class="v">${c.sun}°</span></div>
+      <div class="bp-case-row"><span class="k">GHI</span><span class="v">${c.ghi} W/m²</span></div>
+      <div class="bp-case-row"><span class="k">AI 각도</span><span class="v">${c.angle}°</span></div>
+      <div class="bp-case-row"><span class="k">음영률</span><span class="v">${sh.toFixed(1)}%</span></div>
+    `;
+    card.appendChild(rows);
+    const verdict = document.createElement("div");
+    verdict.className = `bp-case-verdict ${c.mode}`;
+    verdict.innerHTML = `<span class="dot"></span>${c.verdict}`;
+    card.appendChild(verdict);
+    grid.appendChild(card);
+  });
+})();
+</script>
