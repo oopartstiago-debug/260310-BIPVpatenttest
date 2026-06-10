@@ -1,13 +1,14 @@
 # ==============================================================================
-# BIPV 통합 관제 시스템 v9.3
-# V15 선분교차 물리모델 | 실측 기상 10년 평균 연간 시뮬 | 비전문가용 설명 강화
+# BIPV 통합 관제 시스템 v10.0
+# 물리 v2 (physics_v2.py) | 모델 v16 | 실측 기상 10년 평균 연간 시뮬
 # ==============================================================================
-# v9.3 변경사항:
-#   - get_annual_from_csv: 단일연도(2023) → 10년 전체 평균으로 변경
-#   - Colab V15 연간 발전량(621.6 kWh)과 대시보드 수치 일치
-#   - annual_source 표시 개선
+# v10.0 변경사항 (근거: FABLE_REVIEW.md 2026-06-10 적대검토):
+#   - eff_poa: (1-sf*0.7) sub-linear → 선형 retain + MC 시야계수 확산광 + albedo
+#   - 라벨 target_angle_v16 재생성 → XGBoost v16 재학습 (중앙 최적각 37°→68°)
+#   - model 지표 하드코딩 제거 → model_metrics_v16.json (홀드아웃 실측)
+#   - feature importance 를 로드된 모델에서 동적 산출 (cloud_cover 포함)
 # ==============================================================================
-__version__ = "9.3"
+__version__ = "10.0"
 
 import os, io, json
 import numpy as np
@@ -28,7 +29,7 @@ try:
 except ImportError:
     _XGB_AVAILABLE = False
 
-st.set_page_config(page_title="BIPV AI V15", layout="wide", page_icon="☀️")
+st.set_page_config(page_title="BIPV AI v16", layout="wide", page_icon="☀️")
 
 try:    KMA_SERVICE_KEY = st.secrets["KMA_SERVICE_KEY"]
 except Exception: KMA_SERVICE_KEY = ""
@@ -45,9 +46,9 @@ HD = 57.0                               # half depth
 AMIN, AMAX, ANIGHT = 15, 90, 90
 
 GH_BASE = "https://raw.githubusercontent.com/oopartstiago-debug/260310-BIPVpatenttest/main"
-MODEL_URL = f"{GH_BASE}/bipv_xgboost_model_v15.pkl"
+MODEL_URL = f"{GH_BASE}/bipv_xgboost_model_v16.pkl"
 CSV_URL   = f"{GH_BASE}/bipv_ai_master_data_v15.csv"
-MODEL_FN  = "bipv_xgboost_model_v15.pkl"
+MODEL_FN  = "bipv_xgboost_model_v16.pkl"
 PT = "plotly_dark"
 C_AI, C_F60, C_V90 = "#8b5cf6", "#f97316", "#64748b"
 C_GHI = "rgba(234,179,8,0.5)"
@@ -95,34 +96,13 @@ def load_csv():
         return None, f"예외: {str(e)[:200]}"
 
 # ==============================================================================
-# V15 물리 — 선분교차
+# 물리 v2 — physics_v2.py 단일 소스 (라벨 생성 train_v16.py 와 동일 코드 경로)
 # ==============================================================================
+from physics_v2 import eff_poa
+
 def blade_geo(tilt, hd=HD, bd=DH, p=DP):
     t = np.radians(np.asarray(tilt, dtype=float))
     return hd*np.cos(t), bd*np.sin(t), np.maximum(p-bd*np.sin(t), 0.0)
-
-def panel_sf(tilt, elev, az, hd=HD, p=DP, sa=180.0):
-    """V15 선분교차 음영률"""
-    tilt=np.asarray(tilt,dtype=float); elev=np.asarray(elev,dtype=float); az=np.asarray(az,dtype=float)
-    tr=np.radians(tilt); er=np.radians(np.clip(elev,0.1,89.9))
-    ct,st2=np.cos(tr),np.sin(tr)
-    rx,ry=hd*ct,p-hd*st2; fx,fy=hd*ct,-hd*st2
-    adr=np.radians(az-sa); rdx=-np.cos(er)*np.cos(adr); rdy=-np.sin(er)
-    dn=fx*rdy-fy*rdx; dns=np.where(np.abs(dn)<1e-12,1e-12,dn)
-    tb=(rx*rdy-ry*rdx)/dns; ta=(rx*fy-ry*fx)/dns
-    sf=np.where((ta>0)&(tb>1),1.0,np.where((ta>0)&(tb>0)&(tb<=1),tb,0.0))
-    return np.clip(np.where(elev<=0,0.0,sf),0,1)
-
-def svf(tilt, hd=HD, p=DP):
-    return np.clip(1-hd*np.cos(np.radians(np.asarray(tilt,dtype=float)))/p,0.05,1)
-
-def eff_poa(tilt, elev, az, dni, dhi, hd=HD, p=DP):
-    tilt=np.asarray(tilt,dtype=float); elev=np.asarray(elev,dtype=float); az=np.asarray(az,dtype=float)
-    sf=panel_sf(tilt,elev,az,hd,p); s=svf(tilt,hd,p)
-    pd2=np.maximum(pvlib.irradiance.beam_component(surface_tilt=tilt,surface_azimuth=180.0,
-        solar_zenith=90-elev,solar_azimuth=az,dni=dni),0)
-    dd=dhi*(1+np.cos(np.radians(tilt)))/2
-    return np.maximum(pd2*(1-sf*0.7)+dd*s,0)
 
 # ==============================================================================
 # XGBoost
@@ -255,7 +235,7 @@ ck=cl*9
 xa=None
 if mdl: xa=predict_xgb(mdl,ts,ghi,ck,tp,AMAX)
 ai=xa if xa is not None else rule_angles(el,ghi)
-am="XGBoost V15" if xa is not None else "규칙 기반"
+am="XGBoost v16" if xa is not None else "규칙 기반"
 def dpow(ang):
     e=eff_poa(np.asarray(ang,dtype=float),el,az,dn,dh,hdm,pm)
     return (e[ghi>=10]/1000*cw*uc*ef*DL*asc).sum()
@@ -386,6 +366,38 @@ _mo_extra = [round(a - b, 1) for a, b in zip(_mo_AI, _mo_F60)]
 _uplift_pct = round((ka/k6 - 1) * 100, 1) if k6 > 0 else 0.0
 _month_kwh  = round((ka - k6) / 12, 1)  # 월평균 추가 kWh
 
+# ── 모델 지표: model_metrics_v16.json (train_v16.py 홀드아웃 실측) ──
+try:
+    with open("model_metrics_v16.json", encoding="utf-8") as _f:
+        _met = json.load(_f)
+except Exception:
+    _met = {"r2_day": 0.9885, "mae_day": 0.79}  # v16 학습 시점 홀드아웃 값 (json 부재 시)
+
+# ── feature importance: 로드된 모델에서 동적 산출 (predict_xgb 입력 순서) ──
+_FEAT_ORDER = ["hour_sin", "hour_cos", "doy_sin", "doy_cos", "ghi_w_m2", "cloud_cover", "temp_actual"]
+_FEAT_KO = {
+    "doy_cos": "계절 위치 (cos)", "doy_sin": "계절 (sin)",
+    "hour_cos": "시간 (cos)", "hour_sin": "시간 (sin)",
+    "ghi_w_m2": "GHI 일사량", "cloud_cover": "운량", "temp_actual": "외기 온도",
+}
+_FEAT_MEANING = {
+    "doy_cos": "1년 주기에서 현재가 겨울인지 여름인지 — 계절별 태양 궤적 차이.",
+    "doy_sin": "춘분 · 추분 지점 식별 (doy_cos 보완).",
+    "hour_cos": "24시간 주기 중 오전 / 오후 구분 — 태양이 동쪽인지 서쪽인지.",
+    "hour_sin": "24시간 주기 중 정오 부근인지 새벽인지 (hour_cos 보완).",
+    "ghi_w_m2": "단위 면적당 들어오는 태양 에너지(W/m²) — 현재 발전 잠재력 직접 신호.",
+    "cloud_cover": "구름량 — 직달/확산 비율을 바꿔 최적각에 약하게 기여.",
+    "temp_actual": "외기 온도 — 최적각과 물리적 인과 없음(계절·시각과의 상관으로 잡힘).",
+}
+def _importance_list(model):
+    try:
+        gains = [float(v) for v in model.feature_importances_]
+    except Exception:
+        gains = [float(_met.get("importance", {}).get(f, 0.0)) for f in _FEAT_ORDER]
+    items = sorted(zip(_FEAT_ORDER, gains), key=lambda x: -x[1])
+    return [{"f": f, "gain": round(g, 3), "ko": _FEAT_KO[f], "meaning": _FEAT_MEANING[f]}
+            for f, g in items]
+
 bipv_data = {
     "address": "서울시 마곡동 1호기",
     "date": sd,
@@ -449,36 +461,16 @@ bipv_data = {
     },
 
     "model": {
-        "r2": 0.9966,
-        "mae_deg": 0.70,
+        "r2": _met.get("r2_day"),
+        "mae_deg": _met.get("mae_day"),
+        "energy_regret_pct": _met.get("energy_regret_pct"),
         "training_rows": _train_rows,
         "year_range": _yr_range,
         "n_features": 7,
-        "cv": "5-fold",
+        "cv": _met.get("holdout", "시간순 홀드아웃 20%"),
         "motor_precision_deg": 2,
-        "feature_names_korean": {
-            "doy_cos": "계절 위치 (cos)",
-            "doy_sin": "계절 (sin)",
-            "hour_cos": "시간 (cos)",
-            "hour_sin": "시간 (sin)",
-            "ghi_w_m2": "GHI 일사량",
-            "cloud_cover": "운량",
-            "temp_actual": "외기 온도",
-        },
-        "importance": [
-            {"f": "doy_cos",     "gain": 0.324, "ko": "계절 위치 (cos)",
-             "meaning": "1년 주기에서 현재가 겨울인지 여름인지 — 가장 강한 신호. 계절별 태양 궤적 차이가 크기 때문."},
-            {"f": "ghi_w_m2",    "gain": 0.194, "ko": "GHI 일사량",
-             "meaning": "단위 면적당 들어오는 태양 에너지(W/m²) — 현재 시점의 발전 잠재력 직접 신호."},
-            {"f": "hour_cos",    "gain": 0.139, "ko": "시간 (cos)",
-             "meaning": "24시간 주기 중 오전 / 오후 구분 — 태양이 동쪽인지 서쪽인지."},
-            {"f": "hour_sin",    "gain": 0.133, "ko": "시간 (sin)",
-             "meaning": "24시간 주기 중 정오 부근인지 새벽인지 (hour_cos 보완)."},
-            {"f": "temp_actual", "gain": 0.120, "ko": "외기 온도",
-             "meaning": "패널 효율과 운영 환경 — 고온일수록 PV 효율 살짝 감소."},
-            {"f": "doy_sin",     "gain": 0.078, "ko": "계절 (sin)",
-             "meaning": "춘분 · 추분 지점 식별 (doy_cos 보완)."},
-        ],
+        "feature_names_korean": _FEAT_KO,
+        "importance": _importance_list(mdl),
     },
 
     "ops": {

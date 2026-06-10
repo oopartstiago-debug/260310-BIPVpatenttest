@@ -1,0 +1,20 @@
+{
+ "r2_all": 0.9869,
+ "mae_all": 0.79,
+ "r2_day": 0.9885,
+ "mae_day": 0.79,
+ "energy_regret_pct": 0.063,
+ "training_rows": 44225,
+ "year_range": "2014–2023",
+ "label": "target_angle_v16 (physics_v2: 선형 retain + MC 시야계수 + albedo 0.2)",
+ "holdout": "chronological last 20%",
+ "importance": {
+  "hour_sin": 0.141,
+  "hour_cos": 0.288,
+  "doy_sin": 0.136,
+  "doy_cos": 0.229,
+  "ghi_w_m2": 0.131,
+  "cloud_cover": 0.004,
+  "temp_actual": 0.07
+ }
+}

@@ -1,0 +1,179 @@
+{
+ "data": {
+  "total": 44225,
+  "daytime": 42446,
+  "tgt_min": 15.0,
+  "tgt_max": 79.0
+ },
+ "oracle": {
+  "match_pm1_pct": 100.0,
+  "mae_deg": 0.4253875512415775,
+  "match_exact_pct": 57.46124487584224
+ },
+ "noon_example": {
+  "elev": 74.00751958379045,
+  "rows": {
+   "90.0": {
+    "sf_pct": 0.0,
+    "eff": 314.0
+   },
+   "60.0": {
+    "sf_pct": 26.3,
+    "eff": 547.0
+   },
+   "22.0": {
+    "sf_pct": 47.4,
+    "eff": 592.0
+   }
+  }
+ },
+ "retain_variants": {
+  "(a) current 1-0.7sf": {
+   "median_opt": 37.0,
+   "energy_weighted_sf_pct": 19.4,
+   "adv_vs_f60_pct": 5.53,
+   "adv_vs_f45_pct": 2.99,
+   "retain_at_sf50_pct": 65.0
+  },
+  "(b) linear 1-sf": {
+   "median_opt": 60.0,
+   "energy_weighted_sf_pct": 8.2,
+   "adv_vs_f60_pct": 2.34,
+   "adv_vs_f45_pct": 1.84,
+   "retain_at_sf50_pct": 50.0
+  },
+  "(c) cliff 3-substring": {
+   "median_opt": 60.0,
+   "energy_weighted_sf_pct": 7.1,
+   "adv_vs_f60_pct": 6.44,
+   "adv_vs_f45_pct": 8.47,
+   "retain_at_sf50_pct": 33.0
+  },
+  "(d) harsh current-limit": {
+   "median_opt": 60.0,
+   "energy_weighted_sf_pct": 2.1,
+   "adv_vs_f60_pct": 11.71,
+   "adv_vs_f45_pct": 15.32,
+   "retain_at_sf50_pct": 20.0
+  }
+ },
+ "albedo": {
+  "(a) current 1-0.7sf|gvf=none": {
+   "mean_shift_deg": 8.73,
+   "median_opt_with": 47.0
+  },
+  "(a) current 1-0.7sf|gvf=svf": {
+   "mean_shift_deg": 6.89,
+   "median_opt_with": 44.0
+  },
+  "(b) linear 1-sf|gvf=none": {
+   "mean_shift_deg": 10.29,
+   "median_opt_with": 68.0
+  },
+  "(b) linear 1-sf|gvf=svf": {
+   "mean_shift_deg": 10.78,
+   "median_opt_with": 68.0
+  }
+ },
+ "svf_mc": {
+  "15": {
+   "mc": 0.5941,
+   "model": 0.5082,
+   "ratio_model_over_mc": 0.86
+  },
+  "20": {
+   "mc": 0.5438,
+   "model": 0.5142,
+   "ratio_model_over_mc": 0.95
+  },
+  "25": {
+   "mc": 0.4844,
+   "model": 0.5212,
+   "ratio_model_over_mc": 1.08
+  },
+  "30": {
+   "mc": 0.43,
+   "model": 0.529,
+   "ratio_model_over_mc": 1.23
+  },
+  "35": {
+   "mc": 0.3714,
+   "model": 0.537,
+   "ratio_model_over_mc": 1.45
+  },
+  "40": {
+   "mc": 0.3168,
+   "model": 0.5448,
+   "ratio_model_over_mc": 1.72
+  },
+  "45": {
+   "mc": 0.2646,
+   "model": 0.5518,
+   "ratio_model_over_mc": 2.09
+  },
+  "50": {
+   "mc": 0.2116,
+   "model": 0.5574,
+   "ratio_model_over_mc": 2.63
+  },
+  "55": {
+   "mc": 0.1685,
+   "model": 0.5611,
+   "ratio_model_over_mc": 3.33
+  },
+  "60": {
+   "mc": 0.1297,
+   "model": 0.5625,
+   "ratio_model_over_mc": 4.34
+  },
+  "65": {
+   "mc": 0.0874,
+   "model": 0.561,
+   "ratio_model_over_mc": 6.42
+  },
+  "70": {
+   "mc": 0.0571,
+   "model": 0.5563,
+   "ratio_model_over_mc": 9.74
+  },
+  "75": {
+   "mc": 0.034,
+   "model": 0.548,
+   "ratio_model_over_mc": 16.11
+  },
+  "80": {
+   "mc": 0.0144,
+   "model": 0.5359,
+   "ratio_model_over_mc": 37.13
+  },
+  "85": {
+   "mc": 0.0035,
+   "model": 0.5199,
+   "ratio_model_over_mc": 148.04
+  },
+  "90": {
+   "mc": 0.5002,
+   "model": 0.5,
+   "ratio_model_over_mc": 1.0
+  }
+ },
+ "east_west": {
+  "동향": {
+   "median_opt": 60.0,
+   "loss_using_south_labels_pct": 2.02,
+   "true_adv_vs_f60_pct": 2.34
+  },
+  "서향": {
+   "median_opt": 60.0,
+   "loss_using_south_labels_pct": 2.16,
+   "true_adv_vs_f60_pct": 2.34
+  }
+ },
+ "phantom_floor": {
+  "hours_full_shade_with_beam": 5010,
+  "phantom_energy_pct_of_total": 1.114
+ },
+ "temp_spurious": {
+  "r2_temp_from_doy_hour_ghi": 0.876
+ }
+}

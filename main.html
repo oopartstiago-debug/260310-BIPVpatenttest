@@ -1167,13 +1167,13 @@
         <div class="bipv-hero-num" id="bipv-hero-num">+0.0%</div>
         <p class="bipv-hero-caption">고정 60° 운영 대비, AI가 매 시간 최적 각도를 결정해 끌어낸 추가 발전량입니다.</p>
         <div class="bipv-hero-aux">
-          이번 달 누적 <strong id="bipv-hero-month-kwh">— kWh</strong>
+          월평균 추가 (연간 추정 ÷ 12) <strong id="bipv-hero-month-kwh">— kWh</strong>
           &nbsp;·&nbsp; 연환산 <strong id="bipv-hero-annual-kwh">— kWh</strong>
           &nbsp;·&nbsp; 추가 수익 <strong id="bipv-hero-annual-rev">— 원</strong>
         </div>
       </div>
       <div>
-        <div class="bipv-anim-stage" role="img" aria-label="태양 호에 따라 루버가 정오에 가장 열리는 (15°) 라이브 시뮬레이션">
+        <div class="bipv-anim-stage" role="img" aria-label="태양 호에 따라 루버 각도가 변하는 라이브 시뮬레이션">
           <svg viewBox="0 0 460 290" preserveAspectRatio="xMidYMid meet">
             <path class="bipv-sun-arc" d="M 40 170 Q 230 0 420 170" />
             <line class="bipv-horizon" x1="20" y1="245" x2="440" y2="245" />
@@ -1207,7 +1207,7 @@
       </div>
       <div class="bipv-aux-cell">
         <div class="bipv-aux-lbl">오늘 · 고정 60° 대비 차이</div>
-        <div class="bipv-aux-val">+<span id="bipv-today-delta">—</span><span class="unit">kWh</span></div>
+        <div class="bipv-aux-val"><span id="bipv-today-delta">—</span><span class="unit">kWh</span></div>
       </div>
     </div>
   </section>
@@ -1216,7 +1216,7 @@
   <section class="bipv-wrap bipv-section" id="bipv-sec-2">
     <span class="bipv-eyebrow"><span class="num">02</span> · 시간대별 스케줄</span>
     <h2 class="bipv-section-title">하루 동안 AI가 결정한 각도</h2>
-    <p class="bipv-section-lead">막대는 시간별 일사량, 라인은 같은 시각의 AI 루버 각도입니다. 일사량이 강할수록 각도가 작아져(블레이드가 열려) 발전면을 더 많이 노출합니다.</p>
+    <p class="bipv-section-lead">막대는 시간별 일사량, 라인은 같은 시각의 AI 루버 각도입니다. AI는 직달광·확산광·자기음영을 함께 계산해 매 시간 순발전량이 최대가 되는 각도를 고릅니다.</p>
     <div class="bipv-chart-card">
       <div class="bipv-chart-legend">
         <span><span class="swatch ghi"></span>일사량 GHI · W/m²</span>
@@ -1256,7 +1256,7 @@
     <div class="bipv-cmp-uplift">
       <span>AI</span>
       <span style="color:var(--bipv-accent-deep)">▸</span>
-      <span>고정 60° 대비 +<span id="bipv-cmp-uplift-pct">—</span>%</span>
+      <span>고정 60° 대비 <span id="bipv-cmp-uplift-pct">—</span>%</span>
     </div>
   </section>
 
@@ -1411,7 +1411,7 @@
   <section class="bipv-wrap bipv-section" id="bipv-sec-5">
     <span class="bipv-eyebrow"><span class="num">05</span> · 어떻게 학습했나</span>
     <h2 class="bipv-section-title">10년의 기상 데이터에서, 발전소 한 동까지</h2>
-    <p class="bipv-section-lead">기상청 10년 시계열로 1차 학습 → 5-fold 교차검증으로 정밀도 확인 → 향후 실제 발전소 데이터로 사이트 맞춤 fine-tune. 단계별 서사입니다.</p>
+    <p class="bipv-section-lead">기상청 10년 시계열로 1차 학습 → 시간순 홀드아웃 검증으로 정밀도 확인 → 향후 실제 발전소 데이터로 사이트 맞춤 fine-tune. 단계별 서사입니다.</p>
 
     <div class="bipv-story-grid">
       <div class="bipv-story-card">
@@ -1427,9 +1427,9 @@
         <div class="bipv-story-step">STEP 2</div>
         <h3 class="bipv-story-title">검증</h3>
         <p class="bipv-story-body">
-          <span class="b">5-fold 교차검증</span>으로 모델 안정성 확인.
-          <span class="b">R² = 0.9966</span> (분산의 99.66 % 설명),
-          <span class="b">MAE = 0.70°</span> (평균 0.7° 이내).
+          <span class="b">시간순 홀드아웃(마지막 20%)</span>으로 모델 안정성 확인.
+          <span class="b">R² = <span id="bipv-story-r2">—</span></span>,
+          <span class="b">MAE = <span id="bipv-story-mae">—</span>°</span> (주간 기준).
           제어 모터 정밀도 <span class="b">±2°</span> 대비 충분히 정밀합니다.
         </p>
       </div>
@@ -1446,9 +1446,9 @@
 
     <div class="bipv-perf-row">
       <div class="bipv-perf-r2">
-        <div class="bipv-perf-r2-lbl"><span class="bipv-term" data-tip="—" id="bipv-tip-r2">R² Score</span> · 5-fold CV</div>
+        <div class="bipv-perf-r2-lbl"><span class="bipv-term" data-tip="—" id="bipv-tip-r2">R² Score</span> · 홀드아웃</div>
         <div class="bipv-perf-r2-val" id="bipv-perf-r2">—</div>
-        <div class="bipv-perf-r2-note">분산의 99 % 이상을 모델이 설명합니다. 1에 가까울수록 좋은 회귀 모델입니다.</div>
+        <div class="bipv-perf-r2-note">주간(GHI≥10) 시간순 홀드아웃 기준. 1에 가까울수록 좋은 회귀 모델입니다.</div>
         <div class="bipv-perf-r2-divider"></div>
         <div class="bipv-perf-r2-mae">
           <span><span class="bipv-term" data-tip="—" id="bipv-tip-mae">MAE</span> · 각도 평균 오차</span>
@@ -1474,13 +1474,13 @@
         </div>
         <div class="bipv-perf-data-cell">
           <div class="bipv-perf-data-lbl">검증 방식</div>
-          <div class="bipv-perf-data-val">5-fold</div>
+          <div class="bipv-perf-data-val">홀드아웃 20%</div>
         </div>
       </div>
     </div>
 
     <div class="bipv-feat-block">
-      <div class="bipv-feat-title">피처 중요도 · 상위 6개</div>
+      <div class="bipv-feat-title">피처 중요도 · 전체 7개</div>
       <div id="bipv-feat-list"></div>
     </div>
   </section>
@@ -1497,7 +1497,7 @@
         <p class="bipv-card-foot">데이터·모델·기상 연동이 정상 동작 중인지 매 세션 점검합니다.</p>
         <div class="bipv-ops-row">
           <span class="bipv-ops-dot" id="bipv-ops-dot-model"></span>
-          <div class="bipv-ops-name">XGBoost V15 모델<span class="sub">메모리에 로드되었는지</span></div>
+          <div class="bipv-ops-name">XGBoost 모델 (v16 라벨)<span class="sub">메모리에 로드되었는지</span></div>
           <span class="bipv-ops-val" id="bipv-ops-model">—</span>
         </div>
         <div class="bipv-ops-row">
@@ -1611,13 +1611,14 @@
 
   // ─────────────── Section 01 — Hero ───────────────
   const tm = data.this_month || {};
-  $('bipv-hero-month-kwh').textContent  = `${fmt1(tm.kwh_extra)} kWh`;
-  $('bipv-hero-annual-kwh').textContent = `+${fmt1(tm.annual_kwh_extra)} kWh`;
-  $('bipv-hero-annual-rev').textContent = `+${fmtInt(tm.annual_revenue_extra)} 원`;
+  const fmtS = (fn, n) => (n == null || isNaN(n)) ? '—' : (n >= 0 ? '+' : '−') + fn(Math.abs(n));
+  $('bipv-hero-month-kwh').textContent  = `${fmtS(fmt1, tm.kwh_extra)} kWh`;
+  $('bipv-hero-annual-kwh').textContent = `${fmtS(fmt1, tm.annual_kwh_extra)} kWh`;
+  $('bipv-hero-annual-rev').textContent = `${fmtS(fmtInt, tm.annual_revenue_extra)} 원`;
   const td = data.today || {};
   $('bipv-today-kwh').textContent   = fmt2(td.ai_kwh);
   $('bipv-today-rev').textContent   = fmtInt(td.ai_revenue);
-  $('bipv-today-delta').textContent = fmt2(td.uplift_vs_f60_kwh);
+  $('bipv-today-delta').textContent = fmtS(fmt2, td.uplift_vs_f60_kwh);
 
   const heroEl = $('bipv-hero-num');
   const target = Number(tm.uplift_pct) || 0;
@@ -1729,7 +1730,7 @@
   $('bipv-cmp-f60-val').textContent = fmt3(cmp.F60);
   $('bipv-cmp-f90-val').textContent = fmt3(cmp.F90);
   const upliftCmp = cmp.F60 > 0 ? ((cmp.AI / cmp.F60 - 1) * 100) : 0;
-  $('bipv-cmp-uplift-pct').textContent = fmt1(upliftCmp);
+  $('bipv-cmp-uplift-pct').textContent = fmtS(fmt1, upliftCmp);
 
   // ─────────────── Section 04 — Angle simulator (4월 원본 app.py inline Plotly 로직 그대로 포팅) ───────────────
   const geom = data.geom || { hd: 57.0, p: 114.0 };
@@ -1892,10 +1893,21 @@
   }
 
   // 태양 ↔ 루버 커플링:
-  // 태양 슬라이더 움직이면 루버가 자동으로 (90 − elev) 로 스냅 (수직 추종)
+  // 태양 슬라이더 움직이면 루버가 실제 AI 모델 각도로 스냅
+  // (sim_day 24h 시계열에서 고도가 가장 가까운 시각의 ai_angle 사용 — 화면 = 모델)
   // 루버 슬라이더는 수동 오버라이드 — 다음 태양 변경 전까지 유지
   function couplePivotFromSun(sun) {
-    const ideal = 90 - sun;
+    const sd = data.sim_day;
+    let ideal = 90 - sun;  // 폴백 (sim_day 부재 시)
+    if (sd && sd.elevation && sd.elevation.length) {
+      let best = -1, bestDiff = Infinity;
+      for (let i = 0; i < sd.elevation.length; i++) {
+        if (sd.elevation[i] <= 0) continue;
+        const diff = Math.abs(sd.elevation[i] - sun);
+        if (diff < bestDiff) { bestDiff = diff; best = i; }
+      }
+      if (best >= 0) ideal = sd.ai_angle[best];
+    }
     const clipped = Math.max(15, Math.min(90, ideal));
     const stepped = Math.round(clipped / 5) * 5;  // step=5 매칭
     slider1.value = stepped;
@@ -1918,18 +1930,13 @@
   const m = data.model || {};
   $('bipv-perf-r2').textContent  = (m.r2 != null) ? Number(m.r2).toFixed(4) : '—';
   $('bipv-perf-mae').textContent = (m.mae_deg != null) ? Number(m.mae_deg).toFixed(2) : ((m.mae != null) ? Number(m.mae).toFixed(2) : '—');
+  if ($('bipv-story-r2'))  $('bipv-story-r2').textContent  = (m.r2 != null) ? Number(m.r2).toFixed(4) : '—';
+  if ($('bipv-story-mae')) $('bipv-story-mae').textContent = (m.mae_deg != null) ? Number(m.mae_deg).toFixed(2) : '—';
   $('bipv-perf-rows').textContent  = fmtInt(m.training_rows);
   $('bipv-perf-years').textContent = m.year_range || '—';
   $('bipv-perf-feat').textContent  = m.n_features ?? '—';
 
-  const featRaw = m.importance && m.importance.length ? m.importance.slice(0,6) : [
-    {f:'doy_cos',     gain:0.324, ko:'계절 위치 (cos)', meaning:'1년 주기에서 현재가 겨울인지 여름인지 — 가장 중요한 신호'},
-    {f:'ghi_w_m2',    gain:0.194, ko:'GHI 일사량',     meaning:'단위 면적당 들어오는 태양 에너지 — 현재 발전 잠재력'},
-    {f:'hour_cos',    gain:0.139, ko:'시간 (cos)',     meaning:'24시간 주기 중 오전인지 오후인지'},
-    {f:'hour_sin',    gain:0.133, ko:'시간 (sin)',     meaning:'24시간 주기 중 정오 부근인지 새벽인지 (cos 보완)'},
-    {f:'temp_actual', gain:0.120, ko:'외기 온도',       meaning:'패널 효율과 운영 환경 — 고온일수록 효율 살짝 감소'},
-    {f:'doy_sin',     gain:0.078, ko:'계절 (sin)',     meaning:'춘분 · 추분 지점 식별 (doy_cos 보완)'},
-  ];
+  const featRaw = m.importance && m.importance.length ? m.importance : [];
   const featNamesKr = m.feature_names_korean || {};
   const featMax = Math.max(...featRaw.map(x => x.gain || 0), 0.001);
   $('bipv-feat-list').innerHTML = featRaw.map((row, idx) => {
@@ -2017,7 +2024,7 @@
 
   // ─────────────── Footer ───────────────
   $('bipv-footer-version').textContent = data.app_version || '9.3';
-  $('bipv-footer-source').textContent = '데이터 출처: 기상청 ASOS · 한전 산업용 요금 · ' + (data.system_version || 'XGBoost V15') + ' (R² ' + ((m.r2 != null) ? Number(m.r2).toFixed(4) : '—') + ')';
+  $('bipv-footer-source').textContent = '데이터 출처: 기상청 ASOS · 한전 산업용 요금 · ' + (data.system_version || 'XGBoost') + ' (R² ' + ((m.r2 != null) ? Number(m.r2).toFixed(4) : '—') + ')';
 
   // ─────────────── Intersection observer ───────────────
   const io = new IntersectionObserver((entries) => {
