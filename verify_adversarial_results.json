@@ -1,0 +1,461 @@
+{
+ "A_geometry_audit": {
+  "rows": [
+   {
+    "tilt": 0.0,
+    "orig(r=0.5)": [
+     0.300234375,
+     0.0
+    ],
+    "clean(c/p=1.0)": [
+     0.300234375,
+     0.0
+    ],
+    "orig(r=1.0)": [
+     0.1970625,
+     0.0
+    ],
+    "clean(c/p=2.0)": [
+     0.1970625,
+     0.0
+    ],
+    "clean(c/p=0.5)": [
+     0.3872109375,
+     0.0
+    ]
+   },
+   {
+    "tilt": 30.0,
+    "orig(r=0.5)": [
+     0.44700390625,
+     0.0665078125
+    ],
+    "clean(c/p=1.0)": [
+     0.44700390625,
+     0.0665078125
+    ],
+    "orig(r=1.0)": [
+     0.26621484375,
+     0.0665078125
+    ],
+    "clean(c/p=2.0)": [
+     0.26621484375,
+     0.0665078125
+    ],
+    "clean(c/p=0.5)": [
+     0.5739140625,
+     0.0665078125
+    ]
+   },
+   {
+    "tilt": 60.0,
+    "orig(r=0.5)": [
+     0.5090078125,
+     0.24908203125
+    ],
+    "clean(c/p=1.0)": [
+     0.5090078125,
+     0.24908203125
+    ],
+    "orig(r=1.0)": [
+     0.27680078125,
+     0.19872265625
+    ],
+    "clean(c/p=2.0)": [
+     0.27680078125,
+     0.19872265625
+    ],
+    "clean(c/p=0.5)": [
+     0.63530859375,
+     0.24908203125
+    ]
+   },
+   {
+    "tilt": 90.0,
+    "orig(r=0.5)": [
+     0.500609375,
+     0.499390625
+    ],
+    "clean(c/p=1.0)": [
+     0.500609375,
+     0.499390625
+    ],
+    "orig(r=1.0)": [
+     0.500609375,
+     0.499390625
+    ],
+    "clean(c/p=2.0)": [
+     0.500609375,
+     0.499390625
+    ],
+    "clean(c/p=0.5)": [
+     0.500609375,
+     0.499390625
+    ]
+   }
+  ],
+  "orig0.5==clean1.0": true,
+  "orig1.0==clean2.0": true
+ },
+ "A_sanity_unobstructed_90": [
+  0.500609375,
+  0.499390625
+ ],
+ "B_raytrace_vs_panel_sf": [
+  {
+   "case": "겨울 정오",
+   "tilt": 0.0,
+   "sf_model": 0.0,
+   "sf_trace": 0.0,
+   "capture": 0.5774,
+   "match": true
+  },
+  {
+   "case": "겨울 정오",
+   "tilt": 30.0,
+   "sf_model": 0.0,
+   "sf_trace": 0.0,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "겨울 정오",
+   "tilt": 45.0,
+   "sf_model": 0.1034,
+   "sf_trace": 0.1034,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "겨울 정오",
+   "tilt": 60.0,
+   "sf_model": 0.134,
+   "sf_trace": 0.134,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "겨울 정오",
+   "tilt": 75.0,
+   "sf_model": 0.1034,
+   "sf_trace": 0.1034,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "겨울 정오",
+   "tilt": 90.0,
+   "sf_model": 0.0,
+   "sf_trace": 0.0,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 정오",
+   "tilt": 0.0,
+   "sf_model": 0.7133,
+   "sf_trace": 0.7133,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 정오",
+   "tilt": 30.0,
+   "sf_model": 0.7159,
+   "sf_trace": 0.7159,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 정오",
+   "tilt": 45.0,
+   "sf_model": 0.6848,
+   "sf_trace": 0.6848,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 정오",
+   "tilt": 60.0,
+   "sf_model": 0.6168,
+   "sf_trace": 0.6168,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 정오",
+   "tilt": 75.0,
+   "sf_model": 0.4648,
+   "sf_trace": 0.4648,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 정오",
+   "tilt": 90.0,
+   "sf_model": 0.0,
+   "sf_trace": 0.0,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "봄 정오",
+   "tilt": 0.0,
+   "sf_model": 0.2187,
+   "sf_trace": 0.2187,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "봄 정오",
+   "tilt": 30.0,
+   "sf_model": 0.3783,
+   "sf_trace": 0.3783,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "봄 정오",
+   "tilt": 45.0,
+   "sf_model": 0.3797,
+   "sf_trace": 0.3797,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "봄 정오",
+   "tilt": 60.0,
+   "sf_model": 0.336,
+   "sf_trace": 0.336,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "봄 정오",
+   "tilt": 75.0,
+   "sf_model": 0.2291,
+   "sf_trace": 0.2291,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "봄 정오",
+   "tilt": 90.0,
+   "sf_model": 0.0,
+   "sf_trace": 0.0,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "겨울 오후",
+   "tilt": 0.0,
+   "sf_model": 0.0,
+   "sf_trace": 0.0,
+   "capture": 0.4751,
+   "match": true
+  },
+  {
+   "case": "겨울 오후",
+   "tilt": 30.0,
+   "sf_model": 0.0,
+   "sf_trace": 0.0,
+   "capture": 0.9115,
+   "match": true
+  },
+  {
+   "case": "겨울 오후",
+   "tilt": 45.0,
+   "sf_model": 0.0413,
+   "sf_trace": 0.0413,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "겨울 오후",
+   "tilt": 60.0,
+   "sf_model": 0.0939,
+   "sf_trace": 0.0939,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "겨울 오후",
+   "tilt": 75.0,
+   "sf_model": 0.0816,
+   "sf_trace": 0.0816,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "겨울 오후",
+   "tilt": 90.0,
+   "sf_model": 0.0,
+   "sf_trace": 0.0,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 오전",
+   "tilt": 0.0,
+   "sf_model": 0.658,
+   "sf_trace": 0.658,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 오전",
+   "tilt": 30.0,
+   "sf_model": 0.6702,
+   "sf_trace": 0.6702,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 오전",
+   "tilt": 45.0,
+   "sf_model": 0.6396,
+   "sf_trace": 0.6396,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 오전",
+   "tilt": 60.0,
+   "sf_model": 0.5704,
+   "sf_trace": 0.5704,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 오전",
+   "tilt": 75.0,
+   "sf_model": 0.4195,
+   "sf_trace": 0.4195,
+   "capture": 1.0,
+   "match": true
+  },
+  {
+   "case": "여름 오전",
+   "tilt": 90.0,
+   "sf_model": 0.0,
+   "sf_trace": 0.0,
+   "capture": 1.0,
+   "match": true
+  }
+ ],
+ "C_session_repro_cp2.0": {
+  "median_opt": 90.0,
+  "p10": 90.0,
+  "p90": 90.0,
+  "best_fixed": 90,
+  "ai_vs_60": 16.19,
+  "ai_vs_90": 0.0,
+  "ai_vs_best_fixed": 0.0,
+  "fixed_rel_90": {
+   "37": -17.4,
+   "45": -15.9,
+   "60": -13.9,
+   "66": -13.3,
+   "70": -13.0,
+   "75": -12.6,
+   "80": -12.4,
+   "85": -12.5,
+   "90": 0.0
+  }
+ },
+ "C_corrected_cp1.0": {
+  "median_opt": 90.0,
+  "p10": 90.0,
+  "p90": 90.0,
+  "best_fixed": 90,
+  "ai_vs_60": 6.51,
+  "ai_vs_90": 0.0,
+  "ai_vs_best_fixed": 0.0,
+  "fixed_rel_90": {
+   "37": -11.7,
+   "45": -9.5,
+   "60": -6.1,
+   "66": -4.8,
+   "70": -3.9,
+   "75": -2.9,
+   "80": -1.8,
+   "85": -0.8,
+   "90": 0.0
+  }
+ },
+ "C_corrected_cp0.85": {
+  "median_opt": 88.0,
+  "p10": 80.0,
+  "p90": 90.0,
+  "best_fixed": 90,
+  "ai_vs_60": 5.12,
+  "ai_vs_90": 0.12,
+  "ai_vs_best_fixed": 0.12,
+  "fixed_rel_90": {
+   "37": -10.5,
+   "45": -8.3,
+   "60": -4.8,
+   "66": -3.4,
+   "70": -2.6,
+   "75": -1.6,
+   "80": -0.8,
+   "85": -0.2,
+   "90": 0.0
+  }
+ },
+ "C_corrected_cp0.9": {
+  "median_opt": 90.0,
+  "p10": 83.0,
+  "p90": 90.0,
+  "best_fixed": 90,
+  "ai_vs_60": 5.56,
+  "ai_vs_90": 0.08,
+  "ai_vs_best_fixed": 0.08,
+  "fixed_rel_90": {
+   "37": -10.9,
+   "45": -8.7,
+   "60": -5.2,
+   "66": -3.9,
+   "70": -3.0,
+   "75": -2.0,
+   "80": -1.0,
+   "85": -0.3,
+   "90": 0.0
+  }
+ },
+ "C_corrected_cp0.95": {
+  "median_opt": 90.0,
+  "p10": 85.0,
+  "p90": 90.0,
+  "best_fixed": 90,
+  "ai_vs_60": 6.02,
+  "ai_vs_90": 0.04,
+  "ai_vs_best_fixed": 0.04,
+  "fixed_rel_90": {
+   "37": -11.3,
+   "45": -9.1,
+   "60": -5.6,
+   "66": -4.3,
+   "70": -3.4,
+   "75": -2.4,
+   "80": -1.4,
+   "85": -0.4,
+   "90": 0.0
+  }
+ },
+ "D_strip_inner_margin": {
+  "median_opt": 84.0,
+  "ai_vs_60": 4.32,
+  "ai_vs_90": 9.86
+ },
+ "D_strip_outer_margin": {
+  "median_opt": 90.0,
+  "ai_vs_60": 14.16,
+  "ai_vs_90": 0.0
+ },
+ "D_strip_center": {
+  "median_opt": 87.0,
+  "ai_vs_60": 8.38,
+  "ai_vs_90": 5.02
+ }
+}

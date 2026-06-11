@@ -1,0 +1,72 @@
+{
+ "S_180_strip": {
+  "median_opt": 87.0,
+  "p10": 79.0,
+  "p90": 90.0,
+  "best_fixed": 84,
+  "ai_vs_45": 13.65,
+  "ai_vs_60": 8.38,
+  "ai_vs_90": 5.02,
+  "ai_vs_best": 1.45
+ },
+ "E_090_strip": {
+  "median_opt": 89.0,
+  "p10": 79.0,
+  "p90": 90.0,
+  "best_fixed": 85,
+  "ai_vs_45": 19.94,
+  "ai_vs_60": 11.36,
+  "ai_vs_90": 3.8,
+  "ai_vs_best": 1.69
+ },
+ "W_270_strip": {
+  "median_opt": 89.0,
+  "p10": 79.0,
+  "p90": 90.0,
+  "best_fixed": 85,
+  "ai_vs_45": 19.93,
+  "ai_vs_60": 11.28,
+  "ai_vs_90": 3.81,
+  "ai_vs_best": 1.69
+ },
+ "S_180_full": {
+  "median_opt": 90.0,
+  "p10": 90.0,
+  "p90": 90.0,
+  "best_fixed": 90,
+  "ai_vs_45": 10.53,
+  "ai_vs_60": 6.51,
+  "ai_vs_90": 0.0,
+  "ai_vs_best": 0.0
+ },
+ "E_090_full": {
+  "median_opt": 90.0,
+  "p10": 90.0,
+  "p90": 90.0,
+  "best_fixed": 90,
+  "ai_vs_45": 17.1,
+  "ai_vs_60": 9.84,
+  "ai_vs_90": 0.0,
+  "ai_vs_best": 0.0
+ },
+ "S_180_strip_aniso": {
+  "median_opt": 87.0,
+  "p10": 79.0,
+  "p90": 90.0,
+  "best_fixed": 84,
+  "ai_vs_45": 13.79,
+  "ai_vs_60": 8.69,
+  "ai_vs_90": 5.51,
+  "ai_vs_best": 1.62
+ },
+ "S_180_full_aniso": {
+  "median_opt": 90.0,
+  "p10": 90.0,
+  "p90": 90.0,
+  "best_fixed": 90,
+  "ai_vs_45": 10.2,
+  "ai_vs_60": 6.54,
+  "ai_vs_90": 0.0,
+  "ai_vs_best": 0.0
+ }
+}
