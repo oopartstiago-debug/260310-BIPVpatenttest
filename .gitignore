@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 .env
 bipv_ai_master_data_v16.csv
+blade_drawing_1043A.png
+bipv_ai_master_data_v17.csv
+~$*.docx
