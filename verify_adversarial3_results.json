@@ -1,0 +1,68 @@
+{
+ "base_noIAM": {
+  "median_opt": 87.0,
+  "p10": 79.0,
+  "p90": 90.0,
+  "best_fixed": 84,
+  "ai_vs_45": 13.65,
+  "ai_vs_60": 8.38,
+  "ai_vs_75": 3.45,
+  "ai_vs_90": 5.02,
+  "ai_vs_best": 1.45
+ },
+ "iam": {
+  "median_opt": 84.0,
+  "p10": 77.0,
+  "p90": 90.0,
+  "best_fixed": 82,
+  "ai_vs_45": 10.62,
+  "ai_vs_60": 5.65,
+  "ai_vs_75": 1.6,
+  "ai_vs_90": 6.05,
+  "ai_vs_best": 0.65
+ },
+ "iam_alb0.1": {
+  "median_opt": 82.0,
+  "p10": 74.0,
+  "p90": 87.0,
+  "best_fixed": 80,
+  "ai_vs_45": 6.73,
+  "ai_vs_60": 3.26,
+  "ai_vs_75": 0.78,
+  "ai_vs_90": 7.3,
+  "ai_vs_best": 0.42
+ },
+ "iam_alb0.3": {
+  "median_opt": 85.0,
+  "p10": 79.0,
+  "p90": 90.0,
+  "best_fixed": 83,
+  "ai_vs_45": 14.56,
+  "ai_vs_60": 8.06,
+  "ai_vs_75": 2.52,
+  "ai_vs_90": 5.12,
+  "ai_vs_best": 0.85
+ },
+ "iam_urban": {
+  "median_opt": 81.0,
+  "p10": 73.0,
+  "p90": 86.0,
+  "best_fixed": 79,
+  "ai_vs_45": 5.78,
+  "ai_vs_60": 2.69,
+  "ai_vs_75": 0.61,
+  "ai_vs_90": 7.69,
+  "ai_vs_best": 0.38
+ },
+ "noiam_alb0.1": {
+  "median_opt": 86.0,
+  "p10": 78.0,
+  "p90": 89.0,
+  "best_fixed": 82,
+  "ai_vs_45": 9.46,
+  "ai_vs_60": 5.74,
+  "ai_vs_75": 2.38,
+  "ai_vs_90": 5.82,
+  "ai_vs_best": 1.23
+ }
+}
