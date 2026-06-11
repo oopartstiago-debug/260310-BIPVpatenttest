@@ -1,0 +1,37 @@
+{
+ "rows_daylight": 44207,
+ "ai_vs_fixed_pct": {
+  "15": 26.52,
+  "30": 12.3,
+  "37": 8.11,
+  "45": 4.86,
+  "58": 2.82,
+  "60": 2.87,
+  "68": 4.31,
+  "75": 7.68,
+  "90": 26.23
+ },
+ "best_fixed_deg": 58,
+ "monthly_schedule": {
+  "1": 65,
+  "2": 57,
+  "3": 44,
+  "4": 49,
+  "5": 68,
+  "6": 75,
+  "7": 72,
+  "8": 59,
+  "9": 43,
+  "10": 53,
+  "11": 63,
+  "12": 67
+ },
+ "ai_vs_monthly_pct": 1.13,
+ "ai_vs_twice_yearly_pct": 2.72,
+ "ai_vs_textbook_fixed_pct": 7.86,
+ "ai_vs_textbook_seasonal_pct": 6.16,
+ "ai_vs_bestfix_cloudy_cc_ge_0.7_pct": 3.08,
+ "ai_vs_bestfix_clear_cc_le_0.3_pct": 2.1,
+ "vent_ai_return_vs_neglect_pct": 1.51,
+ "vent_constraint_cost_pct": 1.24
+}
