@@ -1,14 +1,14 @@
 # ==============================================================================
-# BIPV 통합 관제 시스템 v10.0
-# 물리 v2 (physics_v2.py) | 모델 v16 | 실측 기상 10년 평균 연간 시뮬
+# BIPV 통합 관제 시스템 v11.0
+# 물리 v3 (physics_v3.py) | 모델 v17 | 실측 기상 10년 평균 연간 시뮬
 # ==============================================================================
-# v10.0 변경사항 (근거: FABLE_REVIEW.md 2026-06-10 적대검토):
-#   - eff_poa: (1-sf*0.7) sub-linear → 선형 retain + MC 시야계수 확산광 + albedo
-#   - 라벨 target_angle_v16 재생성 → XGBoost v16 재학습 (중앙 최적각 37°→68°)
-#   - model 지표 하드코딩 제거 → model_metrics_v16.json (홀드아웃 실측)
-#   - feature importance 를 로드된 모델에서 동적 산출 (cloud_cover 포함)
+# v11.0 변경사항 (근거: ADVERSARIAL_REVIEW_RESULTS.md 2026-06-11 적대검토 + v17):
+#   - 실기하 적용 (도면 1043A): 현=피치=97.5mm (구 57/114 placeholder 폐기)
+#   - physics_v3: VF 현/피치 의미론 교정 + PV 띠 중앙(83/97.5) + Martin-Ruiz IAM + albedo 0.15
+#   - 라벨 target_angle_v17 재생성 → XGBoost v17 재학습 (최적 고원 75~88°, 중앙 83°)
+#   - model 지표 → model_metrics_v17.json (홀드아웃 실측)
 # ==============================================================================
-__version__ = "10.0"
+__version__ = "11.0"
 
 import os, io, json
 import numpy as np
@@ -29,7 +29,7 @@ try:
 except ImportError:
     _XGB_AVAILABLE = False
 
-st.set_page_config(page_title="BIPV AI v16", layout="wide", page_icon="☀️")
+st.set_page_config(page_title="BIPV AI v17", layout="wide", page_icon="☀️")
 
 try:    KMA_SERVICE_KEY = st.secrets["KMA_SERVICE_KEY"]
 except Exception: KMA_SERVICE_KEY = ""
@@ -41,14 +41,13 @@ LAT, LON, TZ = 37.5665, 126.9780, "Asia/Seoul"
 NX, NY = 60, 127
 DC, DE, DL = 300, 18.7, 0.85           # capacity, efficiency, loss
 DK, DU, DLC = 210, 1, 20               # kepco, units, louver count
-DW, DH, DP = 900.0, 114.0, 114.0       # width, height(depth), pitch
-HD = 57.0                               # half depth
+DW, DCH, DP = 900.0, 97.5, 97.5        # width, chord(현), pitch — 도면 1043A 실기하
 AMIN, AMAX, ANIGHT = 15, 90, 90
 
 GH_BASE = "https://raw.githubusercontent.com/oopartstiago-debug/260310-BIPVpatenttest/main"
-MODEL_URL = f"{GH_BASE}/bipv_xgboost_model_v16.pkl"
+MODEL_URL = f"{GH_BASE}/bipv_xgboost_model_v17.pkl"
 CSV_URL   = f"{GH_BASE}/bipv_ai_master_data_v15.csv"
-MODEL_FN  = "bipv_xgboost_model_v16.pkl"
+MODEL_FN  = "bipv_xgboost_model_v17.pkl"
 PT = "plotly_dark"
 C_AI, C_F60, C_V90 = "#8b5cf6", "#f97316", "#64748b"
 C_GHI = "rgba(234,179,8,0.5)"
@@ -96,13 +95,9 @@ def load_csv():
         return None, f"예외: {str(e)[:200]}"
 
 # ==============================================================================
-# 물리 v2 — physics_v2.py 단일 소스 (라벨 생성 train_v16.py 와 동일 코드 경로)
+# 물리 v3 — physics_v3.py 단일 소스 (라벨 생성 train_v17.py 와 동일 코드 경로)
 # ==============================================================================
-from physics_v2 import eff_poa
-
-def blade_geo(tilt, hd=HD, bd=DH, p=DP):
-    t = np.radians(np.asarray(tilt, dtype=float))
-    return hd*np.cos(t), bd*np.sin(t), np.maximum(p-bd*np.sin(t), 0.0)
+from physics_v3 import eff_poa
 
 # ==============================================================================
 # XGBoost
@@ -147,7 +142,7 @@ def get_kma():
 # 연간 데이터 — clearsky + cloud factor로 실측 근사 (폴백용)
 # ==============================================================================
 @st.cache_data(ttl=86400)
-def get_annual(year,hd,p,cw,uc,ef,dl,use_xgb=False):
+def get_annual(year,c,p,cw,uc,ef,dl,use_xgb=False):
     ty=pd.date_range(start=f"{year}-01-01",end=f"{year}-12-31 23:00",freq="h",tz=TZ)
     sp=site.get_solarposition(ty); cs=site.get_clearsky(ty)
     ghi_cs=np.asarray(cs["ghi"].values,dtype=float)
@@ -169,7 +164,7 @@ def get_annual(year,hd,p,cw,uc,ef,dl,use_xgb=False):
     else: ai=rule_angles(el,ghi_y)
 
     def en(ang):
-        e=eff_poa(np.asarray(ang,dtype=float),el,az2,dn,dh,hd,p)
+        e=eff_poa(np.asarray(ang,dtype=float),el,az2,dn,dh,c,p)
         return (e[ghi_y>=10]/1000*cw*uc*ef*dl).sum()
     wa,w6,w9=en(ai),en(np.full_like(ghi_y,60.0)),en(np.full_like(ghi_y,90.0))
     da=pd.DataFrame({"timestamp":ty,"ghi":ghi_y,"zenith":zn,"azimuth":az2,"elevation":el,"angle_ai":ai})
@@ -178,7 +173,7 @@ def get_annual(year,hd,p,cw,uc,ef,dl,use_xgb=False):
     for m in range(1,13):
         mm=(da["month"]==m)&(ghi_y>=10)
         def em(ang):
-            e=eff_poa(np.asarray(ang,dtype=float),el[mm],az2[mm],dn[mm],dh[mm],hd,p)
+            e=eff_poa(np.asarray(ang,dtype=float),el[mm],az2[mm],dn[mm],dh[mm],c,p)
             return (e/1000*cw*uc*ef*dl).sum()
         ml.append({"month":m,"AI":em(da.loc[mm,"angle_ai"].values),
                    "고정60°":em(np.full(mm.sum(),60.0)),"수직90°":em(np.full(mm.sum(),90.0)),
@@ -203,19 +198,19 @@ tom_dt=datetime.strptime(tom,"%Y%m%d") if tom else datetime.now()+timedelta(days
 sim_date=st.sidebar.date_input("날짜",tom_dt)
 
 with st.sidebar.expander("고급 설정", expanded=False):
-    st.subheader("2. 블레이드 (V15)")
-    st.caption("중심축 회전 | Pitch:Depth 1:1")
+    st.subheader("2. 블레이드 (도면 1043A)")
+    st.caption("중심축 회전 | 현≈피치 (닫힘 연속면)")
     wm=st.number_input("가로(mm)",min_value=100.0,value=DW,step=100.0)
-    bdm=st.number_input("세로/DEPTH(mm)",min_value=10.0,value=DH,step=1.0)
-    pm=st.number_input("피치(mm)",min_value=10.0,value=DP,step=1.0)
-    hdm=bdm/2; st.caption(f"HALF={hdm:.1f}mm | 비율={pm/bdm:.2f}")
+    cm=st.number_input("현/폭 CHORD(mm)",min_value=10.0,value=DCH,step=0.5)
+    pm=st.number_input("피치(mm)",min_value=10.0,value=DP,step=0.5)
+    st.caption(f"현/피치 비율={cm/pm:.2f}")
     lc=st.number_input("블레이드 수",min_value=1,value=DLC,step=1)
     st.subheader("3. 패널")
     uc=st.number_input("유닛 수",min_value=1,value=DU)
     cw=st.number_input("용량(W)",value=DC)
     te=st.number_input("효율(%)",value=DE,step=0.1)
     kr=st.number_input("요금(원/kWh)",value=DK)
-ef=float(te)/DE; asc=(wm*bdm*lc)/(DW*DH*DLC)
+ef=float(te)/DE; asc=(wm*cm*lc)/(DW*DCH*DLC)
 
 sd=sim_date.strftime("%Y-%m-%d")
 ts=pd.date_range(start=f"{sd} 00:00",periods=24,freq="h",tz=TZ)
@@ -235,9 +230,9 @@ ck=cl*9
 xa=None
 if mdl: xa=predict_xgb(mdl,ts,ghi,ck,tp,AMAX)
 ai=xa if xa is not None else rule_angles(el,ghi)
-am="XGBoost v16" if xa is not None else "규칙 기반"
+am="XGBoost v17" if xa is not None else "규칙 기반"
 def dpow(ang):
-    e=eff_poa(np.asarray(ang,dtype=float),el,az,dn,dh,hdm,pm)
+    e=eff_poa(np.asarray(ang,dtype=float),el,az,dn,dh,cm,pm)
     return (e[ghi>=10]/1000*cw*uc*ef*DL*asc).sum()
 pa,p6,p9=dpow(ai),dpow(np.full(24,60.0)),dpow(np.full(24,90.0))
 ly=sim_date.year-1; ux=mdl is not None
@@ -249,7 +244,7 @@ df_csv_raw, csv_err_raw = load_csv()
 # ★ v9.3 변경: 10년 전체 평균으로 연간 발전량 계산 (Colab V15 일치)
 # ==============================================================================
 @st.cache_data(ttl=86400)
-def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
+def get_annual_from_csv(df_src, c, p, cw_p, uc_p, ef_p, dl_p):
     """CSV 실측 기상 데이터로 발전량 직접 계산 — 10년 평균 (Colab V15 동일)"""
     df2 = df_src.copy()
     df2["ts"] = pd.to_datetime(df2["timestamp"])
@@ -281,7 +276,7 @@ def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
 
     # ── v9.3: 전체 합산 / 연수 = 연평균 ──
     def en(ang):
-        e = eff_poa(np.asarray(ang,dtype=float), el2, az2, dn2, dh2, hd, p)
+        e = eff_poa(np.asarray(ang,dtype=float), el2, az2, dn2, dh2, c, p)
         return (e[mask]/1000*cw_p*uc_p*ef_p*dl_p).sum() / n_years
 
     wa2, w62, w92 = en(ai2), en(np.full(len(el2), 60.0)), en(np.full(len(el2), 90.0))
@@ -306,7 +301,7 @@ def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
             continue
         # ── v9.3: 월별도 연수로 나누기 ──
         def em(ang):
-            e = eff_poa(np.asarray(ang,dtype=float), el2[mm], az2[mm], dn2[mm], dh2[mm], hd, p)
+            e = eff_poa(np.asarray(ang,dtype=float), el2[mm], az2[mm], dn2[mm], dh2[mm], c, p)
             return (e/1000*cw_p*uc_p*ef_p*dl_p).sum() / n_years
         ml2.append({"month":m,"AI":em(ai2[mm]),
                     "고정60°":em(np.full(mm.sum(),60.0)),"수직90°":em(np.full(mm.sum(),90.0)),
@@ -315,11 +310,11 @@ def get_annual_from_csv(df_src, hd, p, cw_p, uc_p, ef_p, dl_p):
 
 # ── v9.3: 호출부 수정 ──
 if df_csv_raw is not None and "solar_elevation" in df_csv_raw.columns:
-    wa,w6,w9,dmo,dan,year_range = get_annual_from_csv(df_csv_raw, hdm, pm, cw, uc, ef, DL)
+    wa,w6,w9,dmo,dan,year_range = get_annual_from_csv(df_csv_raw, cm, pm, cw, uc, ef, DL)
     annual_source = f"실측 기상 {year_range} 평균"
     _dbg_years = sorted(pd.to_datetime(df_csv_raw["timestamp"]).dt.year.unique())
 else:
-    wa,w6,w9,dmo,dan = get_annual(ly,hdm,pm,cw,uc,ef,DL,ux)
+    wa,w6,w9,dmo,dan = get_annual(ly,cm,pm,cw,uc,ef,DL,ux)
     annual_source = f"청천 모델 근사 ({ly}년)"
 
 ka=wa/1000*asc; k6=w6/1000*asc; k9=w9/1000*asc
@@ -332,21 +327,6 @@ mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 # Single-page render — embed main.html once with the full data dict
 # ==============================================================================
 from pathlib import Path
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def _depth_sensitivity(_ly, _pm, _cw, _uc, _ef, _DL, _asc):
-    dr = list(range(80, 161, 10))
-    pdl = []
-    for bd in dr:
-        _, _, _, dm, _ = get_annual(_ly, bd/2, _pm, _cw, _uc, _ef, _DL)
-        pdl.append(round(dm["AI"].sum() * _asc / 1000, 1))
-    return dr, pdl
-
-_dr, _dkwh = _depth_sensitivity(ly, pm, cw, uc, ef, DL, asc)
-_best_idx = int(np.argmax(_dkwh))
-_rec_depth = _dr[_best_idx]
-_rec_lo = _dr[max(0, _best_idx - 2)]
-_rec_hi = _dr[min(len(_dr) - 1, _best_idx + 2)]
 
 if df_csv_raw is not None:
     _yrs = sorted(pd.to_datetime(df_csv_raw["timestamp"]).dt.year.unique())
@@ -366,12 +346,12 @@ _mo_extra = [round(a - b, 1) for a, b in zip(_mo_AI, _mo_F60)]
 _uplift_pct = round((ka/k6 - 1) * 100, 1) if k6 > 0 else 0.0
 _month_kwh  = round((ka - k6) / 12, 1)  # 월평균 추가 kWh
 
-# ── 모델 지표: model_metrics_v16.json (train_v16.py 홀드아웃 실측) ──
+# ── 모델 지표: model_metrics_v17.json (train_v17.py 홀드아웃 실측) ──
 try:
-    with open("model_metrics_v16.json", encoding="utf-8") as _f:
+    with open("model_metrics_v17.json", encoding="utf-8") as _f:
         _met = json.load(_f)
 except Exception:
-    _met = {"r2_day": 0.9885, "mae_day": 0.79}  # v16 학습 시점 홀드아웃 값 (json 부재 시)
+    _met = {"r2_day": 0.9665, "mae_day": 0.6}  # v17 학습 시점 홀드아웃 값 (json 부재 시)
 
 # ── feature importance: 로드된 모델에서 동적 산출 (predict_xgb 입력 순서) ──
 _FEAT_ORDER = ["hour_sin", "hour_cos", "doy_sin", "doy_cos", "ghi_w_m2", "cloud_cover", "temp_actual"]
@@ -445,16 +425,16 @@ bipv_data = {
         "F90": round(p9 / 1000, 3),
     },
 
-    # V15 모델 기하 (JS 측 panel_sf / svf 라이브 계산용)
+    # v17 실기하 (JS 측 panel_sf / svf 라이브 계산용) — 도면 1043A
     "geom": {
-        "hd": float(hdm),   # 반깊이 (depth/2)
-        "p":  float(pm),    # 피치
+        "c": float(cm),     # 현(chord, mm)
+        "p": float(pm),     # 피치 (mm)
     },
 
     # 현재 블레이드 사양 (Section 06 spec card)
     "blade": {
-        "depth":    int(bdm),
-        "pitch":    int(pm),
+        "chord":    round(float(cm), 1),
+        "pitch":    round(float(pm), 1),
         "width":    int(wm),
         "count":    int(lc),
         "capacity": int(cw),
@@ -477,13 +457,6 @@ bipv_data = {
         "model_loaded":   bool(mdl),
         "csv_loaded":     df_csv_raw is not None,
         "weather_api_ok": kma is not None,
-    },
-
-    "depth_curve": {
-        "range":       _dr,
-        "kwh":         _dkwh,
-        "recommended": _rec_depth,
-        "recommended_range": [_rec_lo, _rec_hi],
     },
 
     # 월별 AI 우위 — Section 06 monthly chart
