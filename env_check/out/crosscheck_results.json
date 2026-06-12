@@ -1,0 +1,99 @@
+{
+  "L1_sf_grid": {
+    "max_abs": 4.440892098500626e-16,
+    "mean_abs": 4.196500173502717e-17,
+    "worst5": [
+      [
+        15,
+        80,
+        0.8826,
+        0.8826
+      ],
+      [
+        5,
+        80,
+        0.8826,
+        0.8826
+      ],
+      [
+        5,
+        85,
+        0.985,
+        0.985
+      ],
+      [
+        10,
+        75,
+        0.7822,
+        0.7822
+      ],
+      [
+        10,
+        85,
+        0.9846,
+        0.9846
+      ]
+    ]
+  },
+  "L2_view_factors": {
+    "f_sky": {
+      "max_abs": 0.014496313204605316,
+      "mean_abs": 0.010223812753008111,
+      "argmax_tilt": 36,
+      "at_0": [
+        0.2887,
+        0.3002
+      ],
+      "at_83": [
+        0.5239,
+        0.5116
+      ],
+      "at_90": [
+        0.5,
+        0.5006
+      ]
+    },
+    "f_grd": {
+      "max_abs": 0.0009781496233046416,
+      "mean_abs": 0.0003891325508053731,
+      "argmax_tilt": 40,
+      "at_0": [
+        0.0,
+        0.0
+      ],
+      "at_83": [
+        0.4391,
+        0.4391
+      ],
+      "at_90": [
+        0.5,
+        0.4994
+      ]
+    }
+  },
+  "L3_L4_decisions": {
+    "hours": 44207,
+    "lit_hours": 44207,
+    "angle_diff_mean_deg": 4.85,
+    "angle_diff_p95_deg": 6.0,
+    "cross_regret_v3_decisions_in_cleanroom_%": 0.0294,
+    "cross_regret_cleanroom_decisions_in_v3_%": 0.0139,
+    "v17_label_regret_in_cleanroom_%": 0.0263,
+    "ladder_cleanroom": {
+      "vs60": 4.97,
+      "vs81": 0.51,
+      "vs83": 0.66,
+      "vs90": 6.82
+    },
+    "ladder_v3": {
+      "vs60": 4.44,
+      "vs81": 0.53,
+      "vs83": 0.72,
+      "vs90": 6.63
+    },
+    "best_fixed_cleanroom": 81,
+    "best_fixed_v3": 81,
+    "opt_median_cleanroom": 84.0,
+    "opt_median_v3": 83.0
+  }
+}
