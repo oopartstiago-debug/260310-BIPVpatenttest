@@ -30,6 +30,11 @@ public class LouverAgentPresenter : MonoBehaviour {
     readonly float[] recent = new float[20];
     int recentIdx, recentFilled;
 
+    // 하루 발전 프로파일(시각화) — 시간위상 24구간에 AI/정답 POA 기록 (에피소드마다 초기화)
+    const int NBINS = 24;
+    readonly float[] binAi = new float[NBINS], binOra = new float[NBINS];
+    readonly bool[] binSet = new bool[NBINS];
+
     void Awake() {
         agent = GetComponent<LouverAgent>();
         Application.runInBackground = true;   // 창이 비활성이어도 계속 실행(학습 타임아웃 죽음 방지)
@@ -64,10 +69,40 @@ public class LouverAgentPresenter : MonoBehaviour {
         podiumMat = M(lit, new Color(0.30f, 0.32f, 0.36f), 0.7f,  0.55f);   // 제어콘솔 금속
         screenMat = M(lit, new Color(0.10f, 0.20f, 0.28f), 0.0f,  0.6f);
         screenMat.EnableKeyword("_EMISSION"); screenMat.SetColor("_EmissionColor", new Color(0.2f, 0.9f, 1f) * 1.6f);
+
+        // 절차적 텍스처(런타임 생성 — 임포트 불필요). 패널=PV 셀 그리드, 바닥=콘크리트 타일.
+        panelMat.SetTexture("_BaseMap", MakePvCellsTex(192, 384)); panelMat.SetColor("_BaseColor", Color.white);
+        groundMat.SetTexture("_BaseMap", MakeTileTex(256));        groundMat.SetColor("_BaseColor", Color.white);
+        groundMat.SetTextureScale("_BaseMap", new Vector2(8, 8));
     }
 
     Material M(Shader s, Color c, float metallic, float smooth) {
         var m = new Material(s); m.SetColor("_BaseColor", c); m.SetFloat("_Metallic", metallic); m.SetFloat("_Smoothness", smooth); return m;
+    }
+
+    // BIPV 태양광 셀 그리드: 짙은 남색 셀 + 셀 경계 + 버스바 2줄
+    Texture2D MakePvCellsTex(int w, int h) {
+        var t = new Texture2D(w, h, TextureFormat.RGB24, true);
+        Color grout = new Color(0.02f, 0.03f, 0.06f), cell = new Color(0.06f, 0.10f, 0.24f), bus = new Color(0.55f, 0.58f, 0.62f);
+        int cols = 6, rows = 12, cw = w / cols, ch = h / rows;
+        var px = new Color[w * h];
+        for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
+            int cx = x % cw, cy = y % ch; Color c = cell;
+            if (cx < 2 || cy < 2) c = grout;                       // 셀 경계
+            else if (cx == cw / 3 || cx == 2 * cw / 3) c = bus;    // 버스바 2줄
+            px[y * w + x] = c;
+        }
+        t.SetPixels(px); t.Apply(); t.wrapMode = TextureWrapMode.Clamp; return t;
+    }
+
+    // 콘크리트 타일: 밝은 회색 타일 + 어두운 줄눈
+    Texture2D MakeTileTex(int n) {
+        var t = new Texture2D(n, n, TextureFormat.RGB24, true);
+        Color tile = new Color(0.50f, 0.50f, 0.52f), grout = new Color(0.34f, 0.34f, 0.36f);
+        int g = n / 4; var px = new Color[n * n];
+        for (int y = 0; y < n; y++) for (int x = 0; x < n; x++)
+            px[y * n + x] = (x % g < 2 || y % g < 2) ? grout : tile;
+        t.SetPixels(px); t.Apply(); return t;
     }
 
     void SetupSkyAndLight() {
@@ -231,6 +266,10 @@ public class LouverAgentPresenter : MonoBehaviour {
         }
         if (charArm) charArm.localRotation = Quaternion.Euler(-30f - agent.CurrentTilt * 0.5f, 0, 0);  // 콘솔 조작하듯
 
+        // 하루 발전 프로파일: 현재 시간위상 구간에 최신 POA 기록
+        int bi = Mathf.Clamp(Mathf.RoundToInt(agent.DayPhase01 * (NBINS - 1)), 0, NBINS - 1);
+        binAi[bi] = agent.CurrentPoa; binOra[bi] = agent.CurrentOraclePoa; binSet[bi] = true;
+
         if (agent.DayTrackingPct > 0.01f) lastNonZeroPct = agent.DayTrackingPct;
         int ep = agent.CompletedEpisodes;
         if (ep > prevEpisodes) {
@@ -238,6 +277,7 @@ public class LouverAgentPresenter : MonoBehaviour {
             if (lastNonZeroPct > bestPct) bestPct = lastNonZeroPct;
             recent[recentIdx] = lastNonZeroPct; recentIdx = (recentIdx + 1) % recent.Length;
             if (recentFilled < recent.Length) recentFilled++;
+            for (int i = 0; i < NBINS; i++) binSet[i] = false;   // 새 하루 → 프로파일 초기화
         }
         // 자가 검증용 스크린샷 (persistentDataPath = 항상 쓰기 가능)
         if (Time.unscaledTime > nextShot) {
@@ -276,6 +316,37 @@ public class LouverAgentPresenter : MonoBehaviour {
         GUILayout.Space(6);
         GUILayout.Label($"●  AI 각도 {agent.CurrentTilt:0}°    정답(이론상 최적) {agent.CurrentOracleTilt:0}°", body);
         GUILayout.Label($"●  지금 받는 햇빛 {agent.CurrentPoa:0}  (최대 {agent.CurrentOraclePoa:0})    오늘 점수 {agent.DayTrackingPct:0}%", body);
+        DrawPowerBar(GUILayoutUtility.GetRect(540, 16), agent.CurrentPoa, agent.CurrentOraclePoa);
         GUILayout.EndArea();
+
+        DrawDayChart(new Rect(18, 392, 580, 150));
+    }
+
+    static void Fill(Rect r, Color c) { var old = GUI.color; GUI.color = c; GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = old; }
+
+    // 즉시 발전량 막대: 정답(회색) 위에 AI(하늘색) 겹침
+    void DrawPowerBar(Rect r, float ai, float ora) {
+        float mx = Mathf.Max(1f, ora);
+        Fill(r, new Color(0, 0, 0, 0.35f));
+        Fill(new Rect(r.x, r.y, r.width * Mathf.Clamp01(ora / mx), r.height), new Color(0.6f, 0.62f, 0.66f, 0.7f));
+        Fill(new Rect(r.x, r.y, r.width * Mathf.Clamp01(ai / mx), r.height), new Color(0.2f, 0.85f, 1f, 0.95f));
+    }
+
+    // 하루 발전 프로파일: 시간대별 정답(회색) vs AI(하늘색) 막대 → 학습=정답 곡선 추종을 시각화
+    void DrawDayChart(Rect area) {
+        GUI.Box(area, GUIContent.none);
+        var lab = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold };
+        GUI.Label(new Rect(area.x + 10, area.y + 5, area.width - 20, 20), "오늘 발전 프로파일 (시간대별) — ■ 정답  ■ AI", lab);
+        Rect plot = new Rect(area.x + 12, area.y + 30, area.width - 24, area.height - 42);
+        float mx = 1f; for (int i = 0; i < NBINS; i++) if (binOra[i] > mx) mx = binOra[i];
+        float bw = plot.width / NBINS;
+        for (int i = 0; i < NBINS; i++) {
+            if (!binSet[i]) continue;
+            float x = plot.x + i * bw;
+            float ho = plot.height * Mathf.Clamp01(binOra[i] / mx);
+            float ha = plot.height * Mathf.Clamp01(binAi[i] / mx);
+            Fill(new Rect(x + 1, plot.yMax - ho, bw - 2, ho), new Color(0.6f, 0.62f, 0.66f, 0.85f));                  // 정답
+            Fill(new Rect(x + 1 + bw * 0.18f, plot.yMax - ha, (bw - 2) * 0.64f, ha), new Color(0.2f, 0.85f, 1f, 0.95f)); // AI
+        }
     }
 }

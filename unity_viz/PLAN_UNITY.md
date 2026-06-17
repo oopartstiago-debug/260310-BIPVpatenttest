@@ -29,7 +29,7 @@ BIPV 루버 AI 각도제어를 **오프라인 스탠드얼론 데모**로. 시�
 | R3 | ML-Agents 학습 실행 → `results/louver_demo/LouverTilt.onnx` | 사용자(터미널) | ✅ 완료(3.0M스텝, 보상 77.7) |
 | R4 | 스탠드얼론 macOS .app 빌드(`Build/AITiltRL.app`) | 사용자 | ✅ 완료 |
 | V1 | 비주얼 고도화: 사실적 스카이/태양·자기음영·반사프로브·외벽·작업자·포스트프로세싱 | Claude | ✅ 1차 완료(Presenter) |
-| V2 | 데이터 오버레이(발전 막대·하루 POA 곡선 AI vs oracle) + PV 셀 텍스처 | Claude | 🔄 진행 중 |
+| V2 | 데이터 오버레이(발전 막대·하루 POA 곡선 AI vs oracle) + PV 셀/바닥 텍스처 | Claude | ✅ 1차 완료(절차적, 재빌드 필요) |
 | V3 | 현상설명 모드(가이드 카메라+캡션: 저각자기음영/80°균형/90°빔스침) | Claude | ⬜ |
 
 **다음 행동(사용자)**: Unity에서 `AITiltViz` 열기 → **AI Tilt → Setup RL Scene** 메뉴로 씬 배선 →
