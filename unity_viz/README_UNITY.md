@@ -8,16 +8,23 @@ Python이 검증된 물리로 `scene_data.json`을 굽고, Unity는 그걸 읽�
 [physics_v3] --bake_scene.py--> scene_data.json --(StreamingAssets)--> [Unity 씬] --build--> 데모.app
 ```
 
-## 파일
-- `bake_scene.py` — 베이크 브리지. `scene_data.json` 생성. (프로젝트 .venv로 실행)
-- `scene_data.json` — 구워진 하루 타임라인(태양궤적·oracle각·음영·POA·누적에너지).
-- `SolarLouverViz.cs` — Unity 드라이버(JSON 읽어 태양이동+루버회전+HUD).
+> 단계별 현황·재개는 **PLAN_UNITY.md** 참조.
 
-### 베이크 다시 굽기
+## 파일
+- `bake_scene.py` — 베이크 브리지. `scene_data.json` 생성. (프로젝트 .venv)
+- `gen_csharp_tables.py` — C# 물리용 테이블/검증벡터 생성.
+- `scene_data.json` — 하루 타임라인(태양궤적·oracle각·음영·POA·누적에너지). → **StreamingAssets**
+- `vf_flat_v17.json` / `iam_diffuse_v17.json` / `physics_testvectors.json` — C# 물리 테이블+셀프테스트. → **StreamingAssets**
+- `SolarLouverViz.cs` — 드라이버(JSON 읽어 태양이동+루버회전+HUD). → **Scripts**
+- `LouverPhysics.cs` — physics_v3 C# 포팅(실시간 재계산·oracle)+SelfTest. → **Scripts**
+- `SolarLouverSandbox.cs` — 실시간 탐색 패널(알베도/현/피치/비교각). → **Scripts**
+
+### 베이크/테이블 다시 굽기
 ```bash
 cd /Users/wonetiago/projects/260310-BIPVpatenttest
 .venv/bin/python unity_viz/bake_scene.py                 # 하지 근접일, 60° 비교
 .venv/bin/python unity_viz/bake_scene.py --date 2014-12-21 --baseline 45
+.venv/bin/python unity_viz/gen_csharp_tables.py          # vf_flat/iam/testvectors
 ```
 
 ---
@@ -31,8 +38,8 @@ cd /Users/wonetiago/projects/260310-BIPVpatenttest
 ## 1단계 — 프로젝트 + 씬 만들기 (클릭 순서)
 1. Hub → New Project → **3D (URP)** 템플릿 → 이름 `AITiltViz` → Create.
 2. 프로젝트 창 Assets 아래에 폴더 두 개 생성:
-   - `Assets/Scripts/`  ← `SolarLouverViz.cs`를 여기로 복사
-   - `Assets/StreamingAssets/`  ← `scene_data.json`을 여기로 복사  (폴더명 정확히, 대소문자 주의)
+   - `Assets/Scripts/`  ← `.cs` 3개 복사: `SolarLouverViz.cs` `LouverPhysics.cs` `SolarLouverSandbox.cs`
+   - `Assets/StreamingAssets/`  ← `.json` 4개 복사: `scene_data.json` `vf_flat_v17.json` `iam_diffuse_v17.json` `physics_testvectors.json`  (폴더명 정확히, 대소문자 주의)
 3. 씬 구성 (Hierarchy 우클릭):
    - **3D Object → Plane** (바닥). Position (0,0,0).
    - **Create Empty** → 이름 `LouverRoot`. Position (0, 1, 0). (블레이드가 이 밑에 자동 생성됨)
@@ -41,6 +48,8 @@ cd /Users/wonetiago/projects/260310-BIPVpatenttest
    - `LouverRoot` 선택 → Inspector → **Add Component** → `Solar Louver Viz`.
    - 컴포넌트의 **Sun** 칸에 Hierarchy의 Directional Light를 드래그.
    - **Louver Root** 칸에 LouverRoot 자신을 드래그.
+   - (선택) **Add Component** → `Solar Louver Sandbox` 추가 → 우측에 실시간 탐색 패널.
+     첫 Play 시 Console에 `[LouverPhysics 셀프테스트] 40/40 PASS` 로그 확인.
 5. 카메라: Main Camera를 루버가 보이게 이동(예: Position (3, 1, -3), 살짝 루버 쪽 회전). 나중에 조정.
 6. **Play ▶** — 태양이 하루를 돌고 루버가 oracle각으로 회전, 좌상단 HUD에 POA·이득% 표시.
    - HUD 버튼으로 "AI 최적 ↔ 고정 60°" 토글 → 60°에서 자기음영 그림자가 생기는 게 보임.
