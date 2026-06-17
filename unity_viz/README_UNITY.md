@@ -21,7 +21,7 @@ Python이 검증된 물리로 `scene_data.json`을 굽고, Unity는 그걸 읽�
 
 ### 베이크/테이블 다시 굽기
 ```bash
-cd /Users/wonetiago/projects/260310-BIPVpatenttest
+cd /Volumes/AISSD/ai-tilt
 .venv/bin/python unity_viz/bake_scene.py                 # 하지 근접일, 60° 비교
 .venv/bin/python unity_viz/bake_scene.py --date 2014-12-21 --baseline 45
 .venv/bin/python unity_viz/gen_csharp_tables.py          # vf_flat/iam/testvectors

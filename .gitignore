@@ -12,3 +12,35 @@ bipv_ai_master_data_v16.csv
 blade_drawing_1043A.png
 bipv_ai_master_data_v17.csv
 ~$*.docx
+
+# macOS
+.DS_Store
+
+# === Unity (unity_viz/AITiltViz) ===
+# 재생성 가능한 대용량 산출물 — 소스(Assets/ + ProjectSettings/ + Packages/)만 커밋
+unity_viz/AITiltViz/AITiltViz/[Ll]ibrary/
+unity_viz/AITiltViz/AITiltViz/[Tt]emp/
+unity_viz/AITiltViz/AITiltViz/[Oo]bj/
+unity_viz/AITiltViz/AITiltViz/[Bb]uild/
+unity_viz/AITiltViz/AITiltViz/[Bb]uilds/
+unity_viz/AITiltViz/AITiltViz/[Ll]ogs/
+unity_viz/AITiltViz/AITiltViz/[Uu]serSettings/
+unity_viz/AITiltViz/AITiltViz/[Mm]emoryCaptures/
+# 생성되는 IDE 프로젝트 파일
+unity_viz/AITiltViz/AITiltViz/*.csproj
+unity_viz/AITiltViz/AITiltViz/*.sln
+unity_viz/AITiltViz/AITiltViz/*.slnx
+.vs/
+
+# 스탠드얼론 빌드 산출물(.app, 142MB) — 재빌드 가능
+unity_viz/Build/
+
+# === ML-Agents 학습 산출물 ===
+# 최종 onnx 정책 + config + training_status 만 보관, 대용량 체크포인트/로그 제외
+unity_viz/results/**/*.pt
+unity_viz/results/**/*.onnx.data
+unity_viz/results/**/events.out.tfevents.*
+unity_viz/results/**/Player-*.log
+unity_viz/results/**/timers.json
+# 중간 체크포인트 onnx(LouverTilt/ 하위) 제외 — 각 run 최상위 LouverTilt.onnx(최종)만 보관
+unity_viz/results/**/LouverTilt/*.onnx

@@ -77,7 +77,7 @@ def bake(date, baseline_fixed, out):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default=None, help="YYYY-MM-DD (기본=하지 근접일)")
-    ap.add_argument("--baseline", type=float, default=60.0, help="비교 고정각 (기본 60)")
+    ap.add_argument("--baseline", type=float, default=90.0, help="비교 고정각 (기본 90=완전닫힘)")
     ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "scene_data.json"))
     a = ap.parse_args()
     bake(a.date, a.baseline, a.out)
