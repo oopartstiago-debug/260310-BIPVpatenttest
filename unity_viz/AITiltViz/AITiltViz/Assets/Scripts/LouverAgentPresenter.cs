@@ -82,9 +82,9 @@ public class LouverAgentPresenter : MonoBehaviour {
         explainMode = true;
         if (cam) {
             savedCamPos = cam.transform.position; savedCamRot = cam.transform.rotation; savedFov = cam.fieldOfView;
-            cam.transform.position = center + new Vector3(2.5f, 1.05f, -3.7f);  // 살짝 높여 PV 면을 내려다봄
-            cam.transform.LookAt(center + new Vector3(-0.95f, 0.35f, 0.0f));    // 루버를 화면 우측에(좌측 텍스트 안 가림)
-            cam.fieldOfView = 42f;
+            cam.transform.position = center + new Vector3(3.4f, 1.6f, -6.0f);   // 더 멀리 = 하늘·환경 보임
+            cam.transform.LookAt(center + new Vector3(-0.7f, 0.8f, 0.0f));      // 루버 우측, 하늘 여백
+            cam.fieldOfView = 48f;
         }
         explainAngle = 0f; explainDescending = false;
         SetSeason(seasonIdx);   // 곡선·최적각·태양 고정
@@ -221,20 +221,28 @@ public class LouverAgentPresenter : MonoBehaviour {
     void SetupCameraAndPost() {
         cam = Camera.main; if (!cam) return;
         cam.clearFlags = CameraClearFlags.Skybox;
-        cam.transform.position = center + new Vector3(2.0f, 0.65f, -4.3f);
-        cam.transform.LookAt(center + new Vector3(-1.0f, 1.0f, 0.0f));   // 좌측을 봐서 루버가 화면 우측에 옴(텍스트 안 가림)
-        cam.fieldOfView = 48f;
-        cam.farClipPlane = Mathf.Max(cam.farClipPlane, 80f);
+        cam.transform.position = center + new Vector3(4.0f, 1.9f, -7.6f);     // 더 멀리·살짝 높게 = 하늘·바닥·환경 보임
+        cam.transform.LookAt(center + new Vector3(-0.5f, 1.0f, 0.2f));        // 루버는 화면 우측, 위로 하늘 여백
+        cam.fieldOfView = 50f;
+        cam.farClipPlane = Mathf.Max(cam.farClipPlane, 160f);
+        cam.allowHDR = true;
+        float focusDist = Vector3.Distance(cam.transform.position, center);   // 루버에 초점
 
         var data = cam.GetUniversalAdditionalCameraData();
         if (data != null) { data.renderPostProcessing = true; data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing; }
         var volGo = new GameObject("PostVolume");
         var vol = volGo.AddComponent<Volume>(); vol.isGlobal = true;
         var prof = ScriptableObject.CreateInstance<VolumeProfile>(); vol.profile = prof;
-        var bloom = prof.Add<Bloom>(true); bloom.intensity.Override(0.8f); bloom.threshold.Override(1.1f); bloom.scatter.Override(0.6f);
+        // 시네마틱 스택
+        var bloom = prof.Add<Bloom>(true); bloom.intensity.Override(0.7f); bloom.threshold.Override(1.15f); bloom.scatter.Override(0.68f); bloom.tint.Override(new Color(1f, 0.96f, 0.9f));
         var tm = prof.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.ACES);
-        var vig = prof.Add<Vignette>(true); vig.intensity.Override(0.25f); vig.smoothness.Override(0.4f);
-        var co = prof.Add<ColorAdjustments>(true); co.postExposure.Override(0.1f); co.saturation.Override(8f); co.contrast.Override(10f);
+        var dof = prof.Add<DepthOfField>(true); dof.mode.Override(DepthOfFieldMode.Bokeh);
+        dof.focusDistance.Override(focusDist); dof.aperture.Override(8f); dof.focalLength.Override(38f);  // 은은하게(환경 가리지 않게)
+        var wb = prof.Add<WhiteBalance>(true); wb.temperature.Override(7f); wb.tint.Override(2f);              // 살짝 따뜻하게
+        var co = prof.Add<ColorAdjustments>(true); co.postExposure.Override(0.15f); co.saturation.Override(6f); co.contrast.Override(16f);
+        var ca = prof.Add<ChromaticAberration>(true); ca.intensity.Override(0.12f);
+        var grain = prof.Add<FilmGrain>(true); grain.type.Override(FilmGrainLookup.Thin1); grain.intensity.Override(0.22f); grain.response.Override(0.8f);
+        var vig = prof.Add<Vignette>(true); vig.intensity.Override(0.30f); vig.smoothness.Override(0.45f);
     }
 
     void BuildReflectionProbe() {
