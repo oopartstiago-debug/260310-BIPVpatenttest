@@ -453,13 +453,10 @@ public class LouverAgentPresenter : MonoBehaviour {
 
         if (explainMode) { DrawExplainOverlay(); return; }
 
-        var title = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, wordWrap = true };
         var body  = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true };
         var big   = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, wordWrap = true };
-        var hud = new Rect(14, 14, 446, 300); Panel(hud);
+        var hud = new Rect(14, 14, 446, 250); Panel(hud);
         GUILayout.BeginArea(new Rect(hud.x + 12, hud.y + 10, hud.width - 24, hud.height - 20));
-        GUILayout.Label("AI가 태양 고도에 따른 음영을 최소화해 발전량을 최대화하는 루버 각도를 스스로 학습", title);
-        GUILayout.Space(4);
         int hh = (int)agent.CurrentHour, mm = (int)((agent.CurrentHour - hh) * 60f);
         GUILayout.Label($"📅 {agent.Env.currentDate}  {hh:00}:{mm:00}   {Season(agent.Env.currentDate)} · {Weather(agent.Env.dayPeakDni)}   (서울 기상청 10년 기상 데이터)", big);
         GUILayout.Space(6);
@@ -470,8 +467,8 @@ public class LouverAgentPresenter : MonoBehaviour {
         GUILayout.Label($"★ 평가 점수 — 최근 {recentFilled}일 평균 {RecentAvg():0.0}%", big);
         GUILayout.Label("   (100% = 이론상 최적 각도가 모을 햇빛을 100% 따라잡음. 학습될수록 ↑)", body);
         GUILayout.Space(6);
-        GUILayout.Label($"●  AI 각도 {agent.CurrentTilt:0}°    이론상 최적 {agent.CurrentOracleTilt:0}°", body);
-        GUILayout.Label($"●  현재 일사량 {agent.CurrentPoa:0} W/m²  (이론상 최적 {agent.CurrentOraclePoa:0} W/m²)", body);
+        GUILayout.Label($"●  AI 각도 {agent.CurrentTilt:0}°", body);
+        GUILayout.Label($"●  현재 일사량 {agent.CurrentPoa:0} W/m²", body);
         DrawPowerBar(GUILayoutUtility.GetRect(410, 14), agent.CurrentPoa, agent.CurrentOraclePoa);
         GUILayout.EndArea();
 
