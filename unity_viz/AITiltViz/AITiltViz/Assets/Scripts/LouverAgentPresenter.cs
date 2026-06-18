@@ -35,6 +35,15 @@ public class LouverAgentPresenter : MonoBehaviour {
     readonly float[] binAi = new float[NBINS], binOra = new float[NBINS];
     readonly bool[] binSet = new bool[NBINS];
 
+    // ── V3 현상설명(Explanation) 모드 — 시각 전용(학습 불변) ──
+    // 맑은 한여름 정오를 고정하고 루버를 0°→90° 스윕하며 왜 ~80°가 최적인지(저각 자기음영/균형/빔스침) 보여줌.
+    bool explainMode;
+    float explainAngle; bool explainDescending;
+    Vector3 savedCamPos; Quaternion savedCamRot; float savedFov;
+    float[] explainCurve; float explainCurveMax, explainOptTilt, explainOptPoa;
+    const float EX_ELEV = 72f, EX_AZ = 180f, EX_DNI = 880f, EX_DHI = 110f, EX_ALB = 0.15f, EX_C = 97.5f, EX_P = 97.5f;
+    const float EX_SWEEP_SPEED = 11f;  // 도/초
+
     void Awake() {
         agent = GetComponent<LouverAgent>();
         Application.runInBackground = true;   // 창이 비활성이어도 계속 실행(학습 타임아웃 죽음 방지)
@@ -53,6 +62,61 @@ public class LouverAgentPresenter : MonoBehaviour {
         BuildFrame();
         BuildReflectionProbe();
         BuildCharacter();
+        foreach (var a in System.Environment.GetCommandLineArgs()) if (a == "-explain") { EnterExplain(); break; }
+    }
+
+    // ── 현상설명 모드 진입/이탈 ──
+    void EnterExplain() {
+        if (explainMode) return;
+        explainMode = true;
+        if (explainCurve == null) {
+            explainCurve = new float[91]; explainCurveMax = 1f; explainOptPoa = -1f;
+            for (int t = 0; t <= 90; t++) {
+                float e = LouverPhysics.EffPoa(t, EX_ELEV, EX_AZ, EX_DNI, EX_DHI, EX_ALB, EX_C, EX_P);
+                explainCurve[t] = e;
+                if (e > explainCurveMax) explainCurveMax = e;
+                if (e > explainOptPoa) { explainOptPoa = e; explainOptTilt = t; }
+            }
+        }
+        if (cam) {
+            savedCamPos = cam.transform.position; savedCamRot = cam.transform.rotation; savedFov = cam.fieldOfView;
+            cam.transform.position = center + new Vector3(2.9f, 0.18f, -3.1f);   // 저각 측면 = 슬랫 자기음영이 보임
+            cam.transform.LookAt(center + new Vector3(0f, 0.15f, 0.05f));
+            cam.fieldOfView = 42f;
+        }
+        explainAngle = 0f; explainDescending = false;
+        FreezeSun();
+    }
+
+    void ExitExplain() {
+        if (!explainMode) return; explainMode = false;
+        if (cam) { cam.transform.position = savedCamPos; cam.transform.rotation = savedCamRot; cam.fieldOfView = savedFov; }
+    }
+
+    void FreezeSun() {
+        if (!agent.sun) return;
+        float er = EX_ELEV * Mathf.Deg2Rad, ar = EX_AZ * Mathf.Deg2Rad;
+        Vector3 d = new Vector3(Mathf.Sin(ar) * Mathf.Cos(er), Mathf.Sin(er), Mathf.Cos(ar) * Mathf.Cos(er));
+        agent.sun.transform.forward = (-d).normalized;
+        agent.sun.intensity = 1.6f;
+    }
+
+    // 시각 전용: 에이전트가 매 스텝 설정한 블레이드/태양을 LateUpdate 에서 덮어써 스윕을 보여줌(학습 불변).
+    void LateUpdate() {
+        if (!explainMode) return;
+        explainAngle += (explainDescending ? -1f : 1f) * EX_SWEEP_SPEED * Time.deltaTime;
+        if (explainAngle >= 90f) { explainAngle = 90f; explainDescending = true; }
+        else if (explainAngle <= 0f) { explainAngle = 0f; explainDescending = false; }
+        if (louverRoot)
+            for (int i = 0; i < louverRoot.childCount; i++)
+                louverRoot.GetChild(i).localRotation = Quaternion.Euler(explainAngle, 0, 0);
+        FreezeSun();
+    }
+
+    string ExplainCaption(float a, out string head) {
+        if (a < 25f) { head = "① 저각 — 자기음영"; return "슬랫을 낮게 눕히면 위 슬랫이 아래를 가려(자기음영) 직사광이 패널에 거의 못 닿는다. 발전 급감."; }
+        if (a <= 86f) { head = "② 약 80° — 균형(최적)"; return "자기음영이 사라지고 입사각도 적정. 두 손실이 모두 작은 '평평한 꼭대기' → 발전 최대."; }
+        head = "③ 90° — 빔 스침"; return "완전히 세우면 직사광이 표면을 스치듯 입사(cosθ 급감) + 유리 반사(프레넬)가 커져 다시 손실.";
     }
 
     void MakeMaterials() {
@@ -299,6 +363,16 @@ public class LouverAgentPresenter : MonoBehaviour {
 
     void OnGUI() {
         if (agent == null) return;
+
+        // 모드 토글 버튼(우상단) — 사용자가 .app 에서 클릭
+        var btn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
+        if (GUI.Button(new Rect(Screen.width - 236, 18, 218, 38),
+                explainMode ? "◀ AI 시연으로 돌아가기" : "▶ 왜 80°가 최적인가 (설명)", btn)) {
+            if (explainMode) ExitExplain(); else EnterExplain();
+        }
+
+        if (explainMode) { DrawExplainOverlay(); return; }
+
         var title = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, wordWrap = true };
         var body  = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
         var big   = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, wordWrap = true };
@@ -348,5 +422,54 @@ public class LouverAgentPresenter : MonoBehaviour {
             Fill(new Rect(x + 1, plot.yMax - ho, bw - 2, ho), new Color(0.6f, 0.62f, 0.66f, 0.85f));                  // 정답
             Fill(new Rect(x + 1 + bw * 0.18f, plot.yMax - ha, (bw - 2) * 0.64f, ha), new Color(0.2f, 0.85f, 1f, 0.95f)); // AI
         }
+    }
+
+    // ── 현상설명 오버레이 ──
+    void DrawExplainOverlay() {
+        float curPoa = explainCurve != null ? explainCurve[Mathf.Clamp(Mathf.RoundToInt(explainAngle), 0, 90)] : 0f;
+        string head; string body = ExplainCaption(explainAngle, out head);
+        var title = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, wordWrap = true };
+        var big   = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, wordWrap = true };
+        var headS = new GUIStyle(GUI.skin.label) { fontSize = 17, fontStyle = FontStyle.Bold, wordWrap = true };
+        var bodyS = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
+
+        GUILayout.BeginArea(new Rect(18, 18, 600, 252), GUI.skin.box);
+        GUILayout.Label("왜 약 80°가 최적인가 — 루버를 0°→90° 훑어보기 (맑은 한여름 정오 기준)", title);
+        GUILayout.Space(6);
+        GUILayout.Label($"현재 각도 {explainAngle:0}°    받는 햇빛 {curPoa:0} / 최대 {explainOptPoa:0} (최적 {explainOptTilt:0}°)", big);
+        GUILayout.Space(4);
+        GUILayout.Label(head, headS);
+        GUILayout.Label(body, bodyS);
+        GUILayout.EndArea();
+
+        DrawExplainCurve(new Rect(18, 284, 600, 232));
+    }
+
+    void DrawExplainCurve(Rect area) {
+        GUI.Box(area, GUIContent.none);
+        var lab = new GUIStyle(GUI.skin.label) { fontSize = 13 };
+        GUI.Label(new Rect(area.x + 10, area.y + 5, area.width - 20, 20), "발전량(POA) vs 루버 각도", new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
+        Rect plot = new Rect(area.x + 14, area.y + 28, area.width - 28, area.height - 52);
+        if (explainCurve == null) return;
+        // 구간 배경: 저각 자기음영 / 빔스침
+        Fill(new Rect(plot.x, plot.y, plot.width * 25f / 90f, plot.height), new Color(0.95f, 0.35f, 0.25f, 0.10f));
+        Fill(new Rect(plot.x + plot.width * 86f / 90f, plot.y, plot.width * 4f / 90f, plot.height), new Color(0.98f, 0.6f, 0.1f, 0.12f));
+        // 곡선(도별 막대, 구간별 색)
+        for (int t = 0; t <= 90; t++) {
+            float h = plot.height * Mathf.Clamp01(explainCurve[t] / explainCurveMax);
+            float x = plot.x + plot.width * t / 90f;
+            Color c = t < 25 ? new Color(0.95f, 0.4f, 0.3f, 0.9f)
+                    : t > 86 ? new Color(0.98f, 0.62f, 0.12f, 0.9f)
+                             : new Color(0.35f, 0.85f, 0.5f, 0.9f);
+            Fill(new Rect(x, plot.yMax - h, Mathf.Max(1f, plot.width / 91f - 0.5f), h), c);
+        }
+        // 최적각(흰선) + 현재각(시안선)
+        float ox = plot.x + plot.width * explainOptTilt / 90f;
+        Fill(new Rect(ox - 1, plot.y, 2, plot.height), new Color(1f, 1f, 1f, 0.55f));
+        float cx = plot.x + plot.width * explainAngle / 90f;
+        Fill(new Rect(cx - 1.5f, plot.y, 3, plot.height), new Color(0.2f, 0.85f, 1f, 1f));
+        GUI.Label(new Rect(plot.x, plot.yMax + 2, 90, 18), "0° (눕힘)", lab);
+        GUI.Label(new Rect(plot.xMax - 70, plot.yMax + 2, 70, 18), "90° (세움)", lab);
+        GUI.Label(new Rect(ox - 16, plot.y - 1, 90, 18), $"최적 {explainOptTilt:0}°", lab);
     }
 }
