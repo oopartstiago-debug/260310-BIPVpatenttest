@@ -472,15 +472,6 @@ public class LouverAgentPresenter : MonoBehaviour {
     void OnGUI() {
         if (agent == null) return;
 
-        // 모드 토글 버튼(우상단) — 사용자가 .app 에서 클릭
-        var btn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
-        if (GUI.Button(new Rect(Screen.width - 236, 18, 218, 38),
-                explainMode ? "◀ 시연으로 돌아가기" : "▶ 왜 80°가 최적인가 (설명)", btn)) {
-            if (explainMode) ExitExplain(); else EnterExplain();
-        }
-
-        if (explainMode) { DrawExplainOverlay(); return; }
-
         var body  = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true };
         var big   = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, wordWrap = true };
         var title = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, wordWrap = true };
