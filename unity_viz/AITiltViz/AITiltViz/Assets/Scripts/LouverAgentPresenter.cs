@@ -193,16 +193,31 @@ public class LouverAgentPresenter : MonoBehaviour {
     }
 
     void SetupSkyAndLight() {
-        var sky = Shader.Find("Skybox/Procedural");
-        if (sky) {
-            skyMat = new Material(sky);
-            skyMat.SetFloat("_SunSize", 0.05f);
-            skyMat.SetFloat("_SunSizeConvergence", 4f);
-            skyMat.SetFloat("_AtmosphereThickness", 1.0f);
-            skyMat.SetFloat("_Exposure", 1.0f);
-            skyMat.SetColor("_SkyTint", new Color(0.42f, 0.58f, 0.85f));
-            skyMat.SetColor("_GroundColor", new Color(0.36f, 0.37f, 0.39f));
-            RenderSettings.skybox = skyMat;
+        // HDRI 스카이박스(Resources/EnvSky.mat)가 있으면 실제 하늘+IBL+반사 사용(품질 우선), 없으면 절차적 폴백.
+        var envSky = Resources.Load<Material>("EnvSky");
+        if (envSky) {
+            RenderSettings.skybox = envSky;
+            RenderSettings.ambientMode = AmbientMode.Skybox;
+            RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
+            RenderSettings.ambientIntensity = 1.0f;
+            RenderSettings.reflectionIntensity = 1.0f;
+            DynamicGI.UpdateEnvironment();
+        } else {
+            var sky = Shader.Find("Skybox/Procedural");
+            if (sky) {
+                skyMat = new Material(sky);
+                skyMat.SetFloat("_SunSize", 0.05f);
+                skyMat.SetFloat("_SunSizeConvergence", 4f);
+                skyMat.SetFloat("_AtmosphereThickness", 1.0f);
+                skyMat.SetFloat("_Exposure", 1.0f);
+                skyMat.SetColor("_SkyTint", new Color(0.42f, 0.58f, 0.85f));
+                skyMat.SetColor("_GroundColor", new Color(0.36f, 0.37f, 0.39f));
+                RenderSettings.skybox = skyMat;
+            }
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor     = new Color(0.55f, 0.64f, 0.80f);
+            RenderSettings.ambientEquatorColor = new Color(0.47f, 0.49f, 0.52f);
+            RenderSettings.ambientGroundColor  = new Color(0.28f, 0.28f, 0.29f);
         }
         if (agent.sun) {
             agent.sun.shadows = LightShadows.Soft;
@@ -212,10 +227,6 @@ public class LouverAgentPresenter : MonoBehaviour {
             RenderSettings.sun = agent.sun;
         }
         QualitySettings.shadowDistance = 60f;   // 루버 슬랫 자기음영이 또렷이 보이게
-        RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor     = new Color(0.55f, 0.64f, 0.80f);
-        RenderSettings.ambientEquatorColor = new Color(0.47f, 0.49f, 0.52f);
-        RenderSettings.ambientGroundColor  = new Color(0.28f, 0.28f, 0.29f);
     }
 
     void SetupCameraAndPost() {

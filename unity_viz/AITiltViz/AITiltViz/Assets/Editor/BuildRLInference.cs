@@ -16,6 +16,9 @@ public static class BuildRLInference {
     const string AssetPath = "Assets/Models/LouverTilt-3000120.onnx";
 
     public static void PerformBuild() {
+        // 0) Assets/Env 의 HDRI(.hdr/.exr) → Resources/EnvSky.mat(Skybox/Panoramic) 베이크(드롭인)
+        BakeEnvSky();
+
         // 1) onnx + 외부가중치 → Assets 복사 후 ModelAsset 으로 임포트
         string assetDir = System.IO.Path.Combine(Application.dataPath, "Models");
         System.IO.Directory.CreateDirectory(assetDir);
@@ -44,6 +47,32 @@ public static class BuildRLInference {
         var s = BuildPipeline.BuildPlayer(opts).summary;
         Debug.Log($"[BuildRLInference] result={s.result} size={s.totalSize} errors={s.totalErrors} model={modelName}");
         if (s.result != BuildResult.Succeeded) EditorApplication.Exit(1);
+    }
+
+    // Assets/Env 의 첫 HDRI 를 Skybox/Panoramic 머티리얼로 구워 Resources/EnvSky.mat 에 저장.
+    // 파일이 없으면 기존 EnvSky.mat 제거(→ 프레젠터가 절차적 하늘로 폴백). HDRI 드롭인 = 자동 적용.
+    static void BakeEnvSky() {
+        const string outMat = "Assets/Resources/EnvSky.mat";
+        string hdri = null;
+        if (System.IO.Directory.Exists(Application.dataPath + "/Env"))
+            foreach (var f in System.IO.Directory.GetFiles(Application.dataPath + "/Env"))
+                if (f.EndsWith(".hdr") || f.EndsWith(".exr")) { hdri = "Assets/Env/" + System.IO.Path.GetFileName(f); break; }
+        if (hdri == null) { if (AssetDatabase.LoadAssetAtPath<Material>(outMat) != null) AssetDatabase.DeleteAsset(outMat); return; }
+
+        AssetDatabase.ImportAsset(hdri, ImportAssetOptions.ForceSynchronousImport);
+        var tex = AssetDatabase.LoadAssetAtPath<Texture>(hdri);
+        var sh = Shader.Find("Skybox/Panoramic");
+        if (tex == null || sh == null) { Debug.LogWarning("[BakeEnvSky] HDRI/shader 로드 실패 — 절차적 하늘 폴백"); return; }
+        var mat = new Material(sh);
+        mat.SetTexture("_MainTex", tex);
+        mat.SetFloat("_Mapping", 1f);      // Latitude-Longitude Layout
+        mat.SetFloat("_ImageType", 0f);    // 360°
+        mat.SetFloat("_Exposure", 1.05f);
+        System.IO.Directory.CreateDirectory(Application.dataPath + "/Resources");
+        if (AssetDatabase.LoadAssetAtPath<Material>(outMat) != null) AssetDatabase.DeleteAsset(outMat);
+        AssetDatabase.CreateAsset(mat, outMat);
+        AssetDatabase.SaveAssets();
+        Debug.Log("[BakeEnvSky] HDRI 스카이박스 베이크 완료: " + hdri);
     }
 }
 #endif

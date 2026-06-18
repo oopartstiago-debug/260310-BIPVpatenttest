@@ -47,3 +47,8 @@ unity_viz/results/**/LouverTilt/*.onnx
 
 # Unity batch build logs
 unity_viz/*.log
+
+# HDRI 소스(대용량 CC0, 재다운로드 가능) + 빌드시 생성되는 스카이박스 머티리얼
+unity_viz/AITiltViz/AITiltViz/Assets/Env/*.hdr
+unity_viz/AITiltViz/AITiltViz/Assets/Env/*.exr
+unity_viz/AITiltViz/AITiltViz/Assets/Resources/EnvSky.mat*
