@@ -28,13 +28,27 @@ BIPV 루버 AI 각도제어를 **오프라인 스탠드얼론 데모**로. 시�
 | R2 | sun_days.json(기상청 10년·서울 3652일) 베이크 → 실제 하루 학습 | Claude | ✅ 완료 |
 | R3 | ML-Agents 학습 실행 → `results/louver_demo/LouverTilt.onnx` | 사용자(터미널) | ✅ 완료(3.0M스텝, 보상 77.7) |
 | R4 | 스탠드얼론 macOS .app 빌드(`Build/AITiltRL.app`) | 사용자 | ✅ 완료 |
+| R5 | 추론 스탠드얼론(`Build/AITiltRL_Infer.app`): 학습 onnx 베이크→트레이너 없이 정책 추종 | Claude | ✅ 완료(42a2865) |
 | V1 | 비주얼 고도화: 사실적 스카이/태양·자기음영·반사프로브·외벽·작업자·포스트프로세싱 | Claude | ✅ 1차 완료(Presenter) |
-| V2 | 데이터 오버레이(발전 막대·하루 POA 곡선 AI vs oracle) + PV 셀/바닥 텍스처 | Claude | ✅ 1차 완료(절차적, 재빌드 필요) |
-| V3 | 현상설명 모드(가이드 카메라+캡션: 저각자기음영/80°균형/90°빔스침) | Claude | ⬜ |
+| V2 | 데이터 오버레이(발전 막대·하루 POA 곡선 AI vs oracle) + PV 셀/바닥 텍스처 | Claude | ✅ 검증 완료(재빌드 후 렌더 확인) |
+| V3 | 현상설명 모드(가이드 카메라+캡션: 저각자기음영/80°균형/90°빔스침) | Claude | ✅ 완료(c154f81, -explain 검증) |
 
-**다음 행동(사용자)**: Unity에서 `AITiltViz` 열기 → **AI Tilt → Setup RL Scene** 메뉴로 씬 배선 →
-학습된 `LouverTilt.onnx`를 BehaviorParameters의 Model에 넣고 Inference로 Play(또는 `Build/AITiltRL.app` 실행).
-비주얼 코드(V2)를 갱신했으면 **Play(에디터)** 또는 **재빌드**해야 반영됨(런타임 절차적 생성).
+**시연용 추론 .app(권장)**: `Build/AITiltRL_Infer.app` 를 우클릭-열기 → 학습된 정책이 실제 서울 10년
+기상을 하루씩 추종(평가 99%대). 우상단 **'▶ 왜 80°가 최적인가'** 버튼으로 V3 현상설명 모드 진입
+(맑은 정오 고정·0°→90° 스윕·POA 곡선 3구간). 코드 수정 후 재빌드는 에디터를 닫고:
+```bash
+ROOT=/Volumes/AISSD/ai-tilt/unity_viz/AITiltViz/AITiltViz
+# Train 빌드(트레이너 연결용)
+"/Applications/Unity/Hub/Editor/6000.5.0f1/Unity.app/Contents/MacOS/Unity" -batchmode -quit \
+  -projectPath "$ROOT" -executeMethod BuildRLPlayer.PerformBuild -logFile /tmp/b.log
+# 추론 빌드(onnx 베이크 → 트레이너 불필요)  ※ onnx 외부가중치 .onnx.data 까지 자동 복사
+"/Applications/Unity/Hub/Editor/6000.5.0f1/Unity.app/Contents/MacOS/Unity" -batchmode -quit \
+  -projectPath "$ROOT" -executeMethod BuildRLInference.PerformBuild -logFile /tmp/bi.log
+# 헤드리스 검증: 실행 후 ~/Library/Application Support/DefaultCompany/AITiltViz/frame.png 를 봄
+"$PWD/Build/AITiltRL_Infer.app/Contents/MacOS/AITiltViz" -screen-width 1280 -screen-height 720 -screen-fullscreen 0 [-explain] &
+```
+**다음 행동(사용자)**: 에디터로 직접 보려면 `AITiltViz` 열기 → **AI Tilt → Setup RL Scene** → `LouverTilt.onnx`
+를 BehaviorParameters Model에 넣고 Inference로 Play. 절차적 비주얼(V1~V3)은 **Play 또는 재빌드** 시 반영.
 
 ## 파일맵 (unity_viz/)
 - `bake_scene.py` — physics_v3 → scene_data.json. `--date YYYY-MM-DD --baseline 60`
