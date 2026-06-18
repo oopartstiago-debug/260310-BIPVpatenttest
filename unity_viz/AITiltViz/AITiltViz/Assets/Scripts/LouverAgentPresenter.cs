@@ -18,6 +18,9 @@ public class LouverAgentPresenter : MonoBehaviour {
     Material bladeMat, frameMat, panelMat, wallMat, groundMat, skyMat;
     Material vestMat, hatMat, skinMat, pantsMat, podiumMat, screenMat;
     Camera cam;
+    // 자동 회전(공전) 카메라 — 앞쪽(블레이드·PV)↔북쪽(태양 일주)을 번갈아 보여줌
+    float orbitAngle = 180f;                 // 시작 = 남쪽 정면(블레이드)
+    const float ORBIT_RADIUS = 8.6f, ORBIT_HEIGHT = 2.7f, ORBIT_SPEED = 7f;  // 약 51초에 1바퀴
     Transform charArm;
     Vector3 center;
     float width;
@@ -427,6 +430,14 @@ public class LouverAgentPresenter : MonoBehaviour {
         if (charArm) charArm.localRotation = Quaternion.Euler(-30f - agent.CurrentTilt * 0.5f, 0, 0);  // 콘솔 조작하듯
         if (fanRotor) fanRotor.Rotate(0, 0, 240f * Time.deltaTime, Space.Self);                        // 실외기 팬 회전
         if (sunDisk && agent.sun) sunDisk.position = center - agent.sun.transform.forward * 230f;       // 태양 디스크가 빛 방향에 위치
+
+        // 자동 회전 카메라(설명 모드 아닐 때): 천천히 공전 → 앞쪽 블레이드와 북쪽 태양을 번갈아 보여줌
+        if (!explainMode && cam) {
+            orbitAngle += ORBIT_SPEED * Time.deltaTime;
+            float a = orbitAngle * Mathf.Deg2Rad;
+            cam.transform.position = center + new Vector3(Mathf.Sin(a) * ORBIT_RADIUS, ORBIT_HEIGHT, Mathf.Cos(a) * ORBIT_RADIUS);
+            cam.transform.LookAt(center + new Vector3(0f, 2.0f, 0f));   // 거의 수평 → 북쪽 구간에서 태양도 화면에 들어옴
+        }
 
         // 하루 발전 프로파일: 현재 시간위상 구간에 최신 POA 기록
         int bi = Mathf.Clamp(Mathf.RoundToInt(agent.DayPhase01 * (NBINS - 1)), 0, NBINS - 1);
