@@ -154,6 +154,10 @@ public class LouverAgentPresenter : MonoBehaviour {
         bladeMat.SetTexture("_BaseMap", MakeBladePvTex(384, 96));
         groundMat.SetTexture("_BaseMap", MakeTileTex(256));        groundMat.SetColor("_BaseColor", Color.white);
         groundMat.SetTextureScale("_BaseMap", new Vector2(8, 8));
+
+        // PBR 콘크리트 머티리얼(Resources, 빌드시 베이크)이 있으면 바닥/벽 교체 — HDRI와 톤 맞춤
+        var gm = Resources.Load<Material>("GroundMat"); if (gm) groundMat = gm;
+        var wm = Resources.Load<Material>("WallMat");   if (wm) wallMat = wm;
     }
 
     Material M(Shader s, Color c, float metallic, float smooth) {

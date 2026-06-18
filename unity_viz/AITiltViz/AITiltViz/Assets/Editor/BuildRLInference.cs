@@ -18,6 +18,8 @@ public static class BuildRLInference {
     public static void PerformBuild() {
         // 0) Assets/Env 의 HDRI(.hdr/.exr) → Resources/EnvSky.mat(Skybox/Panoramic) 베이크(드롭인)
         BakeEnvSky();
+        // 0b) PBR 콘크리트 텍스처 → Resources/GroundMat·WallMat 베이크(드롭인)
+        BakeSurfaces();
 
         // 1) onnx + 외부가중치 → Assets 복사 후 ModelAsset 으로 임포트
         string assetDir = System.IO.Path.Combine(Application.dataPath, "Models");
@@ -73,6 +75,36 @@ public static class BuildRLInference {
         AssetDatabase.CreateAsset(mat, outMat);
         AssetDatabase.SaveAssets();
         Debug.Log("[BakeEnvSky] HDRI 스카이박스 베이크 완료: " + hdri);
+    }
+
+    // Assets/Env/tex 의 PBR 콘크리트(diffuse+normal) → Resources/GroundMat·WallMat(URP Lit) 베이크.
+    static void BakeSurfaces() {
+        BakeMat("GroundMat", "Assets/Env/tex/ground_diff.png", "Assets/Env/tex/ground_nor.png", new Vector2(6, 6), 0.12f);
+        BakeMat("WallMat",   "Assets/Env/tex/wall_diff.png",   "Assets/Env/tex/wall_nor.png",   new Vector2(2.5f, 3.5f), 0.10f);
+    }
+
+    static void BakeMat(string matName, string diffPath, string norPath, Vector2 tiling, float smooth) {
+        string outMat = "Assets/Resources/" + matName + ".mat";
+        if (System.IO.File.Exists(Application.dataPath + diffPath.Substring("Assets".Length)))
+            AssetDatabase.ImportAsset(diffPath, ImportAssetOptions.ForceSynchronousImport);
+        var diff = AssetDatabase.LoadAssetAtPath<Texture2D>(diffPath);
+        if (diff == null) { if (AssetDatabase.LoadAssetAtPath<Material>(outMat) != null) AssetDatabase.DeleteAsset(outMat); return; }
+        // 노멀맵 임포트 타입 보정
+        if (AssetImporter.GetAtPath(norPath) is TextureImporter ti && ti.textureType != TextureImporterType.NormalMap) {
+            ti.textureType = TextureImporterType.NormalMap; ti.SaveAndReimport();
+        }
+        var nor = AssetDatabase.LoadAssetAtPath<Texture2D>(norPath);
+        var sh = Shader.Find("Universal Render Pipeline/Lit");
+        if (sh == null) return;
+        var mat = new Material(sh);
+        mat.SetTexture("_BaseMap", diff); mat.SetTextureScale("_BaseMap", tiling);
+        if (nor != null) { mat.SetTexture("_BumpMap", nor); mat.SetTextureScale("_BumpMap", tiling); mat.EnableKeyword("_NORMALMAP"); }
+        mat.SetFloat("_Smoothness", smooth); mat.SetFloat("_Metallic", 0f);
+        System.IO.Directory.CreateDirectory(Application.dataPath + "/Resources");
+        if (AssetDatabase.LoadAssetAtPath<Material>(outMat) != null) AssetDatabase.DeleteAsset(outMat);
+        AssetDatabase.CreateAsset(mat, outMat);
+        AssetDatabase.SaveAssets();
+        Debug.Log("[BakeSurfaces] " + matName + " 베이크 완료");
     }
 }
 #endif

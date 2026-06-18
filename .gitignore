@@ -52,3 +52,6 @@ unity_viz/*.log
 unity_viz/AITiltViz/AITiltViz/Assets/Env/*.hdr
 unity_viz/AITiltViz/AITiltViz/Assets/Env/*.exr
 unity_viz/AITiltViz/AITiltViz/Assets/Resources/EnvSky.mat*
+unity_viz/AITiltViz/AITiltViz/Assets/Env/tex/*
+unity_viz/AITiltViz/AITiltViz/Assets/Resources/GroundMat.mat*
+unity_viz/AITiltViz/AITiltViz/Assets/Resources/WallMat.mat*
