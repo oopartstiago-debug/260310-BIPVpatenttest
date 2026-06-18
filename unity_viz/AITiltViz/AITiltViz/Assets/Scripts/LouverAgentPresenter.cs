@@ -465,7 +465,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         GUILayout.Label($"⏱ 학습 {t/60:00}:{t%60:00}   스텝 {steps:n0}   완료 {agent.CompletedEpisodes}일", body);
         GUILayout.Space(4);
         GUILayout.Label($"★ 평가 점수 — 최근 {recentFilled}일 평균 {RecentAvg():0.0}%", big);
-        GUILayout.Label("   (100% = 이론상 최적 각도가 모을 햇빛을 100% 따라잡음. 학습될수록 ↑)", body);
+        GUILayout.Label("   (100% = 그날 모을 수 있는 최대 햇빛을 다 모음. 학습될수록 ↑)", body);
         GUILayout.Space(6);
         GUILayout.Label($"●  AI 각도 {agent.CurrentTilt:0}°", body);
         GUILayout.Label($"●  현재 일사량 {agent.CurrentPoa:0} W/m²", body);
