@@ -257,7 +257,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         var vol = volGo.AddComponent<Volume>(); vol.isGlobal = true;
         var prof = ScriptableObject.CreateInstance<VolumeProfile>(); vol.profile = prof;
         // 시네마틱 스택
-        var bloom = prof.Add<Bloom>(true); bloom.intensity.Override(0.7f); bloom.threshold.Override(1.15f); bloom.scatter.Override(0.68f); bloom.tint.Override(new Color(1f, 0.96f, 0.9f));
+        var bloom = prof.Add<Bloom>(true); bloom.intensity.Override(1.15f); bloom.threshold.Override(0.9f); bloom.scatter.Override(0.75f); bloom.tint.Override(new Color(1f, 0.96f, 0.88f));
         var tm = prof.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.ACES);
         var dof = prof.Add<DepthOfField>(true); dof.mode.Override(DepthOfFieldMode.Bokeh);
         dof.focusDistance.Override(focusDist); dof.aperture.Override(8f); dof.focalLength.Override(38f);  // 은은하게(환경 가리지 않게)
@@ -380,11 +380,11 @@ public class LouverAgentPresenter : MonoBehaviour {
         var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         go.name = "SunDisk";
         var col = go.GetComponent<Collider>(); if (col) Destroy(col);
-        go.transform.localScale = Vector3.one * 16f;
+        go.transform.localScale = Vector3.one * 18f;
         var lit = Shader.Find("Universal Render Pipeline/Lit");
         var m = new Material(lit);
         m.SetColor("_BaseColor", new Color(1f, 0.97f, 0.88f));
-        m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(1f, 0.93f, 0.74f) * 14f);  // 강한 발광 → 블룸으로 태양처럼
+        m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(1f, 0.93f, 0.72f) * 40f);  // 매우 강한 발광 → 블룸 글로우/할로 = 태양처럼
         var r = go.GetComponent<Renderer>(); r.sharedMaterial = m;
         r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         r.receiveShadows = false;
