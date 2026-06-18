@@ -80,8 +80,8 @@ public class LouverAgentPresenter : MonoBehaviour {
         }
         if (cam) {
             savedCamPos = cam.transform.position; savedCamRot = cam.transform.rotation; savedFov = cam.fieldOfView;
-            cam.transform.position = center + new Vector3(2.9f, 0.18f, -3.1f);   // 저각 측면 = 슬랫 자기음영이 보임
-            cam.transform.LookAt(center + new Vector3(0f, 0.15f, 0.05f));
+            cam.transform.position = center + new Vector3(2.5f, 0.5f, -3.7f);   // 저각 측면 = 슬랫 자기음영이 보임
+            cam.transform.LookAt(center + new Vector3(-0.95f, 0.2f, 0.0f));     // 루버를 화면 우측에(좌측 텍스트 안 가림)
             cam.fieldOfView = 42f;
         }
         explainAngle = 0f; explainDescending = false;
@@ -198,8 +198,8 @@ public class LouverAgentPresenter : MonoBehaviour {
     void SetupCameraAndPost() {
         cam = Camera.main; if (!cam) return;
         cam.clearFlags = CameraClearFlags.Skybox;
-        cam.transform.position = center + new Vector3(2.2f, 0.7f, -4.2f);
-        cam.transform.LookAt(center + new Vector3(-0.45f, 1.15f, 0.05f));
+        cam.transform.position = center + new Vector3(2.0f, 0.65f, -4.3f);
+        cam.transform.LookAt(center + new Vector3(-1.0f, 1.0f, 0.0f));   // 좌측을 봐서 루버가 화면 우측에 옴(텍스트 안 가림)
         cam.fieldOfView = 48f;
         cam.farClipPlane = Mathf.Max(cam.farClipPlane, 80f);
 
@@ -373,30 +373,33 @@ public class LouverAgentPresenter : MonoBehaviour {
 
         if (explainMode) { DrawExplainOverlay(); return; }
 
-        var title = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, wordWrap = true };
-        var body  = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
-        var big   = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, wordWrap = true };
-        GUILayout.BeginArea(new Rect(18, 18, 580, 360), GUI.skin.box);
+        var title = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, wordWrap = true };
+        var body  = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true };
+        var big   = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, wordWrap = true };
+        var hud = new Rect(14, 14, 446, 300); Panel(hud);
+        GUILayout.BeginArea(new Rect(hud.x + 12, hud.y + 10, hud.width - 24, hud.height - 20));
         GUILayout.Label("AI가 태양을 따라 블라인드 각도를 맞추는 법을 스스로 배우는 중", title);
         GUILayout.Space(4);
-        GUILayout.Label($"📅 {agent.Env.currentDate}   {Season(agent.Env.currentDate)} · {Weather(agent.Env.dayPeakDni)}   (서울 · 기상청 실제 10년, 날짜 순차 진행)", big);
+        GUILayout.Label($"📅 {agent.Env.currentDate}   {Season(agent.Env.currentDate)} · {Weather(agent.Env.dayPeakDni)}   (서울 기상청 10년, 순차)", big);
         GUILayout.Space(6);
         int t = (int)Time.realtimeSinceStartup;
         long steps = Academy.IsInitialized ? Academy.Instance.TotalStepCount : 0;
-        GUILayout.Label($"⏱ 학습 시간 {t/60:00}:{t%60:00}    학습 스텝 {steps:n0}    완료한 하루 {agent.CompletedEpisodes}일", body);
+        GUILayout.Label($"⏱ 학습 {t/60:00}:{t%60:00}   스텝 {steps:n0}   완료 {agent.CompletedEpisodes}일", body);
         GUILayout.Space(4);
-        GUILayout.Label($"★ 평가 점수 — 최근 {recentFilled}일 평균  {RecentAvg():0.0}%      역대 최고  {bestPct:0.0}%", big);
-        GUILayout.Label("   (100% = 컴퓨터가 찾은 '정답' 각도만큼 햇빛을 모음. 학습될수록 올라감)", body);
+        GUILayout.Label($"★ 평가 점수 — 최근 {recentFilled}일 평균 {RecentAvg():0.0}%   역대 최고 {bestPct:0.0}%", big);
+        GUILayout.Label("   (100% = '정답' 각도만큼 햇빛을 모음. 학습될수록 ↑)", body);
         GUILayout.Space(6);
         GUILayout.Label($"●  AI 각도 {agent.CurrentTilt:0}°    정답(이론상 최적) {agent.CurrentOracleTilt:0}°", body);
-        GUILayout.Label($"●  지금 받는 햇빛 {agent.CurrentPoa:0}  (최대 {agent.CurrentOraclePoa:0})    오늘 점수 {agent.DayTrackingPct:0}%", body);
-        DrawPowerBar(GUILayoutUtility.GetRect(540, 16), agent.CurrentPoa, agent.CurrentOraclePoa);
+        GUILayout.Label($"●  지금 햇빛 {agent.CurrentPoa:0} (최대 {agent.CurrentOraclePoa:0})   오늘 {agent.DayTrackingPct:0}%", body);
+        DrawPowerBar(GUILayoutUtility.GetRect(410, 14), agent.CurrentPoa, agent.CurrentOraclePoa);
         GUILayout.EndArea();
 
-        DrawDayChart(new Rect(18, 392, 580, 150));
+        DrawDayChart(new Rect(14, 322, 446, 124));
     }
 
     static void Fill(Rect r, Color c) { var old = GUI.color; GUI.color = c; GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = old; }
+    // 반투명 패널 배경 — 루버를 가리지 않게 텍스트는 좌측 컬럼에만, 배경은 살짝 비침
+    static void Panel(Rect r) { Fill(r, new Color(0.04f, 0.05f, 0.07f, 0.60f)); }
 
     // 즉시 발전량 막대: 정답(회색) 위에 AI(하늘색) 겹침
     void DrawPowerBar(Rect r, float ai, float ora) {
@@ -408,8 +411,8 @@ public class LouverAgentPresenter : MonoBehaviour {
 
     // 하루 발전 프로파일: 시간대별 정답(회색) vs AI(하늘색) 막대 → 학습=정답 곡선 추종을 시각화
     void DrawDayChart(Rect area) {
-        GUI.Box(area, GUIContent.none);
-        var lab = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold };
+        Panel(area);
+        var lab = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold };
         GUI.Label(new Rect(area.x + 10, area.y + 5, area.width - 20, 20), "오늘 발전 프로파일 (시간대별) — ■ 정답  ■ AI", lab);
         Rect plot = new Rect(area.x + 12, area.y + 30, area.width - 24, area.height - 42);
         float mx = 1f; for (int i = 0; i < NBINS; i++) if (binOra[i] > mx) mx = binOra[i];
@@ -428,13 +431,14 @@ public class LouverAgentPresenter : MonoBehaviour {
     void DrawExplainOverlay() {
         float curPoa = explainCurve != null ? explainCurve[Mathf.Clamp(Mathf.RoundToInt(explainAngle), 0, 90)] : 0f;
         string head; string body = ExplainCaption(explainAngle, out head);
-        var title = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, wordWrap = true };
-        var big   = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, wordWrap = true };
-        var headS = new GUIStyle(GUI.skin.label) { fontSize = 17, fontStyle = FontStyle.Bold, wordWrap = true };
-        var bodyS = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
+        var title = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, wordWrap = true };
+        var big   = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, wordWrap = true };
+        var headS = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, wordWrap = true };
+        var bodyS = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true };
 
-        GUILayout.BeginArea(new Rect(18, 18, 600, 252), GUI.skin.box);
-        GUILayout.Label("왜 약 80°가 최적인가 — 루버를 0°→90° 훑어보기 (맑은 한여름 정오 기준)", title);
+        var cap = new Rect(14, 14, 452, 212); Panel(cap);
+        GUILayout.BeginArea(new Rect(cap.x + 12, cap.y + 10, cap.width - 24, cap.height - 20));
+        GUILayout.Label("왜 약 80°가 최적인가 — 0°→90° 훑어보기 (맑은 한여름 정오)", title);
         GUILayout.Space(6);
         GUILayout.Label($"현재 각도 {explainAngle:0}°    받는 햇빛 {curPoa:0} / 최대 {explainOptPoa:0} (최적 {explainOptTilt:0}°)", big);
         GUILayout.Space(4);
@@ -442,12 +446,12 @@ public class LouverAgentPresenter : MonoBehaviour {
         GUILayout.Label(body, bodyS);
         GUILayout.EndArea();
 
-        DrawExplainCurve(new Rect(18, 284, 600, 232));
+        DrawExplainCurve(new Rect(14, 234, 452, 212));
     }
 
     void DrawExplainCurve(Rect area) {
-        GUI.Box(area, GUIContent.none);
-        var lab = new GUIStyle(GUI.skin.label) { fontSize = 13 };
+        Panel(area);
+        var lab = new GUIStyle(GUI.skin.label) { fontSize = 12 };
         GUI.Label(new Rect(area.x + 10, area.y + 5, area.width - 20, 20), "발전량(POA) vs 루버 각도", new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
         Rect plot = new Rect(area.x + 14, area.y + 28, area.width - 28, area.height - 52);
         if (explainCurve == null) return;
