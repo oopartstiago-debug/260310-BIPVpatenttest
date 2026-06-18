@@ -80,8 +80,8 @@ public class LouverAgentPresenter : MonoBehaviour {
         }
         if (cam) {
             savedCamPos = cam.transform.position; savedCamRot = cam.transform.rotation; savedFov = cam.fieldOfView;
-            cam.transform.position = center + new Vector3(2.5f, 0.5f, -3.7f);   // 저각 측면 = 슬랫 자기음영이 보임
-            cam.transform.LookAt(center + new Vector3(-0.95f, 0.2f, 0.0f));     // 루버를 화면 우측에(좌측 텍스트 안 가림)
+            cam.transform.position = center + new Vector3(2.5f, 1.05f, -3.7f);  // 살짝 높여 PV 면을 내려다봄
+            cam.transform.LookAt(center + new Vector3(-0.95f, 0.35f, 0.0f));    // 루버를 화면 우측에(좌측 텍스트 안 가림)
             cam.fieldOfView = 42f;
         }
         explainAngle = 0f; explainDescending = false;
@@ -121,9 +121,9 @@ public class LouverAgentPresenter : MonoBehaviour {
 
     void MakeMaterials() {
         var lit = Shader.Find("Universal Render Pipeline/Lit");
-        bladeMat  = M(lit, new Color(0.74f, 0.76f, 0.80f), 0.85f, 0.62f);
+        bladeMat  = M(lit, Color.white, 0.10f, 0.82f);                       // ★ 블레이드 = BIPV 유리 PV 모듈(5셀/날개)
         frameMat  = M(lit, new Color(0.16f, 0.17f, 0.20f), 0.55f, 0.45f);
-        panelMat  = M(lit, new Color(0.05f, 0.09f, 0.20f), 0.0f, 0.62f);
+        panelMat  = M(lit, new Color(0.09f, 0.10f, 0.12f), 0.0f, 0.12f);     // 뒤=어두운 리세스(개구부 안쪽)
         wallMat   = M(lit, new Color(0.50f, 0.51f, 0.53f), 0.0f,  0.12f);   // 콘크리트 외벽
         groundMat = M(lit, new Color(0.50f, 0.50f, 0.52f), 0.0f,  0.16f);
         vestMat   = M(lit, new Color(0.95f, 0.45f, 0.05f), 0.0f,  0.30f);   // 형광 조끼
@@ -134,8 +134,8 @@ public class LouverAgentPresenter : MonoBehaviour {
         screenMat = M(lit, new Color(0.10f, 0.20f, 0.28f), 0.0f,  0.6f);
         screenMat.EnableKeyword("_EMISSION"); screenMat.SetColor("_EmissionColor", new Color(0.2f, 0.9f, 1f) * 1.6f);
 
-        // 절차적 텍스처(런타임 생성 — 임포트 불필요). 패널=PV 셀 그리드, 바닥=콘크리트 타일.
-        panelMat.SetTexture("_BaseMap", MakePvCellsTex(192, 384)); panelMat.SetColor("_BaseColor", Color.white);
+        // 절차적 텍스처(런타임 생성 — 임포트 불필요). 블레이드=PV 셀 모듈, 바닥=콘크리트 타일.
+        bladeMat.SetTexture("_BaseMap", MakeBladePvTex(384, 96));
         groundMat.SetTexture("_BaseMap", MakeTileTex(256));        groundMat.SetColor("_BaseColor", Color.white);
         groundMat.SetTextureScale("_BaseMap", new Vector2(8, 8));
     }
@@ -144,16 +144,23 @@ public class LouverAgentPresenter : MonoBehaviour {
         var m = new Material(s); m.SetColor("_BaseColor", c); m.SetFloat("_Metallic", metallic); m.SetFloat("_Smoothness", smooth); return m;
     }
 
-    // BIPV 태양광 셀 그리드: 짙은 남색 셀 + 셀 경계 + 버스바 2줄
-    Texture2D MakePvCellsTex(int w, int h) {
+    // BIPV 날개 = 폭방향 5셀 PV 모듈(1043A: 5셀/날개). 짙은 남색 글라스 셀 + 셀 경계 + 버스바 + 가장자리 프레임.
+    Texture2D MakeBladePvTex(int w, int h) {
         var t = new Texture2D(w, h, TextureFormat.RGB24, true);
-        Color grout = new Color(0.02f, 0.03f, 0.06f), cell = new Color(0.06f, 0.10f, 0.24f), bus = new Color(0.55f, 0.58f, 0.62f);
-        int cols = 6, rows = 12, cw = w / cols, ch = h / rows;
+        Color frame = new Color(0.20f, 0.22f, 0.25f), grout = new Color(0.06f, 0.08f, 0.13f);
+        Color cell = new Color(0.10f, 0.17f, 0.40f), bus = new Color(0.72f, 0.76f, 0.82f);   // 데모 가독: 셀 약간 밝게
+        int cols = 5, cw = w / cols;
+        int fb = Mathf.Max(2, h / 16);  // 가장자리 알루미늄 프레임 두께
         var px = new Color[w * h];
         for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
-            int cx = x % cw, cy = y % ch; Color c = cell;
-            if (cx < 2 || cy < 2) c = grout;                       // 셀 경계
-            else if (cx == cw / 3 || cx == 2 * cw / 3) c = bus;    // 버스바 2줄
+            Color c;
+            if (x < fb || x >= w - fb || y < fb || y >= h - fb) c = frame;   // 프레임 테두리
+            else {
+                int cx = x % cw;
+                if (cx < 2) c = grout;                                       // 셀 사이 경계
+                else if (cx == cw / 3 || cx == 2 * cw / 3) c = bus;          // 버스바 2줄(폭방향)
+                else c = cell;
+            }
             px[y * w + x] = c;
         }
         t.SetPixels(px); t.Apply(); t.wrapMode = TextureWrapMode.Clamp; return t;
