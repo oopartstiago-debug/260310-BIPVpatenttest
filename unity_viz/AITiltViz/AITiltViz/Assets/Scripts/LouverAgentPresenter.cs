@@ -70,6 +70,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         BuildFrame();
         BuildReflectionProbe();
         BuildCharacter();
+        BuildOutdoorUnit();
         var args = System.Environment.GetCommandLineArgs();
         foreach (var a in args) if (a.StartsWith("-season=")) int.TryParse(a.Substring(8), out seasonIdx);
         foreach (var a in args) if (a == "-explain") { EnterExplain(); break; }
@@ -336,11 +337,44 @@ public class LouverAgentPresenter : MonoBehaviour {
         var sr = screen.GetComponent<Renderer>(); if (sr) sr.sharedMaterial = screenMat;
     }
 
-    void AddPart(Transform parent, PrimitiveType t, Vector3 scale, Vector3 pos, Material mat) {
+    GameObject AddPart(Transform parent, PrimitiveType t, Vector3 scale, Vector3 pos, Material mat) {
         var g = GameObject.CreatePrimitive(t);
         var col = g.GetComponent<Collider>(); if (col) Destroy(col);
         g.transform.SetParent(parent, false); g.transform.localScale = scale; g.transform.localPosition = pos;
         var r = g.GetComponent<Renderer>(); if (r) r.sharedMaterial = mat;
+        return g;
+    }
+
+    // 실외기(에어컨 콘덴서) — 이 루버가 가리는 대상. 제품 = 실외기실 BIPV 루버라 맥락을 채움.
+    Transform fanRotor;
+    void BuildOutdoorUnit() {
+        var lit = Shader.Find("Universal Render Pipeline/Lit");
+        var bodyM  = M(lit, new Color(0.80f, 0.81f, 0.82f), 0.35f, 0.45f);  // 도장 철판
+        var grillM = M(lit, new Color(0.10f, 0.11f, 0.13f), 0.20f, 0.30f);
+        var fanM   = M(lit, new Color(0.22f, 0.23f, 0.25f), 0.40f, 0.40f);
+        var holder = new GameObject("OutdoorUnit");
+        holder.transform.position = center + new Vector3(0.95f, -center.y, -1.25f);  // 루버 앞 우측 바닥
+        holder.transform.rotation = Quaternion.Euler(0, -18f, 0);
+        // 본체
+        AddPart(holder.transform, PrimitiveType.Cube, new Vector3(0.92f, 0.70f, 0.34f), new Vector3(0, 0.36f, 0), bodyM);
+        // 전면 팬 그릴(원형 리세스) — 카메라(-z) 쪽을 향함
+        var grille = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        grille.transform.SetParent(holder.transform, false);
+        grille.transform.localScale = new Vector3(0.54f, 0.015f, 0.54f);
+        grille.transform.localPosition = new Vector3(0, 0.40f, -0.18f);
+        grille.transform.localRotation = Quaternion.Euler(90, 0, 0);
+        var gc = grille.GetComponent<Collider>(); if (gc) Destroy(gc);
+        grille.GetComponent<Renderer>().sharedMaterial = grillM;
+        // 팬 날개(회전) — 십자 + 림
+        fanRotor = new GameObject("FanRotor").transform;
+        fanRotor.SetParent(holder.transform, false);
+        fanRotor.localPosition = new Vector3(0, 0.40f, -0.19f);
+        for (int k = 0; k < 3; k++)
+            AddPart(fanRotor, PrimitiveType.Cube, new Vector3(0.44f, 0.05f, 0.012f), Vector3.zero, fanM)
+                .transform.localRotation = Quaternion.Euler(0, 0, k * 60);
+        // 상단 토출 슬랫
+        for (int s = 0; s < 4; s++)
+            AddPart(holder.transform, PrimitiveType.Cube, new Vector3(0.80f, 0.012f, 0.055f), new Vector3(0, 0.72f, -0.10f + s * 0.07f), grillM);
     }
 
     void Update() {
@@ -351,6 +385,7 @@ public class LouverAgentPresenter : MonoBehaviour {
             skyMat.SetFloat("_Exposure", Mathf.Lerp(0.6f, 1.15f, clear));
         }
         if (charArm) charArm.localRotation = Quaternion.Euler(-30f - agent.CurrentTilt * 0.5f, 0, 0);  // 콘솔 조작하듯
+        if (fanRotor) fanRotor.Rotate(0, 0, 240f * Time.deltaTime, Space.Self);                        // 실외기 팬 회전
 
         // 하루 발전 프로파일: 현재 시간위상 구간에 최신 POA 기록
         int bi = Mathf.Clamp(Mathf.RoundToInt(agent.DayPhase01 * (NBINS - 1)), 0, NBINS - 1);
