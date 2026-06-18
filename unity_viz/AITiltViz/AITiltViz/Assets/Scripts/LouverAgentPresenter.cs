@@ -160,7 +160,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         groundMat.SetTextureScale("_BaseMap", new Vector2(8, 8));
 
         // PBR 콘크리트 머티리얼(Resources, 빌드시 베이크)이 있으면 바닥/벽 교체 — HDRI와 톤 맞춤
-        var gm = Resources.Load<Material>("GroundMat"); if (gm) groundMat = gm;
+        var gm = Resources.Load<Material>("GroundMat"); if (gm) { groundMat = gm; groundMat.SetTextureScale("_BaseMap", new Vector2(28, 28)); }
         var wm = Resources.Load<Material>("WallMat");   if (wm) wallMat = wm;
     }
 
@@ -235,6 +235,11 @@ public class LouverAgentPresenter : MonoBehaviour {
             RenderSettings.sun = agent.sun;
         }
         QualitySettings.shadowDistance = 60f;   // 루버 슬랫 자기음영이 또렷이 보이게
+        // 수평 안개 — 넓은 바닥 가장자리를 하늘 색으로 흐려 '떠 보임' 제거
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.ExponentialSquared;
+        RenderSettings.fogColor = new Color(0.74f, 0.79f, 0.85f);
+        RenderSettings.fogDensity = 0.013f;
     }
 
     void SetupCameraAndPost() {
@@ -284,7 +289,8 @@ public class LouverAgentPresenter : MonoBehaviour {
 
     void BuildGroundAndWall() {
         var ground = GameObject.Find("Ground");
-        if (!ground) { ground = GameObject.CreatePrimitive(PrimitiveType.Plane); ground.name = "Ground"; ground.transform.localScale = new Vector3(3, 1, 3); }
+        if (!ground) { ground = GameObject.CreatePrimitive(PrimitiveType.Plane); ground.name = "Ground"; }
+        ground.transform.localScale = new Vector3(12, 1, 12);   // 넓게(120m) → 안개와 함께 바닥이 수평선까지(뜬 느낌 제거)
         var gr = ground.GetComponent<Renderer>(); if (gr) gr.sharedMaterial = groundMat;
         // 배경벽 제거 — 남쪽 하늘(태양 일주)을 가리지 않게. 배경은 HDRI 가 담당.
     }
@@ -328,6 +334,16 @@ public class LouverAgentPresenter : MonoBehaviour {
     void BuildCharacter() {
         var holder = new GameObject("Operator");
         holder.transform.position = center + new Vector3(-(width * 0.5f) - 1.25f, -center.y, -0.2f);  // 바닥 좌측
+
+        // Mixamo 캐릭터(Resources/OperatorModel)가 있으면 그걸로, 없으면 프리미티브 폴백
+        var charModel = Resources.Load<GameObject>("OperatorModel");
+        if (charModel != null) {
+            var cm = Instantiate(charModel, holder.transform);
+            cm.transform.localPosition = Vector3.zero;
+            cm.transform.localRotation = Quaternion.Euler(0, 100f, 0);   // 루버(우측) 바라보게(추후 조정)
+            var an = cm.GetComponentInChildren<Animator>();
+            if (an != null) { var ctrl = Resources.Load<RuntimeAnimatorController>("OperatorAnim"); if (ctrl != null) an.runtimeAnimatorController = ctrl; }
+        } else {
         // 다리
         AddPart(holder.transform, PrimitiveType.Capsule, new Vector3(0.17f, 0.36f, 0.17f), new Vector3(-0.11f, 0.36f, 0), pantsMat);
         AddPart(holder.transform, PrimitiveType.Capsule, new Vector3(0.17f, 0.36f, 0.17f), new Vector3( 0.11f, 0.36f, 0), pantsMat);
@@ -349,6 +365,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         arm.transform.localPosition = new Vector3(0.04f, -0.16f, 0.10f);
         var ar = arm.GetComponent<Renderer>(); if (ar) ar.sharedMaterial = skinMat;
         var ac = arm.GetComponent<Collider>(); if (ac) Destroy(ac);
+        }
         // 제어 콘솔(작업자와 루버 사이)
         var podium = GameObject.CreatePrimitive(PrimitiveType.Cube);
         podium.transform.position = holder.transform.position + new Vector3(0.5f, 0.5f, 0.15f);

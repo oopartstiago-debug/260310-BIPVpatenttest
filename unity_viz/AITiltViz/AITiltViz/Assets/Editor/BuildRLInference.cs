@@ -20,6 +20,8 @@ public static class BuildRLInference {
         BakeEnvSky();
         // 0b) PBR 콘크리트 텍스처 → Resources/GroundMat·WallMat 베이크(드롭인)
         BakeSurfaces();
+        // 0c) Assets/Characters 의 FBX(Mixamo) → Humanoid 임포트 + 루프 애니 + 컨트롤러 → Resources
+        BakeCharacter();
 
         // 1) onnx + 외부가중치 → Assets 복사 후 ModelAsset 으로 임포트
         string assetDir = System.IO.Path.Combine(Application.dataPath, "Models");
@@ -105,6 +107,49 @@ public static class BuildRLInference {
         AssetDatabase.CreateAsset(mat, outMat);
         AssetDatabase.SaveAssets();
         Debug.Log("[BakeSurfaces] " + matName + " 베이크 완료");
+    }
+
+    // Assets/Characters 의 FBX(Mixamo) → Humanoid 임포트 + 클립 루프 + AnimatorController → Resources.
+    static void BakeCharacter() {
+        const string outModel = "Assets/Resources/OperatorModel.fbx";
+        const string outCtrl  = "Assets/Resources/OperatorAnim.controller";
+        string srcDir = Application.dataPath + "/Characters";
+        string fbx = null;
+        if (System.IO.Directory.Exists(srcDir))
+            foreach (var f in System.IO.Directory.GetFiles(srcDir))
+                if (f.EndsWith(".fbx")) { fbx = f; break; }
+        if (fbx == null) {
+            if (AssetDatabase.LoadMainAssetAtPath(outModel) != null) AssetDatabase.DeleteAsset(outModel);
+            if (AssetDatabase.LoadMainAssetAtPath(outCtrl) != null) AssetDatabase.DeleteAsset(outCtrl);
+            return;
+        }
+        System.IO.Directory.CreateDirectory(Application.dataPath + "/Resources");
+        System.IO.File.Copy(fbx, Application.dataPath + "/Resources/OperatorModel.fbx", true);
+        AssetDatabase.ImportAsset(outModel, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
+        var mi = AssetImporter.GetAtPath(outModel) as ModelImporter;
+        if (mi != null) {
+            mi.animationType = ModelImporterAnimationType.Human;
+            mi.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;   // 머티리얼 생성
+            var clips = mi.defaultClipAnimations;
+            for (int i = 0; i < clips.Length; i++) clips[i].loopTime = true;
+            if (clips.Length > 0) mi.clipAnimations = clips;
+            mi.SaveAndReimport();
+            // FBX 내장 텍스처 추출 → 머티리얼에 색/텍스처 적용(흰색 방지)
+            string texDir = "Assets/Resources/CharTex";
+            System.IO.Directory.CreateDirectory(Application.dataPath + "/Resources/CharTex");
+            mi.ExtractTextures(texDir);
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            mi.SaveAndReimport();
+        }
+        AnimationClip clip = null;
+        foreach (var a in AssetDatabase.LoadAllAssetsAtPath(outModel))
+            if (a is AnimationClip ac && !ac.name.StartsWith("__")) { clip = ac; break; }
+        if (clip != null) {
+            if (AssetDatabase.LoadMainAssetAtPath(outCtrl) != null) AssetDatabase.DeleteAsset(outCtrl);
+            UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPathWithClip(outCtrl, clip);
+        }
+        AssetDatabase.SaveAssets();
+        Debug.Log("[BakeCharacter] 캐릭터 베이크: " + System.IO.Path.GetFileName(fbx) + "  clip=" + (clip != null ? clip.name : "none"));
     }
 }
 #endif
