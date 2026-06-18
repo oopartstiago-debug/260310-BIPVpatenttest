@@ -455,8 +455,11 @@ public class LouverAgentPresenter : MonoBehaviour {
 
         var body  = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true };
         var big   = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, wordWrap = true };
-        var hud = new Rect(14, 14, 446, 250); Panel(hud);
+        var title = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, wordWrap = true };
+        var hud = new Rect(14, 14, 446, 296); Panel(hud);
         GUILayout.BeginArea(new Rect(hud.x + 12, hud.y + 10, hud.width - 24, hud.height - 20));
+        GUILayout.Label("태양 고도에 따른 음영을 최소화해 발전량을 최대화하는 루버 각도를 스스로 학습", title);
+        GUILayout.Space(4);
         int hh = (int)agent.CurrentHour, mm = (int)((agent.CurrentHour - hh) * 60f);
         GUILayout.Label($"📅 {agent.Env.currentDate}  {hh:00}:{mm:00}   {Season(agent.Env.currentDate)} · {Weather(agent.Env.dayPeakDni)}   (서울 기상청 10년 기상 데이터)", big);
         GUILayout.Space(6);
