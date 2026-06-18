@@ -82,9 +82,9 @@ public class LouverAgentPresenter : MonoBehaviour {
         explainMode = true;
         if (cam) {
             savedCamPos = cam.transform.position; savedCamRot = cam.transform.rotation; savedFov = cam.fieldOfView;
-            cam.transform.position = center + new Vector3(3.4f, 1.6f, -6.0f);   // 더 멀리 = 하늘·환경 보임
-            cam.transform.LookAt(center + new Vector3(-0.7f, 0.8f, 0.0f));      // 루버 우측, 하늘 여백
-            cam.fieldOfView = 48f;
+            cam.transform.position = center + new Vector3(4.0f, 1.9f, -7.0f);   // 더 축소(풀백)
+            cam.transform.LookAt(center + new Vector3(-0.6f, 0.8f, 0.0f));      // 루버 우측, 하늘 여백
+            cam.fieldOfView = 50f;
         }
         explainAngle = 0f; explainDescending = false;
         SetSeason(seasonIdx);   // 곡선·최적각·태양 고정
@@ -236,9 +236,9 @@ public class LouverAgentPresenter : MonoBehaviour {
     void SetupCameraAndPost() {
         cam = Camera.main; if (!cam) return;
         cam.clearFlags = CameraClearFlags.Skybox;
-        cam.transform.position = center + new Vector3(4.0f, 1.9f, -7.6f);     // 더 멀리·살짝 높게 = 하늘·바닥·환경 보임
-        cam.transform.LookAt(center + new Vector3(-0.5f, 1.0f, 0.2f));        // 루버는 화면 우측, 위로 하늘 여백
-        cam.fieldOfView = 50f;
+        cam.transform.position = center + new Vector3(4.7f, 2.3f, -8.9f);     // 더 축소(풀백) = 환경 더 넓게
+        cam.transform.LookAt(center + new Vector3(-0.4f, 1.0f, 0.2f));        // 루버는 화면 우측, 위로 하늘 여백
+        cam.fieldOfView = 52f;
         cam.farClipPlane = Mathf.Max(cam.farClipPlane, 160f);
         cam.allowHDR = true;
         float focusDist = Vector3.Distance(cam.transform.position, center);   // 루버에 초점
@@ -262,15 +262,16 @@ public class LouverAgentPresenter : MonoBehaviour {
 
     void BuildReflectionProbe() {
         var go = new GameObject("ReflProbe");
-        go.transform.position = center + new Vector3(0, 1.0f, -0.6f);
+        go.transform.position = center + new Vector3(0, 0.3f, -0.3f);
         var rp = go.AddComponent<ReflectionProbe>();
         rp.mode = ReflectionProbeMode.Realtime;
         rp.refreshMode = ReflectionProbeRefreshMode.EveryFrame;
         rp.timeSlicingMode = ReflectionProbeTimeSlicingMode.IndividualFaces;
-        rp.size = new Vector3(16, 16, 16);
-        rp.resolution = 128;
-        rp.cullingMask = 0;          // 하늘만 반사(잡오브젝트 제외, 가볍고 깔끔)
+        rp.size = new Vector3(12, 9, 12);
+        rp.resolution = 256;                          // 해상도↑ = 더 선명한 반사
+        rp.cullingMask = ~0;         // 장면+HDRI 전부 반사(유리 PV가 실제 환경을 비춤)
         rp.clearFlags = ReflectionProbeClearFlags.Skybox;
+        rp.boxProjection = true;     // 박스 투영 = 평면 유리에 환경이 정확히 매핑
     }
 
     void BuildGroundAndWall() {
