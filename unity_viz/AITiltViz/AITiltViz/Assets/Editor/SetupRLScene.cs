@@ -16,6 +16,14 @@ public static class SetupRLScene {
     [MenuItem("AI Tilt/Setup RL Scene (Heuristic Test)")]
     public static void BuildHeuristic() { Build(BehaviorType.HeuristicOnly); }
 
+    // 추론(InferenceOnly) 구성 + 학습된 onnx 모델 주입 → 스탠드얼론에서 학습 정책이 실제로 태양 추종.
+    public static void BuildInferenceWith(Unity.InferenceEngine.ModelAsset model) {
+        Build(BehaviorType.InferenceOnly);
+        var root = GameObject.Find("LouverRoot");
+        var bp = root.GetComponent<BehaviorParameters>();
+        bp.Model = model;
+    }
+
     static void Build(BehaviorType behaviorType) {
         // 바닥
         if (GameObject.Find("Ground") == null) {

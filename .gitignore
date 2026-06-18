@@ -44,3 +44,6 @@ unity_viz/results/**/Player-*.log
 unity_viz/results/**/timers.json
 # 중간 체크포인트 onnx(LouverTilt/ 하위) 제외 — 각 run 최상위 LouverTilt.onnx(최종)만 보관
 unity_viz/results/**/LouverTilt/*.onnx
+
+# Unity batch build logs
+unity_viz/*.log
