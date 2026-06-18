@@ -38,6 +38,7 @@ public class LouverAgent : Agent {
     public float CurrentOraclePoa { get; private set; }
     public float DayTrackingPct { get; private set; }  // 누적 POA / 누적 oracle POA (상한 대비 추종률)
     public float CurrentDni { get; private set; }       // 현재 직달일사(날씨 시각화용)
+    public float CurrentHour { get; private set; }       // 현재 시각(시, 실측 데이터)
     public float DayPhase01 => stepsPerDay <= 1 ? 0f : (float)step / (stepsPerDay - 1);  // 하루 진행 0~1(시각화용)
     public SolarDayEnv Env => env;
 
@@ -93,7 +94,7 @@ public class LouverAgent : Agent {
         AddReward(rEnergy - rMotor);
 
         cumPoa += poa; cumOraclePoa += oraPoa;
-        CurrentPoa = poa; CurrentOraclePoa = oraPoa; CurrentOracleTilt = oraTilt; CurrentDni = s.dni;
+        CurrentPoa = poa; CurrentOraclePoa = oraPoa; CurrentOracleTilt = oraTilt; CurrentDni = s.dni; CurrentHour = s.hour;
         DayTrackingPct = cumOraclePoa > 1e-3f ? 100f * cumPoa / cumOraclePoa : 0f;
 
         ApplySunAndBlades(t01);

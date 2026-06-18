@@ -24,7 +24,7 @@ public class SolarDayEnv {
     public float pitch = LouverPhysics.PITCH;
     public float albedo = LouverPhysics.ALBEDO;
 
-    [System.Serializable] public class DayFrame { public float elev, az, dni, dhi; }
+    [System.Serializable] public class DayFrame { public int h; public float elev, az, dni, dhi; }
     [System.Serializable] public class DayRec   { public string date; public DayFrame[] f; }
     [System.Serializable] public class DayLibrary { public DayRec[] days; }
 
@@ -65,7 +65,7 @@ public class SolarDayEnv {
         cloud = 1f; diffuseBoost = 1f;               // 날씨는 실측 데이터가 제공
     }
 
-    public struct SunState { public float elev, az, dni, dhi; }
+    public struct SunState { public float elev, az, dni, dhi, hour; }
 
     // t01: 0=그날 첫 시각, 1=마지막 시각
     public SunState Sample(float t01) {
@@ -79,6 +79,7 @@ public class SolarDayEnv {
             s.elev = Mathf.Lerp(a.elev, b.elev, fr); s.az = Mathf.Lerp(a.az, b.az, fr);
             s.dni  = Mathf.Lerp(a.dni,  b.dni,  fr) * cloud;
             s.dhi  = Mathf.Lerp(a.dhi,  b.dhi,  fr) * diffuseBoost;
+            s.hour = Mathf.Lerp(a.h, b.h, fr);
             return s;
         }
         // 폴백

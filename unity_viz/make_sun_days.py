@@ -12,6 +12,7 @@ with open(SRC, newline="") as f:
         d = row["timestamp"][:10]
         try:
             fr = {
+                "h":    int(row["timestamp"][11:13]),   # 실제 시각(시)
                 "elev": round(float(row["solar_elevation"]), 2),
                 "az":   round(float(row["solar_azimuth"]), 2),
                 "dni":  round(float(row["dni"]), 1),

@@ -25,7 +25,7 @@ public class LouverAgentPresenter : MonoBehaviour {
     bool shotPathLogged;
 
     // 평가 점수 추적
-    float lastNonZeroPct, bestPct;
+    float lastNonZeroPct;
     int prevEpisodes;
     readonly float[] recent = new float[20];
     int recentIdx, recentFilled;
@@ -414,7 +414,6 @@ public class LouverAgentPresenter : MonoBehaviour {
         int ep = agent.CompletedEpisodes;
         if (ep > prevEpisodes) {
             prevEpisodes = ep;
-            if (lastNonZeroPct > bestPct) bestPct = lastNonZeroPct;
             recent[recentIdx] = lastNonZeroPct; recentIdx = (recentIdx + 1) % recent.Length;
             if (recentFilled < recent.Length) recentFilled++;
             for (int i = 0; i < NBINS; i++) binSet[i] = false;   // 새 하루 → 프로파일 초기화
@@ -454,19 +453,20 @@ public class LouverAgentPresenter : MonoBehaviour {
         var big   = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, wordWrap = true };
         var hud = new Rect(14, 14, 446, 300); Panel(hud);
         GUILayout.BeginArea(new Rect(hud.x + 12, hud.y + 10, hud.width - 24, hud.height - 20));
-        GUILayout.Label("AI가 태양을 따라 블라인드 각도를 맞추는 법을 스스로 배우는 중", title);
+        GUILayout.Label("AI가 태양 고도에 따른 음영을 최소화해 발전량을 최대화하는 루버 각도를 스스로 학습", title);
         GUILayout.Space(4);
-        GUILayout.Label($"📅 {agent.Env.currentDate}   {Season(agent.Env.currentDate)} · {Weather(agent.Env.dayPeakDni)}   (서울 기상청 10년, 순차)", big);
+        int hh = (int)agent.CurrentHour, mm = (int)((agent.CurrentHour - hh) * 60f);
+        GUILayout.Label($"📅 {agent.Env.currentDate}  {hh:00}:{mm:00}   {Season(agent.Env.currentDate)} · {Weather(agent.Env.dayPeakDni)}   (서울 기상청 10년 기상 데이터)", big);
         GUILayout.Space(6);
         int t = (int)Time.realtimeSinceStartup;
         long steps = Academy.IsInitialized ? Academy.Instance.TotalStepCount : 0;
         GUILayout.Label($"⏱ 학습 {t/60:00}:{t%60:00}   스텝 {steps:n0}   완료 {agent.CompletedEpisodes}일", body);
         GUILayout.Space(4);
-        GUILayout.Label($"★ 평가 점수 — 최근 {recentFilled}일 평균 {RecentAvg():0.0}%   역대 최고 {bestPct:0.0}%", big);
-        GUILayout.Label("   (100% = '정답' 각도만큼 햇빛을 모음. 학습될수록 ↑)", body);
+        GUILayout.Label($"★ 평가 점수 — 최근 {recentFilled}일 평균 {RecentAvg():0.0}%", big);
+        GUILayout.Label("   (100% = 이론상 최적 각도가 모을 햇빛을 100% 따라잡음. 학습될수록 ↑)", body);
         GUILayout.Space(6);
-        GUILayout.Label($"●  AI 각도 {agent.CurrentTilt:0}°    정답(이론상 최적) {agent.CurrentOracleTilt:0}°", body);
-        GUILayout.Label($"●  지금 햇빛 {agent.CurrentPoa:0} (최대 {agent.CurrentOraclePoa:0})   오늘 {agent.DayTrackingPct:0}%", body);
+        GUILayout.Label($"●  AI 각도 {agent.CurrentTilt:0}°    이론상 최적 {agent.CurrentOracleTilt:0}°", body);
+        GUILayout.Label($"●  현재 일사량 {agent.CurrentPoa:0} W/m²  (이론상 최적 {agent.CurrentOraclePoa:0} W/m²)", body);
         DrawPowerBar(GUILayoutUtility.GetRect(410, 14), agent.CurrentPoa, agent.CurrentOraclePoa);
         GUILayout.EndArea();
 
@@ -521,7 +521,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         GUILayout.BeginArea(new Rect(cap.x + 12, cap.y + 10, cap.width - 24, cap.height - 20));
         GUILayout.Label($"왜 ~80°가 최적인가 — {SeasonName[seasonIdx]} · 0°→90° 훑어보기", title);
         GUILayout.Space(6);
-        GUILayout.Label($"현재 각도 {explainAngle:0}°    받는 햇빛 {curPoa:0} / 최대 {explainOptPoa:0} (최적 {explainOptTilt:0}°)", big);
+        GUILayout.Label($"현재 각도 {explainAngle:0}°    일사량 {curPoa:0} / 최대 {explainOptPoa:0} W/m² (최적 {explainOptTilt:0}°)", big);
         GUILayout.Space(4);
         GUILayout.Label(head, headS);
         GUILayout.Label(body, bodyS);
