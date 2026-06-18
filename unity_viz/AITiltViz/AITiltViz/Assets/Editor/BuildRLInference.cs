@@ -140,6 +140,19 @@ public static class BuildRLInference {
             mi.ExtractTextures(texDir);
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             mi.SaveAndReimport();
+            // 추출된 diffuse/normal을 고정 이름(CharDiffuse/CharNormal)으로 복사 → 런타임에 머티리얼 직접 적용(바인딩 누락 우회)
+            string ctxDir = Application.dataPath + "/Resources/CharTex";
+            if (System.IO.Directory.Exists(ctxDir))
+                foreach (var tf in System.IO.Directory.GetFiles(ctxDir)) {
+                    if (!tf.EndsWith(".png")) continue;
+                    if (tf.Contains("Diffuse")) System.IO.File.Copy(tf, Application.dataPath + "/Resources/CharDiffuse.png", true);
+                    else if (tf.Contains("Normal")) System.IO.File.Copy(tf, Application.dataPath + "/Resources/CharNormal.png", true);
+                }
+            AssetDatabase.ImportAsset("Assets/Resources/CharDiffuse.png", ImportAssetOptions.ForceSynchronousImport);
+            AssetDatabase.ImportAsset("Assets/Resources/CharNormal.png", ImportAssetOptions.ForceSynchronousImport);
+            if (AssetImporter.GetAtPath("Assets/Resources/CharNormal.png") is TextureImporter cni && cni.textureType != TextureImporterType.NormalMap) {
+                cni.textureType = TextureImporterType.NormalMap; cni.SaveAndReimport();
+            }
         }
         AnimationClip clip = null;
         foreach (var a in AssetDatabase.LoadAllAssetsAtPath(outModel))

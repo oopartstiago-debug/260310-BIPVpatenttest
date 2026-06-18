@@ -343,6 +343,15 @@ public class LouverAgentPresenter : MonoBehaviour {
             cm.transform.localRotation = Quaternion.Euler(0, 100f, 0);   // 루버(우측) 바라보게(추후 조정)
             var an = cm.GetComponentInChildren<Animator>();
             if (an != null) { var ctrl = Resources.Load<RuntimeAnimatorController>("OperatorAnim"); if (ctrl != null) an.runtimeAnimatorController = ctrl; }
+            // 추출 텍스처를 캐릭터 머티리얼에 직접 적용(흰색 방지 — 임포터 바인딩 누락 우회)
+            var charDiff = Resources.Load<Texture2D>("CharDiffuse");
+            var charNor  = Resources.Load<Texture2D>("CharNormal");
+            if (charDiff != null)
+                foreach (var rend in cm.GetComponentsInChildren<Renderer>())
+                    foreach (var mat in rend.materials) {
+                        mat.SetTexture("_BaseMap", charDiff); mat.SetTexture("_MainTex", charDiff); mat.SetColor("_BaseColor", Color.white);
+                        if (charNor != null) { mat.SetTexture("_BumpMap", charNor); mat.EnableKeyword("_NORMALMAP"); }
+                    }
         } else {
         // 다리
         AddPart(holder.transform, PrimitiveType.Capsule, new Vector3(0.17f, 0.36f, 0.17f), new Vector3(-0.11f, 0.36f, 0), pantsMat);
