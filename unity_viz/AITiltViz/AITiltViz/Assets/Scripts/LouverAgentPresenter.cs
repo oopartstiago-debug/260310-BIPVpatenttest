@@ -36,13 +36,21 @@ public class LouverAgentPresenter : MonoBehaviour {
     readonly bool[] binSet = new bool[NBINS];
 
     // ── V3 현상설명(Explanation) 모드 — 시각 전용(학습 불변) ──
-    // 맑은 한여름 정오를 고정하고 루버를 0°→90° 스윕하며 왜 ~80°가 최적인지(저각 자기음영/균형/빔스침) 보여줌.
+    // 계절별 정오를 고정하고 루버를 0°→90° 스윕하며 왜 ~80°가 최적인지(저각 자기음영/균형/빔스침)와
+    // 최적각이 계절 따라 이동함을 보여줌.
     bool explainMode;
     float explainAngle; bool explainDescending;
     Vector3 savedCamPos; Quaternion savedCamRot; float savedFov;
     float[] explainCurve; float explainCurveMax, explainOptTilt, explainOptPoa;
-    const float EX_ELEV = 72f, EX_AZ = 180f, EX_DNI = 880f, EX_DHI = 110f, EX_ALB = 0.15f, EX_C = 97.5f, EX_P = 97.5f;
+    const float EX_AZ = 180f, EX_ALB = 0.15f, EX_C = 97.5f, EX_P = 97.5f;
     const float EX_SWEEP_SPEED = 11f;  // 도/초
+    // 계절(서울 정오 태양고도 근사) — 최적각이 계절 따라 이동함을 보여줌(80°는 고정값 아님)
+    int seasonIdx;
+    float exElev = 76f, exDni = 900f, exDhi = 120f;
+    static readonly string[] SeasonName = { "여름 (하지 정오)", "춘·추분 정오", "겨울 (동지 정오)" };
+    static readonly float[] SeasonElev = { 76f, 52f, 29f };
+    static readonly float[] SeasonDni  = { 900f, 820f, 650f };
+    static readonly float[] SeasonDhi  = { 120f, 110f, 90f };
 
     void Awake() {
         agent = GetComponent<LouverAgent>();
@@ -62,22 +70,15 @@ public class LouverAgentPresenter : MonoBehaviour {
         BuildFrame();
         BuildReflectionProbe();
         BuildCharacter();
-        foreach (var a in System.Environment.GetCommandLineArgs()) if (a == "-explain") { EnterExplain(); break; }
+        var args = System.Environment.GetCommandLineArgs();
+        foreach (var a in args) if (a.StartsWith("-season=")) int.TryParse(a.Substring(8), out seasonIdx);
+        foreach (var a in args) if (a == "-explain") { EnterExplain(); break; }
     }
 
     // ── 현상설명 모드 진입/이탈 ──
     void EnterExplain() {
         if (explainMode) return;
         explainMode = true;
-        if (explainCurve == null) {
-            explainCurve = new float[91]; explainCurveMax = 1f; explainOptPoa = -1f;
-            for (int t = 0; t <= 90; t++) {
-                float e = LouverPhysics.EffPoa(t, EX_ELEV, EX_AZ, EX_DNI, EX_DHI, EX_ALB, EX_C, EX_P);
-                explainCurve[t] = e;
-                if (e > explainCurveMax) explainCurveMax = e;
-                if (e > explainOptPoa) { explainOptPoa = e; explainOptTilt = t; }
-            }
-        }
         if (cam) {
             savedCamPos = cam.transform.position; savedCamRot = cam.transform.rotation; savedFov = cam.fieldOfView;
             cam.transform.position = center + new Vector3(2.5f, 1.05f, -3.7f);  // 살짝 높여 PV 면을 내려다봄
@@ -85,6 +86,20 @@ public class LouverAgentPresenter : MonoBehaviour {
             cam.fieldOfView = 42f;
         }
         explainAngle = 0f; explainDescending = false;
+        SetSeason(seasonIdx);   // 곡선·최적각·태양 고정
+    }
+
+    // 계절 전환 — 태양고도/일사 바꾸고 POA 곡선·최적각 재계산(최적각이 계절 따라 이동)
+    void SetSeason(int i) {
+        seasonIdx = ((i % 3) + 3) % 3;
+        exElev = SeasonElev[seasonIdx]; exDni = SeasonDni[seasonIdx]; exDhi = SeasonDhi[seasonIdx];
+        explainCurve = new float[91]; explainCurveMax = 1f; explainOptPoa = -1f;
+        for (int t = 0; t <= 90; t++) {
+            float e = LouverPhysics.EffPoa(t, exElev, EX_AZ, exDni, exDhi, EX_ALB, EX_C, EX_P);
+            explainCurve[t] = e;
+            if (e > explainCurveMax) explainCurveMax = e;
+            if (e > explainOptPoa) { explainOptPoa = e; explainOptTilt = t; }
+        }
         FreezeSun();
     }
 
@@ -95,7 +110,7 @@ public class LouverAgentPresenter : MonoBehaviour {
 
     void FreezeSun() {
         if (!agent.sun) return;
-        float er = EX_ELEV * Mathf.Deg2Rad, ar = EX_AZ * Mathf.Deg2Rad;
+        float er = exElev * Mathf.Deg2Rad, ar = EX_AZ * Mathf.Deg2Rad;
         Vector3 d = new Vector3(Mathf.Sin(ar) * Mathf.Cos(er), Mathf.Sin(er), Mathf.Cos(ar) * Mathf.Cos(er));
         agent.sun.transform.forward = (-d).normalized;
         agent.sun.intensity = 1.6f;
@@ -443,9 +458,14 @@ public class LouverAgentPresenter : MonoBehaviour {
         var headS = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, wordWrap = true };
         var bodyS = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true };
 
-        var cap = new Rect(14, 14, 452, 212); Panel(cap);
+        // 계절 전환 버튼(우상단, 모드 버튼 아래)
+        var sbtn = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
+        if (GUI.Button(new Rect(Screen.width - 236, 62, 218, 32), $"계절: {SeasonName[seasonIdx]} ▸", sbtn))
+            SetSeason(seasonIdx + 1);
+
+        var cap = new Rect(14, 14, 452, 226); Panel(cap);
         GUILayout.BeginArea(new Rect(cap.x + 12, cap.y + 10, cap.width - 24, cap.height - 20));
-        GUILayout.Label("왜 약 80°가 최적인가 — 0°→90° 훑어보기 (맑은 한여름 정오)", title);
+        GUILayout.Label($"왜 ~80°가 최적인가 — {SeasonName[seasonIdx]} · 0°→90° 훑어보기", title);
         GUILayout.Space(6);
         GUILayout.Label($"현재 각도 {explainAngle:0}°    받는 햇빛 {curPoa:0} / 최대 {explainOptPoa:0} (최적 {explainOptTilt:0}°)", big);
         GUILayout.Space(4);
@@ -453,7 +473,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         GUILayout.Label(body, bodyS);
         GUILayout.EndArea();
 
-        DrawExplainCurve(new Rect(14, 234, 452, 212));
+        DrawExplainCurve(new Rect(14, 248, 452, 206));
     }
 
     void DrawExplainCurve(Rect area) {
