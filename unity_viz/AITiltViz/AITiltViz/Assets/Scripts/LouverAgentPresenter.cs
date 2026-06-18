@@ -237,10 +237,13 @@ public class LouverAgentPresenter : MonoBehaviour {
     void SetupCameraAndPost() {
         cam = Camera.main; if (!cam) return;
         cam.clearFlags = CameraClearFlags.Skybox;
-        // 북동쪽에서 남서쪽을 봄 = ① 남쪽 하늘 태양 일주가 화면에 들어오고 ② 루버를 3/4로 봐 틸트가 보임.
-        cam.transform.position = center + new Vector3(3.6f, 2.2f, 7.6f);
-        cam.transform.LookAt(center + new Vector3(-0.6f, 1.0f, -1.4f));
-        cam.fieldOfView = 56f;
+        // 북서쪽 높은 곳 → 남동쪽 조망 = ① 남쪽 하늘 태양 일주(아침SE→정오S)가 넓게 보이고
+        // ② 루버를 3/4로 봐 각도(틸트) 변화가 또렷. 더 멀리 풀백 + 넓은 화각.
+        // 남쪽 정면 3/4 부감 = 슬랫 면이 카메라 쪽으로 기울어 개별 블레이드·틸트가 가장 또렷(PV 면도 보임).
+        // ※ 태양은 남향 패널 뒤쪽이라 이 시점엔 화면에 안 들어옴(기하 제약; 그림자 이동으로 시간 표시).
+        cam.transform.position = center + new Vector3(2.9f, 2.5f, -7.6f);
+        cam.transform.LookAt(center + new Vector3(-0.4f, 0.95f, 0.2f));
+        cam.fieldOfView = 54f;
         cam.farClipPlane = Mathf.Max(cam.farClipPlane, 400f);   // 태양 디스크(원거리)가 잘리지 않게
         cam.allowHDR = true;
         float focusDist = Vector3.Distance(cam.transform.position, center);   // 루버에 초점
@@ -290,7 +293,7 @@ public class LouverAgentPresenter : MonoBehaviour {
             var b = GameObject.CreatePrimitive(PrimitiveType.Cube);
             b.name = "Blade_" + i;
             b.transform.SetParent(louverRoot, false);
-            b.transform.localScale = new Vector3(width, 0.008f, chord * 0.9f);   // 살짝 두껍게 + 슬랫 간격
+            b.transform.localScale = new Vector3(width, 0.013f, chord * 0.72f);  // 두께↑ + 슬랫 간격↑ = 개별 블레이드 또렷
             b.transform.localPosition = new Vector3(0, y0 + i * pitch, 0);
             var r = b.GetComponent<Renderer>(); if (r) r.sharedMaterial = bladeMat;
         }
@@ -461,7 +464,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         // 모드 토글 버튼(우상단) — 사용자가 .app 에서 클릭
         var btn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
         if (GUI.Button(new Rect(Screen.width - 236, 18, 218, 38),
-                explainMode ? "◀ AI 시연으로 돌아가기" : "▶ 왜 80°가 최적인가 (설명)", btn)) {
+                explainMode ? "◀ 시연으로 돌아가기" : "▶ 왜 80°가 최적인가 (설명)", btn)) {
             if (explainMode) ExitExplain(); else EnterExplain();
         }
 
@@ -484,7 +487,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         GUILayout.Label($"★ 평가 점수 — 최근 {recentFilled}일 평균 {RecentAvg():0.0}%", big);
         GUILayout.Label("   (100% = 그날 모을 수 있는 최대 햇빛을 다 모음. 학습될수록 ↑)", body);
         GUILayout.Space(6);
-        GUILayout.Label($"●  AI 각도 {agent.CurrentTilt:0}°", body);
+        GUILayout.Label($"●  예측 각도 {agent.CurrentTilt:0}°", body);
         GUILayout.Label($"●  현재 일사량 {agent.CurrentPoa:0} W/m²", body);
         DrawPowerBar(GUILayoutUtility.GetRect(410, 14), agent.CurrentPoa, agent.CurrentOraclePoa);
         GUILayout.EndArea();
@@ -508,7 +511,7 @@ public class LouverAgentPresenter : MonoBehaviour {
     void DrawDayChart(Rect area) {
         Panel(area);
         var lab = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold };
-        GUI.Label(new Rect(area.x + 10, area.y + 5, area.width - 20, 20), "오늘 발전 프로파일 (시간대별) — ■ 정답  ■ AI", lab);
+        GUI.Label(new Rect(area.x + 10, area.y + 5, area.width - 20, 20), "오늘 시간대별 발전량 — ■ 정답  ■ 예측", lab);
         Rect plot = new Rect(area.x + 12, area.y + 30, area.width - 24, area.height - 42);
         float mx = 1f; for (int i = 0; i < NBINS; i++) if (binOra[i] > mx) mx = binOra[i];
         float bw = plot.width / NBINS;
@@ -552,7 +555,7 @@ public class LouverAgentPresenter : MonoBehaviour {
     void DrawExplainCurve(Rect area) {
         Panel(area);
         var lab = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-        GUI.Label(new Rect(area.x + 10, area.y + 5, area.width - 20, 20), "발전량(POA) vs 루버 각도", new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
+        GUI.Label(new Rect(area.x + 10, area.y + 5, area.width - 20, 20), "루버 각도별 발전량 (W/m²)", new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
         Rect plot = new Rect(area.x + 14, area.y + 28, area.width - 28, area.height - 52);
         if (explainCurve == null) return;
         // 구간 배경: 저각 자기음영 / 빔스침
