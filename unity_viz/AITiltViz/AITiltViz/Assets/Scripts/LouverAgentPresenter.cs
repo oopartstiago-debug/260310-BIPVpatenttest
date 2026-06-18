@@ -71,6 +71,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         BuildReflectionProbe();
         BuildCharacter();
         BuildOutdoorUnit();
+        BuildSunDisk();
         var args = System.Environment.GetCommandLineArgs();
         foreach (var a in args) if (a.StartsWith("-season=")) int.TryParse(a.Substring(8), out seasonIdx);
         foreach (var a in args) if (a == "-explain") { EnterExplain(); break; }
@@ -236,10 +237,11 @@ public class LouverAgentPresenter : MonoBehaviour {
     void SetupCameraAndPost() {
         cam = Camera.main; if (!cam) return;
         cam.clearFlags = CameraClearFlags.Skybox;
-        cam.transform.position = center + new Vector3(4.7f, 2.3f, -8.9f);     // 더 축소(풀백) = 환경 더 넓게
-        cam.transform.LookAt(center + new Vector3(-0.4f, 1.0f, 0.2f));        // 루버는 화면 우측, 위로 하늘 여백
-        cam.fieldOfView = 52f;
-        cam.farClipPlane = Mathf.Max(cam.farClipPlane, 160f);
+        // 북동쪽에서 남서쪽을 봄 = ① 남쪽 하늘 태양 일주가 화면에 들어오고 ② 루버를 3/4로 봐 틸트가 보임.
+        cam.transform.position = center + new Vector3(3.6f, 2.2f, 7.6f);
+        cam.transform.LookAt(center + new Vector3(-0.6f, 1.0f, -1.4f));
+        cam.fieldOfView = 56f;
+        cam.farClipPlane = Mathf.Max(cam.farClipPlane, 400f);   // 태양 디스크(원거리)가 잘리지 않게
         cam.allowHDR = true;
         float focusDist = Vector3.Distance(cam.transform.position, center);   // 루버에 초점
 
@@ -278,13 +280,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         var ground = GameObject.Find("Ground");
         if (!ground) { ground = GameObject.CreatePrimitive(PrimitiveType.Plane); ground.name = "Ground"; ground.transform.localScale = new Vector3(3, 1, 3); }
         var gr = ground.GetComponent<Renderer>(); if (gr) gr.sharedMaterial = groundMat;
-
-        float pitch = pitchMm * 0.001f; float h = (nBlades + 1) * pitch;
-        var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        wall.name = "Facade";
-        wall.transform.position = center + new Vector3(0, h * 0.5f - center.y + 0.5f, 0.34f);
-        wall.transform.localScale = new Vector3(width + 0.7f, center.y + h + 1.2f, 0.30f);
-        var wr = wall.GetComponent<Renderer>(); if (wr) wr.sharedMaterial = wallMat;
+        // 배경벽 제거 — 남쪽 하늘(태양 일주)을 가리지 않게. 배경은 HDRI 가 담당.
     }
 
     void BuildBlades() {
@@ -371,6 +367,23 @@ public class LouverAgentPresenter : MonoBehaviour {
 
     // 실외기(에어컨 콘덴서) — 이 루버가 가리는 대상. 제품 = 실외기실 BIPV 루버라 맥락을 채움.
     Transform fanRotor;
+    Transform sunDisk;   // 빛 방향을 따라가는 발광 태양(시간 흐름 가시화)
+
+    // 발광 태양 디스크 — agent.sun 방향을 따라 하늘을 가로지름(HDRI 하늘은 정지라 시간 표시가 필요).
+    void BuildSunDisk() {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        go.name = "SunDisk";
+        var col = go.GetComponent<Collider>(); if (col) Destroy(col);
+        go.transform.localScale = Vector3.one * 16f;
+        var lit = Shader.Find("Universal Render Pipeline/Lit");
+        var m = new Material(lit);
+        m.SetColor("_BaseColor", new Color(1f, 0.97f, 0.88f));
+        m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(1f, 0.93f, 0.74f) * 14f);  // 강한 발광 → 블룸으로 태양처럼
+        var r = go.GetComponent<Renderer>(); r.sharedMaterial = m;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        r.receiveShadows = false;
+        sunDisk = go.transform;
+    }
     void BuildOutdoorUnit() {
         var lit = Shader.Find("Universal Render Pipeline/Lit");
         var bodyM  = M(lit, new Color(0.80f, 0.81f, 0.82f), 0.35f, 0.45f);  // 도장 철판
@@ -410,6 +423,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         }
         if (charArm) charArm.localRotation = Quaternion.Euler(-30f - agent.CurrentTilt * 0.5f, 0, 0);  // 콘솔 조작하듯
         if (fanRotor) fanRotor.Rotate(0, 0, 240f * Time.deltaTime, Space.Self);                        // 실외기 팬 회전
+        if (sunDisk && agent.sun) sunDisk.position = center - agent.sun.transform.forward * 230f;       // 태양 디스크가 빛 방향에 위치
 
         // 하루 발전 프로파일: 현재 시간위상 구간에 최신 POA 기록
         int bi = Mathf.Clamp(Mathf.RoundToInt(agent.DayPhase01 * (NBINS - 1)), 0, NBINS - 1);
