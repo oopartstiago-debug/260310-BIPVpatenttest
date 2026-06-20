@@ -9,7 +9,7 @@
 처음부터 재진단하지 마라(수확체감). 기존 audit를 의심하고, 어려운 물리에 집중해라.
 
 대상 코드/데이터 (전부 실제로 읽고 근거로 인용):
-- 프로젝트: /Users/wonetiago/projects/260310-BIPVpatenttest/
+- 프로젝트: /Volumes/AISSD/ai-tilt/
 - 핵심 물리: app.py:119 eff_poa(), :104 panel_sf(), :116 svf()
   → 결정적 한 줄 app.py:125  np.maximum(pd2*(1-sf*0.7)+dd*s, 0)
 - 오라클: argmax(eff_poa) == target_angle_v15 (CSV에서 100% 일치라고 audit가 주장)

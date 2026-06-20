@@ -55,3 +55,16 @@ unity_viz/AITiltViz/AITiltViz/Assets/Resources/EnvSky.mat*
 unity_viz/AITiltViz/AITiltViz/Assets/Env/tex/*
 unity_viz/AITiltViz/AITiltViz/Assets/Resources/GroundMat.mat*
 unity_viz/AITiltViz/AITiltViz/Assets/Resources/WallMat.mat*
+
+# Tier2 실외기 실모델(CC0 Poly Haven, 재다운로드 = unity_viz/fetch_aircon.sh, ~7.4MB)
+unity_viz/AITiltViz/AITiltViz/Assets/StreamingAssets/models/
+unity_viz/AITiltViz/AITiltViz/Assets/StreamingAssets/models.meta
+
+# 대용량 드롭인 에셋 + 빌드 생성물(코드만 커밋, 가이드/스크립트로 재생성)
+# Env: HDRI/텍스처 소스 / Characters: Mixamo FBX(MIXAMO_GUIDE.md) / Resources: BakeCharacter·BakeMat 산출
+unity_viz/AITiltViz/AITiltViz/Assets/Env/
+unity_viz/AITiltViz/AITiltViz/Assets/Env.meta
+unity_viz/AITiltViz/AITiltViz/Assets/Characters/
+unity_viz/AITiltViz/AITiltViz/Assets/Characters.meta
+unity_viz/AITiltViz/AITiltViz/Assets/Resources/
+unity_viz/AITiltViz/AITiltViz/Assets/Resources.meta
