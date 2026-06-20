@@ -476,6 +476,7 @@ MonoBehaviour:
   poaRef: 350
   wEnergy: 1
   wMotor: 0.05
+  wTrack: 0.2
 --- !u!114 &750187071
 MonoBehaviour:
   m_ObjectHideFlags: 0

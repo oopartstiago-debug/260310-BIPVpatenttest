@@ -30,6 +30,7 @@ public class LouverAgent : Agent {
     public float poaRef = 350f;   // 정규화 기준(최대 poa_oracle≈343)
     public float wEnergy = 1.0f;  // 발전 보상
     public float wMotor = 0.05f;  // 구동비용 패널티
+    public float wTrack = 0.2f;   // oracle 추종 셰이핑(평탄 고원에 그래디언트 공급 → 아침 상승·오후 하강 비대칭 완화)
 
     // 평가/표시용 공개 상태
     public float CurrentTilt { get; private set; }
@@ -92,7 +93,8 @@ public class LouverAgent : Agent {
 
         float rEnergy = wEnergy * (poa / Mathf.Max(1f, poaRef));
         float rMotor  = wMotor * (moved / Mathf.Max(0.01f, maxDeltaDegPerStep));
-        AddReward(rEnergy - rMotor);
+        float rTrack  = wTrack * (Mathf.Abs(CurrentTilt - oraTilt) / 90f);  // oracle와의 각 오차 패널티(검증된 argmax 기준, 90°corner 하드코딩 아님)
+        AddReward(rEnergy - rMotor - rTrack);
 
         cumPoa += poa; cumOraclePoa += oraPoa;
         CurrentPoa = poa; CurrentOraclePoa = oraPoa; CurrentOracleTilt = oraTilt; CurrentDni = s.dni; CurrentHour = s.hour; CurrentCloud = s.cloud;

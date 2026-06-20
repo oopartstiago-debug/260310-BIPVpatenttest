@@ -1,0 +1,29 @@
+{
+    "LouverTilt": {
+        "checkpoints": [
+            {
+                "steps": 3000120,
+                "file_path": "results/louver_track/LouverTilt/LouverTilt-3000120.onnx",
+                "reward": 71.05319986187044,
+                "creation_time": 1781923178.737532,
+                "auxillary_file_paths": [
+                    "results/louver_track/LouverTilt/LouverTilt-3000120.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 3000120,
+            "file_path": "results/louver_track/LouverTilt.onnx",
+            "reward": 71.05319986187044,
+            "creation_time": 1781923178.737532,
+            "auxillary_file_paths": [
+                "results/louver_track/LouverTilt/LouverTilt-3000120.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.1.0",
+        "torch_version": "2.12.0"
+    }
+}

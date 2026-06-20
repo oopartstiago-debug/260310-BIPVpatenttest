@@ -14,8 +14,8 @@ public static class BuildRLInference {
     const string ScenePath = "Assets/Scenes/SampleScene.unity";
     const string OutPath   = "/Volumes/AISSD/ai-tilt/unity_viz/Build/AITiltRL_Infer.app";
     // mlagents 최종 export 는 외부 가중치(.onnx.data)를 분리 저장 → onnx + data 쌍을 함께 복사해야 한다.
-    const string OnnxSrc   = "/Volumes/AISSD/ai-tilt/unity_viz/results/louver_cloud/LouverTilt/LouverTilt-3000120.onnx";
-    const string DataSrc   = "/Volumes/AISSD/ai-tilt/unity_viz/results/louver_cloud/LouverTilt/LouverTilt-3000120.onnx.data";
+    const string OnnxSrc   = "/Volumes/AISSD/ai-tilt/unity_viz/results/louver_track/LouverTilt/LouverTilt-3000120.onnx";
+    const string DataSrc   = "/Volumes/AISSD/ai-tilt/unity_viz/results/louver_track/LouverTilt/LouverTilt-3000120.onnx.data";
     const string AssetPath = "Assets/Models/LouverTilt-3000120.onnx";
 
     public static void PerformBuild() {
