@@ -22,6 +22,7 @@ public class LouverAgentPresenter : MonoBehaviour {
     float orbitAngle = 180f;                 // 시작 = 남쪽 정면(블레이드)
     const float ORBIT_RADIUS = 8.6f, ORBIT_HEIGHT = 2.7f, ORBIT_SPEED = 7f;  // 약 51초에 1바퀴
     Transform charArm;
+    ParticleSystem rain, splash;   // 비 빗줄기 + 바닥 물 튐(시각 전용, 흐림에 따라 방출)
     Vector3 center;
     float width;
     float nextShot = 3f;
@@ -37,6 +38,7 @@ public class LouverAgentPresenter : MonoBehaviour {
     const int NBINS = 24;
     readonly float[] binAi = new float[NBINS], binOra = new float[NBINS];
     readonly bool[] binSet = new bool[NBINS];
+    float poaHigh = 1f;   // 관측된 맑은날 최대 oracle POA(차트 고정 스케일 기준, 자가 보정)
 
     // ── V3 현상설명(Explanation) 모드 — 시각 전용(학습 불변) ──
     // 계절별 정오를 고정하고 루버를 0°→90° 스윕하며 왜 ~80°가 최적인지(저각 자기음영/균형/빔스침)와
@@ -75,6 +77,8 @@ public class LouverAgentPresenter : MonoBehaviour {
         BuildCharacter();
         BuildOutdoorUnit();
         BuildSunDisk();
+        BuildRain();
+        BuildSplash();
         var args = System.Environment.GetCommandLineArgs();
         foreach (var a in args) if (a.StartsWith("-season=")) int.TryParse(a.Substring(8), out seasonIdx);
         foreach (var a in args) if (a == "-explain") { EnterExplain(); break; }
@@ -271,6 +275,16 @@ public class LouverAgentPresenter : MonoBehaviour {
         var ca = prof.Add<ChromaticAberration>(true); ca.intensity.Override(0.12f);
         var grain = prof.Add<FilmGrain>(true); grain.type.Override(FilmGrainLookup.Thin1); grain.intensity.Override(0.22f); grain.response.Override(0.8f);
         var vig = prof.Add<Vignette>(true); vig.intensity.Override(0.30f); vig.smoothness.Override(0.45f);
+        // ☀️ 스크린스페이스 렌즈 플레어 — 초강발광 태양 디스크(emission×40)에서 자동 플레어/스트릭/할로(시네마틱).
+        //    데이터드리븐 LensFlareDataSRP(에셋 필요)보다 헤드리스 빌드에 견고. Bloom mip 입력이라 Bloom 필수(위에서 추가).
+        var ssf = prof.Add<ScreenSpaceLensFlare>(true);
+        ssf.intensity.Override(1.4f);
+        ssf.tintColor.Override(new Color(1f, 0.92f, 0.78f));
+        ssf.firstFlareIntensity.Override(1.2f);
+        ssf.secondaryFlareIntensity.Override(0.8f);
+        ssf.warpedFlareIntensity.Override(0.7f);
+        ssf.streaksIntensity.Override(1.1f); ssf.streaksLength.Override(0.65f);
+        ssf.scale.Override(1.7f); ssf.vignetteEffect.Override(0.7f);
     }
 
     void BuildReflectionProbe() {
@@ -288,11 +302,25 @@ public class LouverAgentPresenter : MonoBehaviour {
     }
 
     void BuildGroundAndWall() {
+        // 옥상 슬래브(유한) + 가장자리 난간(파라펫) → '건물 옥상'으로 읽힘. 파라펫 너머는 도시 HDRI.
+        float half = 9.5f;                                     // 슬래브 반폭(=파라펫까지). 카메라 공전반경 8.6 < 9.5 = 카메라가 옥상 안.
         var ground = GameObject.Find("Ground");
         if (!ground) { ground = GameObject.CreatePrimitive(PrimitiveType.Plane); ground.name = "Ground"; }
-        ground.transform.localScale = new Vector3(12, 1, 12);   // 넓게(120m) → 안개와 함께 바닥이 수평선까지(뜬 느낌 제거)
+        ground.transform.localScale = new Vector3(half * 2f / 10f, 1, half * 2f / 10f);   // Plane 기본 10m → 19m 옥상
+        ground.transform.position = center + new Vector3(0, -center.y, 0);
         var gr = ground.GetComponent<Renderer>(); if (gr) gr.sharedMaterial = groundMat;
-        // 배경벽 제거 — 남쪽 하늘(태양 일주)을 가리지 않게. 배경은 HDRI 가 담당.
+        // 난간(파라펫) — 4면, 낮게(0.95m: 카메라 2.7m가 넘겨봐 도시 보임)
+        var holder = new GameObject("Parapet"); holder.transform.position = center + new Vector3(0, -center.y, 0);
+        float ph = 0.95f, pt = 0.22f;
+        for (int s = -1; s <= 1; s += 2) {
+            AddParapet(holder.transform, new Vector3(half * 2f, ph, pt), new Vector3(0, ph * 0.5f, half * s));   // 남/북
+            AddParapet(holder.transform, new Vector3(pt, ph, half * 2f), new Vector3(half * s, ph * 0.5f, 0));   // 동/서
+        }
+    }
+    void AddParapet(Transform parent, Vector3 scale, Vector3 pos) {
+        var p = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        p.transform.SetParent(parent, false); p.transform.localScale = scale; p.transform.localPosition = pos;
+        var r = p.GetComponent<Renderer>(); if (r) r.sharedMaterial = wallMat;   // 콘크리트
     }
 
     void BuildBlades() {
@@ -333,16 +361,19 @@ public class LouverAgentPresenter : MonoBehaviour {
     // 안전모+형광조끼 작업자 + 제어콘솔. 인체 비율로 다듬음. 오른팔이 각도 따라 움직임.
     void BuildCharacter() {
         var holder = new GameObject("Operator");
-        holder.transform.position = center + new Vector3(-(width * 0.5f) - 1.25f, -center.y, -0.2f);  // 바닥 좌측
+        holder.transform.position = center + new Vector3(-(width * 0.5f) - 0.9f, -center.y, -1.8f);  // 루버 앞-좌측(공전 시 루버에 덜 가리고 카메라에 더 크게)
 
         // Mixamo 캐릭터(Resources/OperatorModel)가 있으면 그걸로, 없으면 프리미티브 폴백
         var charModel = Resources.Load<GameObject>("OperatorModel");
         if (charModel != null) {
             var cm = Instantiate(charModel, holder.transform);
             cm.transform.localPosition = Vector3.zero;
-            cm.transform.localRotation = Quaternion.Euler(0, 100f, 0);   // 루버(우측) 바라보게(추후 조정)
+            cm.transform.localScale = Vector3.one * 1.3f;               // 데모 가독: 약간 크게
+            cm.transform.localRotation = Quaternion.Euler(0, 120f, 0);  // 루버 쪽 바라보게
             var an = cm.GetComponentInChildren<Animator>();
-            if (an != null) { var ctrl = Resources.Load<RuntimeAnimatorController>("OperatorAnim"); if (ctrl != null) an.runtimeAnimatorController = ctrl; }
+            if (an != null) { an.applyRootMotion = false; var ctrl = Resources.Load<RuntimeAnimatorController>("OperatorAnim"); if (ctrl != null) an.runtimeAnimatorController = ctrl; }
+            // ★ 애니메이션(특히 크라우치)으로 메시가 초기 바운즈를 벗어나면 특정 카메라 각도서 프레임 컬링돼 사라짐 → 매 프레임 바운즈 재계산
+            foreach (var smr in cm.GetComponentsInChildren<SkinnedMeshRenderer>()) smr.updateWhenOffscreen = true;
             // 추출 텍스처를 캐릭터 머티리얼에 직접 적용(흰색 방지 — 임포터 바인딩 누락 우회)
             var charDiff = Resources.Load<Texture2D>("CharDiffuse");
             var charNor  = Resources.Load<Texture2D>("CharNormal");
@@ -416,14 +447,111 @@ public class LouverAgentPresenter : MonoBehaviour {
         r.receiveShadows = false;
         sunDisk = go.transform;
     }
+
+    // 비 — 장면 위 넓은 박스에서 떨어지는 늘어난 빗줄기. 방출량은 Update에서 날씨(흐림)에 따라 제어.
+    void BuildRain() {
+        var go = new GameObject("Rain");
+        go.transform.position = center + new Vector3(0, 11f, 0);
+        rain = go.AddComponent<ParticleSystem>();
+        rain.Stop();
+        var main = rain.main;
+        main.startSpeed = 0f;
+        main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.07f);   // 굵게
+        main.startLifetime = 1.2f;
+        main.maxParticles = 9000;
+        main.gravityModifier = 0f;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startColor = new Color(0.78f, 0.84f, 0.93f, 0.55f);
+        var sh = rain.shape;
+        sh.shapeType = ParticleSystemShapeType.Box;
+        sh.scale = new Vector3(24f, 0.1f, 24f);
+        var em = rain.emission; em.rateOverTime = 0f;               // Update에서 제어
+        var vel = rain.velocityOverLifetime;                        // 곧장 아래로(빗줄기 stretch 용 속도)
+        vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
+        vel.y = new ParticleSystem.MinMaxCurve(-24f);
+        var r = go.GetComponent<ParticleSystemRenderer>();
+        r.renderMode = ParticleSystemRenderMode.Stretch;
+        r.velocityScale = 0.08f; r.lengthScale = 4.5f;   // 빗줄기 더 길고 굵게
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+        // Sprites/Default = 항상 포함되는 투명 셰이더(빗줄기 반투명). URP Particles 셰이더는 빌드서 스트립돼 마젠타로 떴음.
+        var ps = Shader.Find("Sprites/Default");
+        if (ps) { var m = new Material(ps); m.color = new Color(0.80f, 0.86f, 0.95f, 0.6f); r.material = m; }
+        rain.Play();
+    }
+
+    // 바닥 물 튐 — 흐림 시 옥상 전면에서 작은 물방울이 위로 튀었다 떨어짐.
+    void BuildSplash() {
+        var go = new GameObject("Splash");
+        go.transform.position = center + new Vector3(0, -center.y + 0.03f, 0);
+        splash = go.AddComponent<ParticleSystem>();
+        splash.Stop();
+        var main = splash.main;
+        main.startSpeed = 0f;
+        main.startSize = new ParticleSystem.MinMaxCurve(0.02f, 0.05f);
+        main.startLifetime = 0.4f;
+        main.maxParticles = 2500;
+        main.gravityModifier = 3.0f;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startColor = new Color(0.85f, 0.90f, 0.97f, 0.45f);
+        var sh = splash.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(17f, 0.01f, 17f);
+        var vel = splash.velocityOverLifetime;                          // 위로 튀었다 중력으로 낙하
+        vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
+        vel.y = new ParticleSystem.MinMaxCurve(2.2f, 3.4f);
+        var em = splash.emission; em.rateOverTime = 0f;                 // Update에서 제어
+        var r = go.GetComponent<ParticleSystemRenderer>();
+        r.renderMode = ParticleSystemRenderMode.Billboard;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+        var ps = Shader.Find("Sprites/Default");
+        if (ps) { var m = new Material(ps); m.color = new Color(0.85f, 0.90f, 0.97f, 0.45f); r.material = m; }
+        splash.Play();
+    }
+
+    // 실외기 = 제품이 가리는 대상. Tier2: Poly Haven CC0 실사 모델(gltfast 런타임 로드) → 실패 시 절차적 폴백.
     void BuildOutdoorUnit() {
-        var lit = Shader.Find("Universal Render Pipeline/Lit");
-        var bodyM  = M(lit, new Color(0.80f, 0.81f, 0.82f), 0.35f, 0.45f);  // 도장 철판
-        var grillM = M(lit, new Color(0.10f, 0.11f, 0.13f), 0.20f, 0.30f);
-        var fanM   = M(lit, new Color(0.22f, 0.23f, 0.25f), 0.40f, 0.40f);
         var holder = new GameObject("OutdoorUnit");
         holder.transform.position = center + new Vector3(0.95f, -center.y, -1.25f);  // 루버 앞 우측 바닥
         holder.transform.rotation = Quaternion.Euler(0, -18f, 0);
+        var gltfPath = System.IO.Path.Combine(Application.streamingAssetsPath, "models/aircon/exterior_aircon_unit_1k.gltf");
+        if (System.IO.File.Exists(gltfPath)) LoadAircon(holder.transform, gltfPath);
+        else BuildOutdoorUnitProcedural(holder.transform);
+    }
+
+    // CC0 실외기 실모델을 런타임 로드 → 목표 크기/위치로 정규화. 어떤 실패든 절차적 실외기로 폴백.
+    async void LoadAircon(Transform holder, string path) {
+        bool ok = false;
+        try {
+            var gltf = new GLTFast.GltfImport();
+            if (await gltf.Load(new System.Uri(path).AbsoluteUri)) {
+                var inst = new GameObject("AirconModel").transform;
+                inst.SetParent(holder, false);
+                if (await gltf.InstantiateMainSceneAsync(inst)) { FitAircon(holder, inst); ok = true; }
+            }
+        } catch (System.Exception e) { Debug.LogWarning("[Aircon] gltf 로드 실패 → 절차적 폴백: " + e.Message); }
+        if (!ok) BuildOutdoorUnitProcedural(holder);
+        else Debug.Log("[Aircon] CC0 실사 실외기 로드 성공");
+    }
+
+    static Bounds RendBounds(Renderer[] rs) {
+        var b = rs[0].bounds; for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds); return b;
+    }
+
+    // 로드 모델을 높이 ~0.72m 로 정규화 + 바닥(holder.y) 안착 + 수평 중심 정렬.
+    void FitAircon(Transform holder, Transform inst) {
+        var rs = inst.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) { BuildOutdoorUnitProcedural(holder); return; }
+        var b = RendBounds(rs);
+        inst.localScale = Vector3.one * (0.72f / Mathf.Max(0.01f, b.size.y));
+        b = RendBounds(rs);
+        inst.position += new Vector3(holder.position.x - b.center.x, holder.position.y - b.min.y, holder.position.z - b.center.z);
+    }
+
+    void BuildOutdoorUnitProcedural(Transform holderT) {
+        var lit = Shader.Find("Universal Render Pipeline/Lit");
+        var bodyM  = M(lit, new Color(0.80f, 0.81f, 0.82f), 0.35f, 0.45f);  // 도장 철판
+        var um = Resources.Load<Material>("UnitMat"); if (um) bodyM = um;   // CC0 브러시드 메탈(있으면)
+        var grillM = M(lit, new Color(0.10f, 0.11f, 0.13f), 0.20f, 0.30f);
+        var fanM   = M(lit, new Color(0.22f, 0.23f, 0.25f), 0.40f, 0.40f);
+        var holder = holderT.gameObject;
         // 본체
         AddPart(holder.transform, PrimitiveType.Cube, new Vector3(0.92f, 0.70f, 0.34f), new Vector3(0, 0.36f, 0), bodyM);
         // 전면 팬 그릴(원형 리세스) — 카메라(-z) 쪽을 향함
@@ -447,8 +575,28 @@ public class LouverAgentPresenter : MonoBehaviour {
     }
 
     void Update() {
-        float clear = Mathf.Clamp01(agent.CurrentDni / 750f);
-        if (agent.sun) agent.sun.intensity = Mathf.Lerp(0.30f, 1.65f, clear);
+        // ── 날씨·시간대 시각화(시각 전용, 실측 cloud_cover·시각 기반) ──
+        // ★구름량(실측)으로 흐림 판정 → 비/태양/안개가 발전량과 일관(예전 DNI 기준은 새벽 저각에도 비 오던 버그).
+        float overcast = Mathf.Clamp01(agent.CurrentCloud);            // 실측 구름량 0~1 (비/안개/젖음)
+        float clear = 1f - overcast;
+        float golden = Mathf.Clamp01((Mathf.Abs(agent.CurrentHour - 12.5f) - 3.0f) / 3.5f) * clear;  // 아침/저녁=1(맑은 날만)
+        Color noonCol = new Color(1f, 0.97f, 0.92f), duskCol = new Color(1f, 0.55f, 0.28f);
+        if (agent.sun) {
+            agent.sun.intensity = Mathf.Lerp(0.30f, 1.65f, clear) * Mathf.Lerp(1f, 0.7f, golden);
+            agent.sun.color = Color.Lerp(noonCol, duskCol, golden);                                  // 아침/저녁 = 따뜻한 노을
+        }
+        if (sunDisk) { var sr = sunDisk.GetComponent<Renderer>();                                    // 태양 디스크 색/세기도 반영
+            if (sr) sr.sharedMaterial.SetColor("_EmissionColor",
+                Color.Lerp(new Color(1f, 0.93f, 0.72f), new Color(1f, 0.5f, 0.2f), golden) * Mathf.Lerp(40f, 22f, overcast)); }
+        // 안개: 흐림 → 짙은 회색, 아침/저녁 → 따뜻
+        Color fc = Color.Lerp(new Color(0.74f, 0.79f, 0.85f), new Color(0.86f, 0.56f, 0.41f), golden);
+        RenderSettings.fogColor = Color.Lerp(fc, new Color(0.55f, 0.57f, 0.60f), overcast);
+        RenderSettings.fogDensity = Mathf.Lerp(0.003f, 0.016f, overcast);   // 옅게(유한 옥상+파라펫이라 경계 가릴 필요↓, 도시 HDRI 보이게)
+        // 비: 흐림 0.45 넘으면 점점 강하게 + 젖은 바닥(반사↑·물 튐)
+        float rainAmt = Mathf.Clamp01((overcast - 0.45f) / 0.55f);
+        if (rain) { var em = rain.emission; em.rateOverTime = Mathf.Lerp(0f, 7000f, rainAmt); }
+        if (splash) { var em = splash.emission; em.rateOverTime = Mathf.Lerp(0f, 1400f, rainAmt); }
+        if (groundMat) groundMat.SetFloat("_Smoothness", Mathf.Lerp(0.12f, 0.80f, overcast));   // 젖을수록 거울처럼
         if (skyMat) {
             skyMat.SetFloat("_AtmosphereThickness", Mathf.Lerp(1.9f, 0.9f, clear));
             skyMat.SetFloat("_Exposure", Mathf.Lerp(0.6f, 1.15f, clear));
@@ -468,6 +616,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         // 하루 발전 프로파일: 현재 시간위상 구간에 최신 POA 기록
         int bi = Mathf.Clamp(Mathf.RoundToInt(agent.DayPhase01 * (NBINS - 1)), 0, NBINS - 1);
         binAi[bi] = agent.CurrentPoa; binOra[bi] = agent.CurrentOraclePoa; binSet[bi] = true;
+        poaHigh = Mathf.Max(poaHigh, agent.CurrentOraclePoa);   // 맑은날 최댓값 추적(차트 스케일)
 
         if (agent.DayTrackingPct > 0.01f) lastNonZeroPct = agent.DayTrackingPct;
         int ep = agent.CompletedEpisodes;
@@ -493,20 +642,20 @@ public class LouverAgentPresenter : MonoBehaviour {
         int mo; int.TryParse(d.Substring(5, 2), out mo);
         if (mo == 12 || mo <= 2) return "겨울"; if (mo <= 5) return "봄"; if (mo <= 8) return "여름"; return "가을";
     }
-    string Weather(float peak) { return peak >= 600 ? "맑음 ☀" : peak >= 300 ? "구름 ⛅" : "흐림 ☁"; }
+    string Weather(float cloud) { return cloud < 0.33f ? "맑음 ☀" : cloud < 0.66f ? "구름 ⛅" : "흐림 ☁"; }   // 실측 구름량 기반
 
     void OnGUI() {
         if (agent == null) return;
 
-        var body  = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true };
-        var big   = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, wordWrap = true };
-        var title = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, wordWrap = true };
-        var hud = new Rect(14, 14, 446, 296); Panel(hud);
+        var body  = new GUIStyle(GUI.skin.label) { fontSize = 11, wordWrap = true };
+        var big   = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, wordWrap = true };
+        var title = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, wordWrap = true };
+        var hud = new Rect(12, 12, 366, 232); Panel(hud);
         GUILayout.BeginArea(new Rect(hud.x + 12, hud.y + 10, hud.width - 24, hud.height - 20));
         GUILayout.Label("태양 고도에 따른 음영을 최소화해 발전량을 최대화하는 루버 각도를 스스로 학습", title);
         GUILayout.Space(4);
         int hh = (int)agent.CurrentHour, mm = (int)((agent.CurrentHour - hh) * 60f);
-        GUILayout.Label($"📅 {agent.Env.currentDate}  {hh:00}:{mm:00}   {Season(agent.Env.currentDate)} · {Weather(agent.Env.dayPeakDni)}   (서울 기상청 10년 기상 데이터)", big);
+        GUILayout.Label($"📅 {agent.Env.currentDate}  {hh:00}:{mm:00}   {Season(agent.Env.currentDate)} · {Weather(agent.Env.dayCloud)}   (서울 기상청 10년 기상 데이터)", big);
         GUILayout.Space(6);
         int t = (int)Time.realtimeSinceStartup;
         long steps = Academy.IsInitialized ? Academy.Instance.TotalStepCount : 0;
@@ -517,10 +666,10 @@ public class LouverAgentPresenter : MonoBehaviour {
         GUILayout.Space(6);
         GUILayout.Label($"●  예측 각도 {agent.CurrentTilt:0}°", body);
         GUILayout.Label($"●  현재 일사량 {agent.CurrentPoa:0} W/m²", body);
-        DrawPowerBar(GUILayoutUtility.GetRect(410, 14), agent.CurrentPoa, agent.CurrentOraclePoa);
+        DrawPowerBar(GUILayoutUtility.GetRect(330, 12), agent.CurrentPoa, agent.CurrentOraclePoa);
         GUILayout.EndArea();
 
-        DrawDayChart(new Rect(14, 322, 446, 124));
+        DrawDayChart(new Rect(12, 252, 366, 104));
     }
 
     static void Fill(Rect r, Color c) { var old = GUI.color; GUI.color = c; GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = old; }
@@ -538,10 +687,10 @@ public class LouverAgentPresenter : MonoBehaviour {
     // 하루 발전 프로파일: 시간대별 정답(회색) vs AI(하늘색) 막대 → 학습=정답 곡선 추종을 시각화
     void DrawDayChart(Rect area) {
         Panel(area);
-        var lab = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold };
-        GUI.Label(new Rect(area.x + 10, area.y + 5, area.width - 20, 20), "오늘 시간대별 발전량 — ■ 정답  ■ 예측", lab);
-        Rect plot = new Rect(area.x + 12, area.y + 30, area.width - 24, area.height - 42);
-        float mx = 1f; for (int i = 0; i < NBINS; i++) if (binOra[i] > mx) mx = binOra[i];
+        var lab = new GUIStyle(GUI.skin.label) { fontSize = 11, fontStyle = FontStyle.Bold };
+        GUI.Label(new Rect(area.x + 10, area.y + 4, area.width - 20, 18), "오늘 시간대별 발전량 — ■ 정답  ■ 예측", lab);
+        Rect plot = new Rect(area.x + 12, area.y + 24, area.width - 24, area.height - 36);
+        float mx = Mathf.Max(1f, poaHigh);   // ★맑은날 관측 최댓값 기준 고정 스케일 → 흐린 날은 막대가 실제로 낮게(상대정규화 제거, 클리핑 없음)
         float bw = plot.width / NBINS;
         for (int i = 0; i < NBINS; i++) {
             if (!binSet[i]) continue;
