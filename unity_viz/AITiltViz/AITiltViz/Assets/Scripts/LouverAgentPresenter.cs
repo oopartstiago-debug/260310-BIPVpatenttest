@@ -509,7 +509,7 @@ public class LouverAgentPresenter : MonoBehaviour {
     // 실외기 = 제품이 가리는 대상. Tier2: Poly Haven CC0 실사 모델(gltfast 런타임 로드) → 실패 시 절차적 폴백.
     void BuildOutdoorUnit() {
         var holder = new GameObject("OutdoorUnit");
-        holder.transform.position = center + new Vector3(0.95f, -center.y, -1.25f);  // 루버 앞 우측 바닥
+        holder.transform.position = center + new Vector3(1.05f, -center.y, -1.4f);  // 루버 앞 우측 바닥(가독 위해 약간 앞으로)
         holder.transform.rotation = Quaternion.Euler(0, -18f, 0);
         var gltfPath = System.IO.Path.Combine(Application.streamingAssetsPath, "models/aircon/exterior_aircon_unit_1k.gltf");
         if (System.IO.File.Exists(gltfPath)) LoadAircon(holder.transform, gltfPath);
@@ -540,7 +540,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         var rs = inst.GetComponentsInChildren<Renderer>();
         if (rs.Length == 0) { BuildOutdoorUnitProcedural(holder); return; }
         var b = RendBounds(rs);
-        inst.localScale = Vector3.one * (0.72f / Mathf.Max(0.01f, b.size.y));
+        inst.localScale = Vector3.one * (1.0f / Mathf.Max(0.01f, b.size.y));   // 상업용 실외기 ~1m(작업자 대비 가독)
         b = RendBounds(rs);
         inst.position += new Vector3(holder.position.x - b.center.x, holder.position.y - b.min.y, holder.position.z - b.center.z);
     }
