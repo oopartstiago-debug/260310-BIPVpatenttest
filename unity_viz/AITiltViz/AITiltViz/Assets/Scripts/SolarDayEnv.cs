@@ -10,7 +10,8 @@ using UnityEngine;
 public class SolarDayEnv {
     public SceneData data;                  // 폴백: 단일 검증 하루
     public string currentDate = "";         // 현재 에피소드의 실제 날짜
-    public float dayPeakDni;                // 그날 최대 DNI(날씨 라벨용)
+    public float dayPeakDni;                // 그날 최대 DNI(clear-sky)
+    public float dayCloud;                  // 그날 평균 구름량 0~1(날씨 라벨용, 실측)
     DayRec[] days;                          // 10년 날짜별 데이터셋
     DayFrame[] cur;                         // 현재 하루의 시간별 프레임
     int dayCursor = -1;                     // 순차 진행 커서
@@ -24,7 +25,7 @@ public class SolarDayEnv {
     public float pitch = LouverPhysics.PITCH;
     public float albedo = LouverPhysics.ALBEDO;
 
-    [System.Serializable] public class DayFrame { public int h; public float elev, az, dni, dhi; }
+    [System.Serializable] public class DayFrame { public int h; public float elev, az, dni, dhi, cloud; }
     [System.Serializable] public class DayRec   { public string date; public DayFrame[] f; }
     [System.Serializable] public class DayLibrary { public DayRec[] days; }
 
@@ -48,7 +49,9 @@ public class SolarDayEnv {
         if (days == null || days.Length == 0) return;
         var d = days[Mathf.Clamp(i, 0, days.Length - 1)];
         cur = d.f; currentDate = d.date;
-        float pk = 0f; foreach (var fr in cur) if (fr.dni > pk) pk = fr.dni; dayPeakDni = pk;
+        float pk = 0f, csum = 0f; int cn = 0;
+        foreach (var fr in cur) { if (fr.dni > pk) pk = fr.dni; if (fr.elev > 5f) { csum += fr.cloud; cn++; } }
+        dayPeakDni = pk; dayCloud = cn > 0 ? Mathf.Clamp01(csum / cn / 10f) : 0f;
     }
 
     // 에피소드 시작: 실제 하루를 '순차로' 진행 + 설계 파라미터 랜덤화
@@ -65,7 +68,18 @@ public class SolarDayEnv {
         cloud = 1f; diffuseBoost = 1f;               // 날씨는 실측 데이터가 제공
     }
 
-    public struct SunState { public float elev, az, dni, dhi, hour; }
+    public struct SunState { public float elev, az, dni, dhi, hour, cloud; }
+
+    // 데이터의 일사(dni/dhi)는 clear-sky 모델값이라 구름이 반영 안 됨 → 실측 cloud_cover(0~1)로 감쇠.
+    //   직달(DNI): 구름에 급감 (1-C)^2 (C=1이면 0).  전천(GHI): Kasten-Czeplak 1-0.75·C^3.4.
+    //   남는 차이는 확산(DHI)으로 → 흐릴수록 확산광 비중↑(물리적으로 타당). ※문서화된 모델(실측 일사 부재).
+    static void AttenuateByCloud(float dniCs, float dhiCs, float elevDeg, float C, out float dni, out float dhi) {
+        float sinE = Mathf.Max(0f, Mathf.Sin(elevDeg * Mathf.Deg2Rad));
+        float ghiCs = dniCs * sinE + dhiCs;
+        float ghi   = ghiCs * (1f - 0.75f * Mathf.Pow(C, 3.4f));
+        dni = dniCs * Mathf.Pow(1f - C, 1.5f);
+        dhi = Mathf.Max(0f, ghi - dni * sinE);
+    }
 
     // t01: 0=그날 첫 시각, 1=마지막 시각
     public SunState Sample(float t01) {
@@ -77,8 +91,9 @@ public class SolarDayEnv {
             float fr = f - i0;
             var a = cur[i0]; var b = cur[i1];
             s.elev = Mathf.Lerp(a.elev, b.elev, fr); s.az = Mathf.Lerp(a.az, b.az, fr);
-            s.dni  = Mathf.Lerp(a.dni,  b.dni,  fr) * cloud;
-            s.dhi  = Mathf.Lerp(a.dhi,  b.dhi,  fr) * diffuseBoost;
+            float dniCs = Mathf.Lerp(a.dni, b.dni, fr), dhiCs = Mathf.Lerp(a.dhi, b.dhi, fr);
+            s.cloud = Mathf.Clamp01(Mathf.Lerp(a.cloud, b.cloud, fr) / 10f);     // cloud_cover 0~10 → 0~1
+            AttenuateByCloud(dniCs, dhiCs, s.elev, s.cloud, out s.dni, out s.dhi);  // 흐림 → 일사↓(보상·관측에 반영)
             s.hour = Mathf.Lerp(a.h, b.h, fr);
             return s;
         }

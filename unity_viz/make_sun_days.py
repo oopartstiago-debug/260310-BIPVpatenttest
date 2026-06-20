@@ -17,6 +17,7 @@ with open(SRC, newline="") as f:
                 "az":   round(float(row["solar_azimuth"]), 2),
                 "dni":  round(float(row["dni"]), 1),
                 "dhi":  round(float(row["dhi"]), 1),
+                "cloud": round(float(row["cloud_cover"]), 2),  # 구름량(흐림/비 트리거용)
             }
         except ValueError:
             continue
