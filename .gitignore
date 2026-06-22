@@ -68,3 +68,6 @@ unity_viz/AITiltViz/AITiltViz/Assets/Characters/
 unity_viz/AITiltViz/AITiltViz/Assets/Characters.meta
 unity_viz/AITiltViz/AITiltViz/Assets/Resources/
 unity_viz/AITiltViz/AITiltViz/Assets/Resources.meta
+
+# 시연영상(생성물, -record+ffmpeg로 재생성)
+unity_viz/*.mp4
