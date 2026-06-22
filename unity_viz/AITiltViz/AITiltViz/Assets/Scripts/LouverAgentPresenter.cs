@@ -26,6 +26,8 @@ public class LouverAgentPresenter : MonoBehaviour {
     float width;
     float nextShot = 3f;
     bool shotPathLogged;
+    bool recordMode;          // -record: 프레임 시퀀스를 PNG로 뱉어 ffmpeg로 mp4 합성(시연영상)
+    int recordTarget = 900;   // 기본 900프레임 = 30fps 재생 시 30초
 
     // 평가 점수 추적
     float lastNonZeroPct;
@@ -78,7 +80,27 @@ public class LouverAgentPresenter : MonoBehaviour {
         BuildSunDisk();
         var args = System.Environment.GetCommandLineArgs();
         foreach (var a in args) if (a.StartsWith("-season=")) int.TryParse(a.Substring(8), out seasonIdx);
+        foreach (var a in args) if (a.StartsWith("-recordframes=")) int.TryParse(a.Substring(14), out recordTarget);
         foreach (var a in args) if (a == "-explain") { EnterExplain(); break; }
+        foreach (var a in args) if (a == "-record") { recordMode = true; break; }
+        if (recordMode) { Time.captureDeltaTime = 1f / 30f; StartCoroutine(RecordRoutine()); }   // 모션 30fps 고정(캡처 지연 무관)
+    }
+
+    // 시연영상용 프레임 시퀀스 기록 — WaitForEndOfFrame 뒤 동기 캡처로 프레임당 1 PNG, 끝나면 종료.
+    System.Collections.IEnumerator RecordRoutine() {
+        string dir = System.IO.Path.Combine(Application.persistentDataPath, "rec");
+        if (System.IO.Directory.Exists(dir)) System.IO.Directory.Delete(dir, true);
+        System.IO.Directory.CreateDirectory(dir);
+        Debug.Log("[Presenter] RECORD start → " + dir + " target=" + recordTarget);
+        for (int n = 0; n < recordTarget; n++) {
+            yield return new WaitForEndOfFrame();
+            var tex = ScreenCapture.CaptureScreenshotAsTexture();
+            var png = tex.EncodeToPNG();
+            Destroy(tex);
+            System.IO.File.WriteAllBytes(System.IO.Path.Combine(dir, "f_" + n.ToString("D5") + ".png"), png);
+        }
+        Debug.Log("[Presenter] RECORD done frames=" + recordTarget);
+        Application.Quit();
     }
 
     // ── 현상설명 모드 진입/이탈 ──
@@ -562,7 +584,7 @@ public class LouverAgentPresenter : MonoBehaviour {
             for (int i = 0; i < NBINS; i++) binSet[i] = false;   // 새 하루 → 프로파일 초기화
         }
         // 자가 검증용 스크린샷 (persistentDataPath = 항상 쓰기 가능)
-        if (Time.unscaledTime > nextShot) {
+        if (!recordMode && Time.unscaledTime > nextShot) {
             nextShot = Time.unscaledTime + 5f;
             string p = System.IO.Path.Combine(Application.persistentDataPath, "frame.png");
             ScreenCapture.CaptureScreenshot(p);
