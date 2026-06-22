@@ -22,7 +22,6 @@ public class LouverAgentPresenter : MonoBehaviour {
     float orbitAngle = 180f;                 // 시작 = 남쪽 정면(블레이드)
     const float ORBIT_RADIUS = 8.6f, ORBIT_HEIGHT = 2.7f, ORBIT_SPEED = 7f;  // 약 51초에 1바퀴
     Transform charArm;
-    ParticleSystem rain, splash;   // 비 빗줄기 + 바닥 물 튐(시각 전용, 흐림에 따라 방출)
     Vector3 center;
     float width;
     float nextShot = 3f;
@@ -77,8 +76,6 @@ public class LouverAgentPresenter : MonoBehaviour {
         BuildCharacter();
         BuildOutdoorUnit();
         BuildSunDisk();
-        BuildRain();
-        BuildSplash();
         var args = System.Environment.GetCommandLineArgs();
         foreach (var a in args) if (a.StartsWith("-season=")) int.TryParse(a.Substring(8), out seasonIdx);
         foreach (var a in args) if (a == "-explain") { EnterExplain(); break; }
@@ -448,64 +445,6 @@ public class LouverAgentPresenter : MonoBehaviour {
         sunDisk = go.transform;
     }
 
-    // 비 — 장면 위 넓은 박스에서 떨어지는 늘어난 빗줄기. 방출량은 Update에서 날씨(흐림)에 따라 제어.
-    void BuildRain() {
-        var go = new GameObject("Rain");
-        go.transform.position = center + new Vector3(0, 11f, 0);
-        rain = go.AddComponent<ParticleSystem>();
-        rain.Stop();
-        var main = rain.main;
-        main.startSpeed = 0f;
-        main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.07f);   // 굵게
-        main.startLifetime = 1.2f;
-        main.maxParticles = 9000;
-        main.gravityModifier = 0f;
-        main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.startColor = new Color(0.78f, 0.84f, 0.93f, 0.55f);
-        var sh = rain.shape;
-        sh.shapeType = ParticleSystemShapeType.Box;
-        sh.scale = new Vector3(24f, 0.1f, 24f);
-        var em = rain.emission; em.rateOverTime = 0f;               // Update에서 제어
-        var vel = rain.velocityOverLifetime;                        // 곧장 아래로(빗줄기 stretch 용 속도)
-        vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
-        vel.y = new ParticleSystem.MinMaxCurve(-24f);
-        var r = go.GetComponent<ParticleSystemRenderer>();
-        r.renderMode = ParticleSystemRenderMode.Stretch;
-        r.velocityScale = 0.08f; r.lengthScale = 4.5f;   // 빗줄기 더 길고 굵게
-        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
-        // Sprites/Default = 항상 포함되는 투명 셰이더(빗줄기 반투명). URP Particles 셰이더는 빌드서 스트립돼 마젠타로 떴음.
-        var ps = Shader.Find("Sprites/Default");
-        if (ps) { var m = new Material(ps); m.color = new Color(0.80f, 0.86f, 0.95f, 0.6f); r.material = m; }
-        rain.Play();
-    }
-
-    // 바닥 물 튐 — 흐림 시 옥상 전면에서 작은 물방울이 위로 튀었다 떨어짐.
-    void BuildSplash() {
-        var go = new GameObject("Splash");
-        go.transform.position = center + new Vector3(0, -center.y + 0.03f, 0);
-        splash = go.AddComponent<ParticleSystem>();
-        splash.Stop();
-        var main = splash.main;
-        main.startSpeed = 0f;
-        main.startSize = new ParticleSystem.MinMaxCurve(0.02f, 0.05f);
-        main.startLifetime = 0.4f;
-        main.maxParticles = 2500;
-        main.gravityModifier = 3.0f;
-        main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.startColor = new Color(0.85f, 0.90f, 0.97f, 0.45f);
-        var sh = splash.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(17f, 0.01f, 17f);
-        var vel = splash.velocityOverLifetime;                          // 위로 튀었다 중력으로 낙하
-        vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
-        vel.y = new ParticleSystem.MinMaxCurve(2.2f, 3.4f);
-        var em = splash.emission; em.rateOverTime = 0f;                 // Update에서 제어
-        var r = go.GetComponent<ParticleSystemRenderer>();
-        r.renderMode = ParticleSystemRenderMode.Billboard;
-        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
-        var ps = Shader.Find("Sprites/Default");
-        if (ps) { var m = new Material(ps); m.color = new Color(0.85f, 0.90f, 0.97f, 0.45f); r.material = m; }
-        splash.Play();
-    }
-
     // 실외기 = 제품이 가리는 대상. Tier2: Poly Haven CC0 실사 모델(gltfast 런타임 로드) → 실패 시 절차적 폴백.
     void BuildOutdoorUnit() {
         var holder = new GameObject("OutdoorUnit");
@@ -592,11 +531,7 @@ public class LouverAgentPresenter : MonoBehaviour {
         Color fc = Color.Lerp(new Color(0.74f, 0.79f, 0.85f), new Color(0.86f, 0.56f, 0.41f), golden);
         RenderSettings.fogColor = Color.Lerp(fc, new Color(0.55f, 0.57f, 0.60f), overcast);
         RenderSettings.fogDensity = Mathf.Lerp(0.003f, 0.016f, overcast);   // 옅게(유한 옥상+파라펫이라 경계 가릴 필요↓, 도시 HDRI 보이게)
-        // 비: 흐림 0.45 넘으면 점점 강하게 + 젖은 바닥(반사↑·물 튐)
-        float rainAmt = Mathf.Clamp01((overcast - 0.45f) / 0.55f);
-        if (rain) { var em = rain.emission; em.rateOverTime = Mathf.Lerp(0f, 7000f, rainAmt); }
-        if (splash) { var em = splash.emission; em.rateOverTime = Mathf.Lerp(0f, 1400f, rainAmt); }
-        if (groundMat) groundMat.SetFloat("_Smoothness", Mathf.Lerp(0.12f, 0.80f, overcast));   // 젖을수록 거울처럼
+        if (groundMat) groundMat.SetFloat("_Smoothness", 0.12f);   // 마른 옥상 슬래브(비 제거: 젖은 반사 없음)
         if (skyMat) {
             skyMat.SetFloat("_AtmosphereThickness", Mathf.Lerp(1.9f, 0.9f, clear));
             skyMat.SetFloat("_Exposure", Mathf.Lerp(0.6f, 1.15f, clear));

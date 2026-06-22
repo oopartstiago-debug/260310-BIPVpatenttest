@@ -20,7 +20,6 @@ public static class BuildRLInference {
 
     public static void PerformBuild() {
         // 0-) 런타임 Shader.Find 로 쓰는 셰이더가 빌드서 스트립돼 마젠타로 뜨지 않게 Always-Included 에 등록
-        EnsureShaderIncluded("Sprites/Default");   // 비 빗줄기 파티클(반투명)
         EnsureGltfastShaders();                    // gltfast 런타임 머티리얼 셰이더(실외기 실모델, 빌드서 스트립 방지=마젠타 회피)
         EnsureSSAO();                              // 화면공간 앰비언트 오클루전(접지 그림자=photoreal 핵심)
         // 0) Assets/Env 의 HDRI(.hdr/.exr) → Resources/EnvSky.mat(Skybox/Panoramic) 베이크(드롭인)
@@ -90,24 +89,6 @@ public static class BuildRLInference {
             }
             AssetDatabase.SaveAssets(); AssetDatabase.Refresh();
         } catch (System.Exception e) { Debug.LogWarning("[SSAO] 자동 주입 실패(무시, 에디터 토글로 대체): " + e.Message); }
-    }
-
-    // 런타임 Shader.Find 대상 셰이더를 GraphicsSettings 의 Always Included Shaders 에 추가(빌드 스트립 방지).
-    static void EnsureShaderIncluded(string shaderName) {
-        var shader = Shader.Find(shaderName);
-        if (shader == null) { Debug.LogWarning("[EnsureShader] 셰이더 못 찾음: " + shaderName); return; }
-        var assets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
-        if (assets == null || assets.Length == 0) return;
-        var so = new SerializedObject(assets[0]);
-        var arr = so.FindProperty("m_AlwaysIncludedShaders");
-        for (int i = 0; i < arr.arraySize; i++)
-            if (arr.GetArrayElementAtIndex(i).objectReferenceValue == shader) return;   // 이미 포함
-        int idx = arr.arraySize;
-        arr.InsertArrayElementAtIndex(idx);
-        arr.GetArrayElementAtIndex(idx).objectReferenceValue = shader;
-        so.ApplyModifiedProperties();
-        AssetDatabase.SaveAssets();
-        Debug.Log("[EnsureShader] Always-Included 추가: " + shaderName);
     }
 
     // gltfast 는 머티리얼을 런타임에 생성 → shadergraph 가 어떤 빌드 에셋에도 참조되지 않아 스트립됨(마젠타).
