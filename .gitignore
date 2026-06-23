@@ -71,3 +71,7 @@ unity_viz/AITiltViz/AITiltViz/Assets/Resources.meta
 
 # 시연영상(생성물, -record+ffmpeg로 재생성)
 unity_viz/*.mp4
+.gstack/
+
+# Streamlit 정적 서빙(대용량 영상, unity_viz 원본에서 복사)
+static/

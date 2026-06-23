@@ -11,3 +11,4 @@ toolbarMode = "viewer"
 
 [server]
 headless = true
+enableStaticServing = true

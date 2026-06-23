@@ -478,5 +478,8 @@ bipv_data = {
 
 _html = Path("main.html").read_text(encoding="utf-8").replace(
     "{{BIPV_DATA}}", json.dumps(bipv_data, ensure_ascii=False)
+).replace(
+    # 로컬 file:// 에서는 상대경로로 동작, Streamlit 임베드(iframe)에서는 정적 서빙 URL 로 재작성
+    "unity_viz/AITiltRL_demo.mp4", "app/static/AITiltRL_demo.mp4"
 )
-components.html(_html, height=6800, scrolling=False)
+components.html(_html, height=7400, scrolling=False)
