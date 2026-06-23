@@ -19,6 +19,7 @@ from physics_v3 import eff_poa
 
 LIB = "unity_viz/AITiltViz/AITiltViz/Assets/StreamingAssets/sun_days.json"
 MODEL = "unity_viz/results/louver_track/LouverTilt/LouverTilt-3000120.onnx"
+CLOUD_MODEL = "unity_viz/results/louver_cloud/LouverTilt/LouverTilt-3000120.onnx"  # 비교용 이전 정책
 OUT_JSON = "static/twin_trajectories.json"
 
 STEPS, MAX_DELTA, CHORD, ALB, PITCH = 120, 3.0, 97.5, 0.15, 110.0
@@ -116,8 +117,16 @@ def pick_week(days, start="2014-06-15", n=7):
     return run
 
 
+def track_of(steps):
+    """누적발전 / 오라클 상한 = 추종률(%). 정책 간 객관 비교 지표."""
+    o = sum(s["orc_p"] for s in steps)
+    r = sum(s["rl_p"] for s in steps)
+    return round(100 * r / o, 1) if o > 1e-6 else 100.0
+
+
 def main():
     sess = ort.InferenceSession(MODEL, providers=["CPUExecutionProvider"])
+    sess_cloud = ort.InferenceSession(CLOUD_MODEL, providers=["CPUExecutionProvider"])
     days = json.load(open(LIB))["days"]
     out = dict(
         source="simulation",
@@ -127,7 +136,7 @@ def main():
                     max_delta_deg=MAX_DELTA),
         days=[],
     )
-    def make_entry(label, date, cloud, r, days_in_run=1):
+    def make_entry(label, date, cloud, r, days_in_run=1, cloud_steps=None):
         rl_e = sum(s["rl_p"] for s in r["steps"])
         orc_e = sum(s["orc_p"] for s in r["steps"])
         fix_e = sum(s["fix_p"] for s in r["steps"])
@@ -135,22 +144,26 @@ def main():
             label=label, date=date, cloud_mean=round(cloud, 2),
             fixed_angle=r["fixed_angle"], days_in_run=days_in_run,
             track_pct=round(100 * rl_e / orc_e, 1) if orc_e > 1e-6 else 100.0,
+            track_cloud=track_of(cloud_steps) if cloud_steps else None,
             rl_vs_fixed_pct=round(100 * (rl_e - fix_e) / fix_e, 1) if fix_e > 1e-6 else 0.0,
             steps=r["steps"],
         )
-        print(f"{label:9} {date}  cloud={cloud:4.1f}  fixed={r['fixed_angle']:4.1f}°  "
-              f"추종={e['track_pct']:5.1f}%  RL>고정={e['rl_vs_fixed_pct']:+5.1f}%  ({len(r['steps'])}스텝)")
+        print(f"{label:9} {date}  추종 track={e['track_pct']:5.1f}% "
+              f"cloud={e['track_cloud']}  RL>고정={e['rl_vs_fixed_pct']:+5.1f}%  ({len(r['steps'])}스텝)")
         return e
 
-    # 8개 단일일(사계절 맑음+흐림)
+    # 8개 단일일(사계절 맑음+흐림) — track + cloud 두 정책 추종률
     for label, d, cloud in pick_singles(days):
-        out["days"].append(make_entry(label, d["date"], cloud, rollout(sess, d["f"])))
+        out["days"].append(make_entry(label, d["date"], cloud, rollout(sess, d["f"]),
+                                      cloud_steps=rollout(sess_cloud, d["f"])["steps"]))
     # 연속 7일 런(루버각 이어짐)
     week = pick_week(days)
     if len(week) >= 2:
         cloud_w = float(np.mean([f["cloud"] for d in week for f in d["f"]]))
         rw = rollout_multi(sess, [d["f"] for d in week])
-        out["days"].append(make_entry(f"연속 {len(week)}일", week[0]["date"], cloud_w, rw, days_in_run=len(week)))
+        cw = rollout_multi(sess_cloud, [d["f"] for d in week])
+        out["days"].append(make_entry(f"연속 {len(week)}일", week[0]["date"], cloud_w, rw,
+                                      days_in_run=len(week), cloud_steps=cw["steps"]))
 
     # 실측 슬롯(Phase 2 배선 데모): mock 인버터 측정치를 measured 트랙으로 오버레이
     import os
@@ -163,15 +176,34 @@ def main():
                                              and any(f["elev"] > 30 for f in d["f"]))
         cloud_m = float(np.mean([f["cloud"] for f in gday["f"]]))
         rm = rollout(sess, gday["f"])
+        cm = rollout(sess_cloud, gday["f"])["steps"]
         for st in rm["steps"]:                     # 각 스텝에 측정치(±0.25h 평균) 부착, 없으면 None
             vals = [s["w"] for s in samp if abs(s["h"] - st["h"]) <= 0.25]
             st["meas_p"] = round(sum(vals) / len(vals), 1) if vals else None
-        e = make_entry("실측 슬롯 (mock)", "기하 2014-05-12 · 실측 2026-05 mock", cloud_m, rm)
+        e = make_entry("실측 슬롯 (mock)", "기하 2014-05-12 · 실측 2026-05 mock", cloud_m, rm, cloud_steps=cm)
         e["has_measured"] = True
         e["measured_source"] = meas["source"]
         out["days"].append(e)
         out["measured_note"] = ("measured = inverter-rnd mock 벤치 1대(검증 아님). "
                                 "시뮬 기하와 다른 연도라 절대 보정 아님 — 같은 스키마로 흘러드는 배선 데모.")
+
+    # 훈련 모드 메타: 보상 가중치(LouverAgent.cs) + 정책 비교 + 학습곡선
+    single = [d for d in out["days"] if d["days_in_run"] == 1 and d.get("track_cloud")]
+    mean_track = round(float(np.mean([d["track_pct"] for d in single])), 1) if single else None
+    mean_cloud = round(float(np.mean([d["track_cloud"] for d in single])), 1) if single else None
+    curve = {}
+    if os.path.exists("static/training_curve.json"):
+        curve = json.load(open("static/training_curve.json"))
+    out["training"] = dict(
+        obs=8, act="각속도 ±3°/step", algo="PPO", steps="3,000,000",
+        data="기상청 ASOS 10년(2014–2023) · 44,225행",
+        weights=dict(energy=1.0, motor=0.05, track=0.2, poa_ref=350),
+        reward_track=71.05, reward_cloud=72.87,
+        mean_track=mean_track, mean_track_cloud=mean_cloud,
+        curve=curve,
+        note=("보상은 거의 평평(평탄 고원)해 보상값 대신 '추종률'로 평가. "
+              "louver_track은 oracle 추종 셰이핑(wTrack=0.2)으로 louver_cloud의 아침 지각을 개선한 버전."),
+    )
     json.dump(out, open(OUT_JSON, "w"), ensure_ascii=False, separators=(",", ":"))
     import os
     print(f"\n→ {OUT_JSON}  ({os.path.getsize(OUT_JSON)/1024:.1f} KB, {len(out['days'])}일)")
