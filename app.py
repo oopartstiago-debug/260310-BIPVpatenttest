@@ -41,7 +41,7 @@ LAT, LON, TZ = 37.5665, 126.9780, "Asia/Seoul"
 NX, NY = 60, 127
 DC, DE, DL = 300, 18.7, 0.85           # capacity, efficiency, loss
 DK, DU, DLC = 210, 1, 20               # kepco, units, louver count
-DW, DCH, DP = 900.0, 97.5, 97.5        # width, chord(현), pitch — 도면 1043A 실기하
+DW, DCH, DP = 900.0, 114.0, 97.5       # width, chord(현), pitch — 도면 1043A 실기하(현114·피치97.5 겹침16.5mm, gcr1.169)
 AMIN, AMAX, ANIGHT = 15, 90, 90
 
 GH_BASE = "https://raw.githubusercontent.com/oopartstiago-debug/260310-BIPVpatenttest/main"

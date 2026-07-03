@@ -12,7 +12,7 @@ import pandas as pd
 AMIN, AMAX, ANIGHT = 15, 90, 90
 ANGLES = np.arange(AMIN, AMAX + 1, 1.0)
 TILTS = np.arange(0.0, 90.1, 2.5)
-RATIOS = np.arange(0.30, 1.051, 0.05)   # 현/피치 (실기하 1.0 포함, ≤1.05)
+RATIOS = np.arange(0.30, 1.201, 0.05)   # 현/피치 (실기하 1.169=현114/피치97.5 겹침밀폐 포함, ≤1.20)
 
 
 def view_factors_mc(tilt_deg, c_over_p, n_pts=64, n_dir=4000, n_nb=4, seed=42):
@@ -63,7 +63,7 @@ def main():
 
     # ── 2. 라벨 재생성 (physics_v3 = 앱과 동일 코드 경로) ────────────────────
     import physics_v3 as P3
-    df = pd.read_csv("bipv_ai_master_data_v15.csv")
+    df = pd.read_csv("bipv_ai_master_data_v15_realistic.csv")  # TMY 현실화(cloud 감쇠+Erbs, 2026-07-02)
     el = df["solar_elevation"].to_numpy(float); az = df["solar_azimuth"].to_numpy(float)
     dni = df["dni"].to_numpy(float); dhi = df["dhi"].to_numpy(float)
     ghi = df["ghi_w_m2"].to_numpy(float)
@@ -106,7 +106,7 @@ def main():
     yrs = sorted(pd.to_datetime(df["timestamp"]).dt.year.unique())
     metrics = {**m_ho, "energy_regret_pct": regret,
                "training_rows": int(n), "year_range": f"{yrs[0]}–{yrs[-1]}",
-               "label": "target_angle_v17 (physics_v3: 실기하 c/p=1.0 + PV띠중앙 + IAM + alb 0.15)",
+               "label": "target_angle_v17 (physics_v3: 실기하 현114/피치97.5 gcr1.169 + PV띠 상24/하7 + IAM + alb 0.15)",
                "holdout": "chronological last 20%",
                "importance": {f: round(float(v), 3) for f, v in zip(FEATS, model_full.feature_importances_)}}
     with open("model_metrics_v17.json", "w") as f:

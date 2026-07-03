@@ -14,11 +14,11 @@ import pvlib
 
 from physics_v2 import panel_sf  # 검증 완료(무변경) — 단일 소스 유지
 
-CHORD, PITCH = 97.5, 97.5          # 실기하 (도면 1043A: 피치 97.5 명기, 닫힘 연속면=현≈피치)
-ALBEDO = 0.15                       # 현장 파라미터 (입면 설치 보수 기본값)
+CHORD, PITCH = 114.0, 97.5         # 실기하 (도면 1043A: 현114·피치97.5 겹침16.5mm 밀폐 → gcr=현/피치=1.169)
+ALBEDO = 0.10                       # 허공 위 파사드 주변값(통제불가·도시지면반사 ≈0.10~0.15, 0.15=낙관단). v17라벨은0.15산출이나 평탄고원서 최적각차~1°=무시 (verify_void_baseline.py 2026-07-03)
 A_R = 0.16                          # Martin-Ruiz (일반 유리 라미네이트)
-STRIP_FRAC = 83.0 / 97.5            # PV 띠 폭/현 (M6 half-cut 83mm)
-STRIP_LO = (1 - STRIP_FRAC) / 2     # 중앙 배치 (사용자 확정 2026-06-11)
+STRIP_FRAC = 83.0 / 114.0          # PV 띠 폭/현 (M6 half-cut 83mm)
+STRIP_LO = 24.0 / 114.0            # 상단마진 24mm (도면 실측 상24/셀83/하7 = 하단 치우침, 그림자=상단부터라 유도)
 _VF_FN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "view_factors_v17.json")
 _VF = None
 
@@ -47,7 +47,8 @@ def view_factor(tilt, c=CHORD, p=PITCH, kind="f_sky"):
 
 
 def strip_shade(sf, lo=STRIP_LO, frac=STRIP_FRAC):
-    """현 전체 음영률 sf → PV 띠 유효 음영률. 그림자 띠=[0, sf] (피벗/안쪽부터, 광선추적 확정)."""
+    """현 전체 음영률 sf → PV 띠 유효 음영률. 그림자 띠=[0, sf] (블레이드 상단부터, 광선추적 확정 2026-07-02).
+    PV 띠=[lo, lo+frac], lo=상단마진/현. 셀 하단 치우침이면 상단마진이 그림자를 먼저 흡수(음영 유도)."""
     return np.clip(np.minimum(np.asarray(sf, dtype=float), lo + frac) - lo, 0, None) / frac
 
 
