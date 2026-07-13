@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Tilt — 모델 설명 (기술 검토용)</title>
+<style>
+  :root{
+    --bg:#f4f2ed; --panel:#ffffff; --ink:#1b1a17; --muted:#6d6a62;
+    --line:#e0ddd4; --line2:#cfccc1;
+    --solar:#c2600a; --solar-soft:#f6ede0;
+    --evi:#0f6e63; --evi-soft:#e6f0ee;
+    --neg:#a52a1f;
+    --shadow:0 1px 2px rgba(30,26,20,.04), 0 8px 30px rgba(30,26,20,.05);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Pretendard","Malgun Gothic",system-ui,sans-serif;
+    font-size:17px; line-height:1.72; letter-spacing:-.01em;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:780px; margin:0 auto; padding:0 22px}
+  .col{max-width:680px; margin:0 auto}
+
+  /* ---- masthead ---- */
+  header{padding:64px 0 40px; border-bottom:1px solid var(--line)}
+  .kicker{font-size:12.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--solar); font-weight:700}
+  h1{font-size:30px; line-height:1.25; margin:16px 0 0; letter-spacing:-.025em; font-weight:750}
+  .thesis{
+    margin:26px 0 0; padding:22px 24px; background:var(--panel); border:1px solid var(--line);
+    border-left:3px solid var(--solar); border-radius:8px; box-shadow:var(--shadow);
+    font-size:18.5px; line-height:1.6; font-weight:550;
+  }
+  .thesis b{color:var(--solar)}
+  .subline{margin-top:14px; color:var(--muted); font-size:14.5px}
+
+  /* ---- beats ---- */
+  main{padding:8px 0 60px}
+  .beat{padding:44px 0 4px; border-bottom:1px solid var(--line)}
+  .beat:last-child{border-bottom:0}
+  .btag{display:inline-flex; align-items:baseline; gap:10px; margin-bottom:4px}
+  .bnum{font-size:12.5px; font-weight:800; letter-spacing:.08em; color:#fff; background:var(--ink);
+    border-radius:5px; padding:3px 8px; line-height:1}
+  .bnum.solar{background:var(--solar)} .bnum.evi{background:var(--evi)}
+  .blabel{font-size:12.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700}
+  h2{font-size:22px; line-height:1.35; margin:8px 0 12px; letter-spacing:-.02em; font-weight:700}
+  p{margin:12px 0}
+  .lead{font-size:18px}
+  strong{font-weight:700}
+  .hl{background:linear-gradient(transparent 62%, var(--solar-soft) 62%); font-weight:650}
+  .num{font-variant-numeric:tabular-nums; font-weight:750; letter-spacing:-.02em}
+  .pos{color:var(--evi)} .warn{color:var(--neg)}
+  em{font-style:normal; color:var(--muted)}
+
+  /* diagram */
+  figure{margin:26px 0 8px}
+  .diagram{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px 18px 8px; box-shadow:var(--shadow); overflow-x:auto}
+  figcaption{color:var(--muted); font-size:13.5px; margin-top:12px; line-height:1.55}
+  .svg-scroll{min-width:520px}
+  text{font-family:inherit}
+
+  /* chips row */
+  .chips{display:flex; gap:12px; flex-wrap:wrap; margin:20px 0 6px}
+  .chip{flex:1; min-width:150px; background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:14px 16px; box-shadow:var(--shadow)}
+  .chip .c-k{font-size:13px; color:var(--muted); font-weight:600}
+  .chip .c-v{font-size:23px; font-weight:800; letter-spacing:-.02em; margin-top:2px}
+  .chip .c-n{font-size:12px; color:var(--muted); margin-top:3px}
+  .chip.zero .c-v{color:var(--ink)}
+
+  /* value cards */
+  .cards{display:flex; gap:14px; flex-wrap:wrap; margin:22px 0 6px}
+  .card{flex:1; min-width:230px; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:20px; box-shadow:var(--shadow); border-top:3px solid var(--evi)}
+  .card h3{margin:0; font-size:16px; letter-spacing:-.01em}
+  .card .big{font-size:30px; font-weight:820; letter-spacing:-.025em; color:var(--evi); margin:8px 0 2px; font-variant-numeric:tabular-nums}
+  .card p{font-size:14.5px; color:var(--muted); margin:8px 0 0; line-height:1.6}
+  .card .big small{font-size:15px; font-weight:600; color:var(--muted)}
+
+  /* evidence table */
+  table{width:100%; border-collapse:collapse; margin:18px 0 6px; font-size:15px}
+  th,td{text-align:left; padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{font-size:12.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700; border-bottom:1.5px solid var(--line2)}
+  td:first-child{font-weight:650; white-space:nowrap}
+  td .v{font-variant-numeric:tabular-nums; font-weight:700}
+
+  /* ledger */
+  .ledger{background:var(--evi-soft); border:1px solid #cfe3df; border-radius:11px; padding:20px 22px; margin:22px 0 6px}
+  .ledger h3{margin:0 0 4px; font-size:15px; color:var(--evi); letter-spacing:.02em}
+  .ledger ul{margin:10px 0 0; padding:0; list-style:none}
+  .ledger li{padding:9px 0; border-top:1px dashed #bcd8d2; font-size:15px; line-height:1.55}
+  .ledger li:first-child{border-top:0}
+  .ledger .from{color:var(--muted); text-decoration:line-through; text-decoration-color:#b9b4a8}
+  .ledger .to{color:var(--evi); font-weight:750}
+  .arrow{color:var(--muted); margin:0 6px}
+
+  footer{padding:34px 0 70px; color:var(--muted); font-size:13px; line-height:1.6}
+  footer .src{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:#8a877e}
+  .rule-note{font-size:13.5px; color:var(--muted); background:var(--panel); border:1px dashed var(--line2); border-radius:8px; padding:12px 15px; margin:16px 0 0}
+
+  @media (max-width:560px){
+    body{font-size:16px}
+    h1{font-size:25px} h2{font-size:20px}
+    header{padding:44px 0 30px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap"><div class="col">
+
+<header>
+  <div class="kicker">AI Tilt · 기술 검토용 설명</div>
+  <h1>태양을 따라가는 루버 — 인데,<br>정작 태양추적은 이 모델의 가치가 아니다.</h1>
+  <div class="thesis">
+    밀폐·밀집 BIPV 루버에서 AI 각도제어의 진짜 가치는 <b>“태양추적 발전 부스터”가 아니다.</b>
+    우리는 그 가설을 물리로 검증하려다 <b>스스로 기각했다.</b> 가치는 다른 두 곳
+    — <b>가드</b>와 <b>셀 커버리지</b> — 에 있고, 그걸 증명한 엄격함이 이 숫자들을 믿을 수 있게 만든다.
+  </div>
+  <div class="subline">읽는 데 3분 · 서울 10년(2014–2023) 44,207 주간시간 · 물리 기준 <code>physics_v3</code> · 모든 수치 재현 가능</div>
+</header>
+
+<main>
+
+  <!-- BEAT 1 -->
+  <section class="beat">
+    <div class="btag"><span class="bnum">01</span><span class="blabel">순진한 기대</span></div>
+    <h2>“태양 따라 각도를 틀면 발전이 확 는다” — 대부분 여기서 멈춘다</h2>
+    <p class="lead">직관은 명확하다. 완전히 자유로운 2축 추적 패널이라면 고정 대비
+      <span class="num pos">+29.9%</span>까지 이론상 얻는다. 그러니 루버 블레이드도 태양을 추종시키면
+      큰 이득이 날 것 같다.</p>
+    <p>이 기대가 데모 영상과 대시보드가 자연스럽게 주는 인상이다. 블레이드가 해를 따라 움직이니까.
+      <strong>문제는 우리 루버가 자유 패널이 아니라는 데 있다.</strong></p>
+  </section>
+
+  <!-- BEAT 2 -->
+  <section class="beat">
+    <div class="btag"><span class="bnum solar">02</span><span class="blabel">물리 현실 — 반전</span></div>
+    <h2>닫으면 밀폐돼야 하는 순간, 추적 자유도는 죽는다</h2>
+    <p class="lead">루버는 닫았을 때 <strong>밀폐(차폐·환기 차단)</strong>돼야 한다.
+      그러려면 피치 ≤ 블레이드 현 → 블레이드가 <strong>겹친다</strong> →
+      <span class="hl">겹침 비율 = 현 114 ÷ 피치 97.5 = <span class="num">1.17</span></span>.
+      이 겹침이 낮은 각도에서 <strong>자기음영</strong>을 만들어, 추적으로 얻을 자유도를 원천 봉쇄한다.</p>
+
+    <figure>
+      <div class="diagram"><div class="svg-scroll">
+      <svg viewBox="0 0 640 250" width="100%" height="auto" role="img" aria-label="낮은 각 vs 높은 각 자기음영 비교">
+        <!-- sun rays -->
+        <defs>
+          <marker id="ray" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+            <path d="M0,0 L7,4 L0,8" fill="none" stroke="#c2600a" stroke-width="1.3"/>
+          </marker>
+        </defs>
+        <!-- LEFT: low angle -->
+        <text x="150" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#1b1a17">낮은 각 (교과서 35°)</text>
+        <!-- rays -->
+        <g stroke="#d98b3a" stroke-width="1.3" marker-end="url(#ray)" opacity=".8">
+          <line x1="40" y1="42" x2="86" y2="80"/>
+          <line x1="90" y1="42" x2="136" y2="80"/>
+          <line x1="140" y1="42" x2="186" y2="80"/>
+          <line x1="190" y1="42" x2="236" y2="80"/>
+        </g>
+        <!-- blades shallow, overlapping; shadow band -->
+        <g>
+          <!-- blade 1 (upper) -->
+          <rect x="60" y="92" width="150" height="12" rx="2" transform="rotate(20 135 98)" fill="#3f3b34"/>
+          <!-- shadow cast on lower blade -->
+          <rect x="72" y="132" width="150" height="12" rx="2" transform="rotate(20 147 138)" fill="#3f3b34"/>
+          <rect x="72" y="132" width="96" height="12" rx="2" transform="rotate(20 147 138)" fill="#a52a1f" opacity=".70"/>
+          <rect x="84" y="172" width="150" height="12" rx="2" transform="rotate(20 159 178)" fill="#3f3b34"/>
+          <rect x="84" y="172" width="96" height="12" rx="2" transform="rotate(20 159 178)" fill="#a52a1f" opacity=".70"/>
+        </g>
+        <text x="150" y="228" text-anchor="middle" font-size="12.5" fill="#a52a1f" font-weight="700">PV 띠의 넓은 면적이 자기음영</text>
+
+        <!-- divider -->
+        <line x1="320" y1="36" x2="320" y2="214" stroke="#e0ddd4" stroke-width="1"/>
+
+        <!-- RIGHT: high angle -->
+        <text x="490" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#1b1a17">높은 각 (물리 기준모델 80°)</text>
+        <g stroke="#d98b3a" stroke-width="1.3" marker-end="url(#ray)" opacity=".8">
+          <line x1="380" y1="42" x2="410" y2="88"/>
+          <line x1="430" y1="42" x2="460" y2="88"/>
+          <line x1="480" y1="42" x2="510" y2="88"/>
+          <line x1="530" y1="42" x2="560" y2="88"/>
+        </g>
+        <!-- near-vertical blades, minimal shadow -->
+        <g>
+          <rect x="410" y="90" width="14" height="120" rx="2" transform="rotate(10 417 150)" fill="#3f3b34"/>
+          <rect x="410" y="90" width="14" height="120" rx="2" transform="rotate(10 417 150)" fill="#1f7d70" opacity=".16"/>
+          <rect x="470" y="90" width="14" height="120" rx="2" transform="rotate(10 477 150)" fill="#3f3b34"/>
+          <rect x="470" y="90" width="14" height="120" rx="2" transform="rotate(10 477 150)" fill="#1f7d70" opacity=".16"/>
+          <rect x="530" y="90" width="14" height="120" rx="2" transform="rotate(10 537 150)" fill="#3f3b34"/>
+          <rect x="530" y="90" width="14" height="120" rx="2" transform="rotate(10 537 150)" fill="#1f7d70" opacity=".16"/>
+        </g>
+        <text x="490" y="228" text-anchor="middle" font-size="12.5" fill="#0f6e63" font-weight="700">거의 전면 수광 — 그림자 최소</text>
+      </svg>
+      </div></div>
+      <figcaption>같은 겹침(비율 1.17)에서 <strong>낮은 각은 윗 블레이드 그림자에 PV 띠가 깊게 덮이고</strong>,
+        각을 세울수록 자기음영이 사라진다. 그래서 이 루버의 발전 최적각은 교과서(여름=낮은 각)와 <strong>정반대</strong>인 76–90°다.</figcaption>
+    </figure>
+
+    <p>결과적으로 <strong>추적으로 얻는 순수 이득이 작다.</strong> 각도 트래킹 vs 최고 고정각:</p>
+    <div class="chips">
+      <div class="chip"><div class="c-k">합성 기상데이터 (구)</div><div class="c-v num">+2.62%</div><div class="c-n">낙관 데이터</div></div>
+      <div class="chip"><div class="c-k">실측 기상데이터 (정정)</div><div class="c-v num pos">+1.67%</div><div class="c-n">위성관측 서울</div></div>
+      <div class="chip"><div class="c-k">허공 설치 보정</div><div class="c-v num">+0.9–1.5%</div><div class="c-n">지면 반사율 낮음</div></div>
+    </div>
+    <p>그리고 “각도 자유도를 더 주면 되지 않나”라는 후속 시도 <strong>세 개가 전부 0으로 수렴</strong>했다 —
+      촘촘한 대칭배열 + 음영에 비례하는 셀 배선이 만드는 근본 법칙이다:</p>
+    <div class="chips">
+      <div class="chip zero"><div class="c-k">가변 피치</div><div class="c-v num">+0.0%</div><div class="c-n">2모델 일치</div></div>
+      <div class="chip zero"><div class="c-k">개별 블레이드 각</div><div class="c-v num">+0.0%</div><div class="c-n">균일이 최적</div></div>
+      <div class="chip zero"><div class="c-k">치우친 축(편심)</div><div class="c-v num">0%</div><div class="c-n">우리 셀 배선엔 무효</div></div>
+    </div>
+    <p class="rule-note">💡 <strong>엔지니어용 한 줄</strong>: 고정 파사드는 일정한 복사를 가로챈다.
+      블레이드로 그걸 어떻게 나눠도(피치·각도·축 위치) <strong>총 포집량을 재분배할 뿐</strong> 총량은 안 는다(부분을 아무리 나눠도 합은 그대로다).
+      촘촘함이 자유도를 죽이는 게 병목이지, 제어 알고리즘의 한계가 아니다.</p>
+  </section>
+
+  <!-- BEAT 3 -->
+  <section class="beat">
+    <div class="btag"><span class="bnum evi">03</span><span class="blabel">그럼 가치는 어디에</span></div>
+    <h2>발전 부스터가 죽은 자리에, 두 개의 진짜 레버가 남는다</h2>
+    <p class="lead">트래킹 천장이 +1.67%라는 건 “이 모델이 쓸모없다”는 뜻이 아니라,
+      <strong>가치를 엉뚱한 곳에서 찾고 있었다</strong>는 뜻이다. 실제 가치는 두 곳에 크게 있다.</p>
+    <div class="cards">
+      <div class="card">
+        <h3>① 가드 — 운영 자산</h3>
+        <div class="big">+10 – 33<small> %</small></div>
+        <p>2세대 전동 루버는 환기·채광 때문에 <strong>어차피 움직인다</strong> — 그리고 열리는 방향(낮은 각)이
+          정확히 손실 절벽이다. AI는 기능 수행 직후 곧바로 최적각으로 되돌아온다(복귀하며 놓치는 발전은 <span class="v num">0.287%</span>뿐).
+          방치·오설정 대비 이만큼을 방어한다. 모터는 환기 때문에 이미 있으니 <strong>지능의 한계비용 ≈ 0.</strong></p>
+      </div>
+      <div class="card">
+        <h3>② 셀 커버리지 — 유일한 큰 발전 레버</h3>
+        <div class="big">+2.8 – 19.3<small> %</small></div>
+        <p>각도·피치·반사가 다 막힌 허공 설치에서 배포 가능한 유일한 발전 레버.
+          같은 규격서 여백을 줄이면 <span class="v num">+2.8–8.8%</span>, 더 큰 반쪽 셀(하프셀)로 규격을 키우면
+          M10 <span class="v num">+9.8%</span> · G12 <span class="v num">+19.3%</span>. 원리는 “<strong>아래로 넓혀라</strong>”
+          — 그림자는 늘 위에서 내려오니 셀을 하단으로 넓히면 음영률은 그대로다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- BEAT 4 -->
+  <section class="beat">
+    <div class="btag"><span class="bnum evi">04</span><span class="blabel">왜 믿을 수 있나</span></div>
+    <h2>신뢰의 근거는 큰 숫자가 아니라, 우리가 우리 숫자를 깎았다는 사실이다</h2>
+    <p class="lead">엔지니어에게 부풀린 숫자는 리스크다. 이 모델의 신뢰 자산은
+      <strong>우리에게 불리한 방향으로 세 번 스스로 정정했다</strong>는 데 있다.</p>
+
+    <div class="ledger">
+      <h3>정직성 원장 — 우리가 우리에게 불리하게 내린 수치</h3>
+      <ul>
+        <li>트래킹 천장 <span class="from num">+2.62%</span><span class="arrow">→</span><span class="to num">+1.67%</span>
+          &nbsp;합성 기상데이터 → 실측 기상데이터(PVGIS 위성관측)로 교체하니 낮아졌다. 낙관 데이터를 버렸다.</li>
+        <li>“흐린 날 <span class="from num">+3.81%</span> (트래킹 5배)” <span class="arrow">→</span><span class="to num">+0.29%</span>
+          &nbsp;진짜 완전 흐림은 사방에서 고르게 오는 빛이라 각도와 무관. “흐림에 강하다” 서사를 <strong>신기루로 판정하고 폐기.</strong></li>
+        <li>지면 반사율 <span class="from num">0.15</span><span class="arrow">→</span><span class="to num">0.10</span>
+          &nbsp;앞아래가 허공인 설치엔 0.15가 낙관단이라 하향. 절대 발전량을 스스로 −2.6%.</li>
+      </ul>
+    </div>
+
+    <table>
+      <thead><tr><th>검증 축</th><th>결과</th></tr></thead>
+      <tbody>
+        <tr><td>독립 표준모델 교차검증</td><td>우리 <code>physics_v3</code> ↔ 공개 표준모델(pvlib) 결과 거의 일치 <span class="v num">(상관 0.99)</span></td></tr>
+        <tr><td>적대적 교차검토</td><td>다른 AI 모델로 반증 시도 → 물리 뼈대 <strong>타당함 확인</strong></td></tr>
+        <tr><td>데이터 규모</td><td>서울 10년(2014–2023) <span class="v num">44,207</span> 주간시간 · 매번 같은 결과 재현</td></tr>
+        <tr><td>경쟁사(HDC) “여름 20%”</td><td>단순 고정각 기준·실측 명시 없음 → 특허 성능표를 거꾸로 계산해보니 <strong>여름 값 재현 불가</strong>(오차 12.8%p)</td></tr>
+      </tbody>
+    </table>
+    <p class="rule-note">🎯 <strong>한 문장으로</strong>: 각도 최적화의 근거로 실제로 쓸 수 있는 계산은 우리 것뿐이다 —
+      우리가 우리 가설을 죽일 만큼 엄격했기 때문에.</p>
+  </section>
+
+</main>
+
+<footer>
+  <p><strong>이 문서를 한 문장으로:</strong> AI Tilt는 “태양추적으로 발전을 확 늘리는 모델”이 아니라,
+    <strong>발전 지형이 교과서와 뒤집힌 밀폐 루버에서 블레이드가 어디 있어야 하는지 아는 지도이자,
+    환기가 블레이드를 끌고 갈 때 손실을 되돌리는 가드</strong>다. 순수 트래킹 이득(+1.67%)은 작지만 정직하고,
+    진짜 발전 레버는 셀 커버리지이며, 이 결론을 우리가 우리 손으로 검증했다.</p>
+  <p class="src">근거: POSITIONING.md · TRACKING_GAIN_INVESTIGATION.md · verify_{realclimate,variable_pitch,individual_blade,eccentric_wiring,m10,hdc_reveng}.py · physics_v3.py</p>
+</footer>
+
+</div></div>
+</body>
+</html>
