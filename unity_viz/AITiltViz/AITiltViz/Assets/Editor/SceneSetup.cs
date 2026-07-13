@@ -48,5 +48,18 @@ public static class SceneSetup {
         EditorUtility.SetDirty(root);
         Debug.Log("[AI Tilt] 씬 구성 완료 — Play ▶ 누르면 됩니다. (Sun/LouverRoot 자동 배선됨)");
     }
+
+    // 비교 샌드박스(우리 vs HDC 가정) — 별도 씬. LouverCompareSandbox가 나머지(바닥/태양/카메라/스택) 자가 생성.
+    [MenuItem("AI Tilt/Setup Compare (HDC vs Ours)")]
+    public static void BuildCompare() {
+        var host = GameObject.Find("CompareSandbox") ?? new GameObject("CompareSandbox");
+        Light sun = null;
+        foreach (var l in Object.FindObjectsOfType<Light>()) if (l.type == LightType.Directional) { sun = l; break; }
+        if (sun == null) { var go = new GameObject("Directional Light"); sun = go.AddComponent<Light>(); sun.type = LightType.Directional; }
+        var cs = host.GetComponent<LouverCompareSandbox>() ?? host.AddComponent<LouverCompareSandbox>();
+        cs.sun = sun;
+        EditorUtility.SetDirty(host);
+        Debug.Log("[AI Tilt] 비교 씬 구성 완료 — Play ▶. 슬라이더로 각도/간격/태양 조작, 우/HDC 자기음영 실시간 대조.");
+    }
 }
 #endif
