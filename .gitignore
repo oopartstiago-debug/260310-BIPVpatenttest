@@ -76,3 +76,6 @@ unity_viz/*.mp4
 
 # Streamlit 정적 서빙(대용량 영상, unity_viz 원본에서 복사)
 static/
+
+# thinfilm
+thinfilm/physics/__pycache__/

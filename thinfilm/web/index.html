@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>간섭 코팅 컬러 모듈 계산</title>
+<meta name="description" content="커버유리 뒷면 다층 간섭 코팅의 반사색, 각도 의존성, 상대 광전류를 전달행렬법으로 계산한다.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+
+<header class="doc">
+  <div>
+    <h1>커버유리 뒷면 다층 간섭 코팅의 반사색과 광전류 손실</h1>
+    <p class="sub">TiO₂/SiO₂ 코팅의 층 두께를 바꾸면 모듈 겉보기 색, 보는 각도에 따른 색 변화, 셀에 도달하는 빛이 함께 바뀐다. 아래 계산기는 이 세 가지를 같은 전달행렬 계산으로 보여 준다.</p>
+  </div>
+  <dl>
+    <dt>계산</dt><dd>전달행렬법, 코히어런트/인코히어런트 혼합</dd>
+    <dt>색</dt><dd>D65, CIE 1931 2°</dd>
+    <dt>검증</dt><dd id="verify-line">Python tmm 대조</dd>
+  </dl>
+</header>
+
+<p class="lead" id="lead">계산 중이다.</p>
+
+<section id="bench-sec">
+  <h2><span class="sec">1</span>설계와 계산</h2>
+  <div class="bench">
+    <aside class="controls" aria-label="설계 입력">
+      <h3>프리셋</h3>
+      <div class="presets" id="presets" role="radiogroup"></div>
+
+      <h3>코팅 층 <span style="color:var(--ink-3);font-weight:400">유리 쪽부터</span></h3>
+      <table class="stack">
+        <thead><tr><th>#</th><th>재료</th><th style="text-align:right">두께 nm</th><th style="text-align:right">n₅₅₀</th><th></th></tr></thead>
+        <tbody id="stack-rows"></tbody>
+      </table>
+      <div class="row-actions">
+        <button class="plain" id="add-layer" type="button">층 추가</button>
+        <button class="plain" id="reset" type="button">프리셋으로 되돌리기</button>
+      </div>
+
+      <h3>관찰 각도 (공기 기준)</h3>
+      <div class="angle">
+        <input id="angle" type="range" min="0" max="75" step="5" value="30" aria-describedby="angle-out">
+        <output id="angle-out" class="num">30°</output>
+      </div>
+
+      <dl class="readout" id="readout"></dl>
+      <p class="note">화면 색은 sRGB 모니터 기준 참고값이다. 판단은 L*a*b* 수치로 한다. 색역 밖 색은 OKLCh에서 명도와 색상을 유지한 채 채도만 줄여 표시하고 스와치에 * 를 붙인다.</p>
+    </aside>
+
+    <div class="figs">
+      <figure class="wide">
+        <svg id="fig-spectrum" role="img" aria-label="반사 스펙트럼"></svg>
+        <figcaption><b>그림 1.</b>모듈 반사율 R(λ). 진한 선이 선택한 각도, 회색 선은 0°, 15°, 30°, 45°, 60°. 뒤의 회색 면은 AM1.5G 광자속, 점선은 D65×ȳ(λ) 명도 가중치로, 둘 다 최댓값으로 정규화했다. 유리 앞면 반사(약 4%)를 포함한다.
+          <span class="cond">TMM, 유리/EVA incoherent, s,p 평균, Δλ = 5 nm</span></figcaption>
+      </figure>
+
+      <figure class="wide">
+        <div class="swatches" id="swatches"></div>
+        <figcaption><b>그림 2.</b>관찰 각도별 계산 반사색. 주변은 Munsell N5 회색(#777). "유리" 뒤 값은 코팅이 실제로 받는 유리 내부 각도, ΔE00은 0° 대비 CIEDE2000 색차.
+          <span class="cond">D65, CIE 1931 2°, sRGB 표시</span></figcaption>
+      </figure>
+
+      <figure>
+        <svg id="fig-ab" role="img" aria-label="a* b* 평면 궤적"></svg>
+        <figcaption><b>그림 3.</b>0°에서 75°까지 각도를 올릴 때 a*b* 평면에서 색이 움직이는 궤적. 점마다 공기 기준 각도를 적었다.
+          <span class="cond">CIELAB D65</span></figcaption>
+      </figure>
+
+      <figure>
+        <svg id="fig-de" role="img" aria-label="각도별 색차"></svg>
+        <figcaption><b>그림 4.</b>0° 대비 색차 ΔE00. 아래 축은 공기 기준, 위 축은 유리 내부 각도. 가로 점선은 ΔE00 = 1, 3, 5.
+          <span class="cond">CIEDE2000, kL = kC = kH = 1</span></figcaption>
+      </figure>
+
+      <figure>
+        <svg id="fig-section" role="img" aria-label="적층 단면"></svg>
+        <figcaption><b>그림 5.</b>코팅 단면. 코팅 층은 두께 비례, 유리·EVA·셀은 축약했다. 층 명도는 550 nm 굴절률에 비례한다.</figcaption>
+      </figure>
+
+      <figure>
+        <svg id="fig-trade" role="img" aria-label="명도와 광전류"></svg>
+        <figcaption><b>그림 6.</b>0° 반사색 명도 L*와 상대 광전류. 회색 점은 무작위 TiO₂/SiO₂ 3–7층 설계 <span id="cloud-n" class="num"></span>개, 사각형은 프리셋, 원은 현재 설계.
+          <span class="cond">AM1.5G, EQE = 1 가정, 코팅 없는 모듈 = 1</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="sec">2</span>계산 조건</h2>
+  <table class="cond" id="cond-table"></table>
+</section>
+
+<section>
+  <h2><span class="sec">3</span>각도 표기: 공기 30°는 유리 안에서 19.2°다</h2>
+  <div class="cols">
+    <div>
+      <p>코팅은 커버유리 뒷면, 즉 유리와 EVA 사이에 있다. 빛은 공기에서 유리로 들어갈 때 먼저 굴절하므로 코팅에 닿는 각도는 공기 중 관찰 각도보다 작다. 평면 적층에서는 n·sin θ가 보존되어 θ<sub>유리</sub> = asin(sin θ<sub>공기</sub> / n<sub>유리</sub>)이다. n = 1.52이면 공기 30°는 19.2°, 45°는 27.7°, 60°는 34.7°가 된다.</p>
+      <p>문헌마다 각도를 어느 매질 기준으로 적었는지가 다르다. 한 자료의 "30°"와 다른 자료의 "19°"가 같은 조건일 수 있다. 이 계산기는 입력을 공기 기준으로 받고, 그림 2와 그림 4에 두 각도를 함께 적는다. Fraunhofer ISE 자료와 수치를 맞출 때는 원문의 각도 기준과 TMM 입사 매질 설정을 먼저 확인해야 한다.</p>
+      <p>텍스처 유리(MorphoColor 방식)에서는 면마다 기울기가 달라 코팅이 받는 국소 각도가 분포를 이룬다. 이 계산기는 평면 유리만 다룬다.</p>
+    </div>
+    <figure>
+      <svg id="fig-refract" role="img" aria-label="공기-유리 굴절"></svg>
+      <figcaption><b>그림 7.</b>공기–유리 계면 굴절. 선택한 관찰 각도를 따라 움직인다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <h2><span class="sec">4</span>이 계산이 다루지 않는 것</h2>
+  <p>셀 전기 손실과 실제 EQE를 넣지 않았다. 광전류는 Si로 들어간 빛을 모두 전류로 바꾼다고 가정한 상대값이다. 굴절률은 문헌 박막 값이며 스퍼터 조건에 따라 달라지므로, 실제 설계에는 엘립소메트리 측정값으로 바꿔야 한다. 텍스처 유리, 확산 반사, 측정 기하(d:8°, 45°/0°)의 차이는 모델에 없다. 두께 공차의 영향은 아직 계산하지 않았다.</p>
+</section>
+
+<section>
+  <h2><span class="sec">5</span>출처</h2>
+  <ol class="refs" id="refs">
+    <li>S. J. Byrnes, "Multilayer optical calculations," arXiv:1603.02720, 파이썬 패키지 tmm.</li>
+    <li>colour-science 0.4.7, CIE 1931 2° 등색함수와 D65.</li>
+    <li>ASTM G173-03 AM1.5G 기준 스펙트럼 (pvlib 0.16 경유).</li>
+    <li>M. N. Polyanskiy, "Refractiveindex.info database of optical constants," Sci. Data 11, 94 (2024). 재료별 원 출처는 2절 표.</li>
+    <li>G. Sharma, W. Wu, E. N. Dalal, "The CIEDE2000 color-difference formula," Color Res. Appl. 30, 21 (2005).</li>
+    <li>B. Bläsi et al., "The MorphoColor concept for colored photovoltaic modules," IEEE J. Photovolt. 11, 1305 (2021).</li>
+    <li>J. Halme, P. Mäkinen, "Theoretical efficiency limits of ideal coloured opaque photovoltaics," Energy Environ. Sci. 12, 1274 (2019).</li>
+    <li>A. Røyset et al., "Optical interference coatings for coloured BIPV modules," Energy Build. 298, 113517 (2023).</li>
+  </ol>
+</section>
+
+<footer class="doc">
+  재현: <code>python3 physics/make_data.py</code> 로 데이터를 만들고 <code>node tests/tmm.test.mjs</code> 로 대조한다. 웹 계산은 <code>web/src/tmm.js</code>.
+</footer>
+</main>
+<script type="module" src="src/app.js"></script>
+</body>
+</html>
